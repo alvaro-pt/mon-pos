@@ -25,10 +25,6 @@
       <div class="topbar__actions row">
         <button class="topbar__btn" id="tbBell" type="button" aria-label="Notificações"></button>
         <button class="topbar__btn" id="tbMsg" type="button" aria-label="Mensagens"></button>
-        <div class="topbar__lang" role="group" aria-label="Idioma">
-          <button type="button" data-lang="pt">PT</button>
-          <button type="button" data-lang="en">EN</button>
-        </div>
         <button class="topbar__btn" id="tbTheme" type="button" aria-label="Aspeto"></button>
         <span class="topbar__user"><span class="topbar__avatar">AS</span> Ana Sousa</span>
         <button class="topbar__btn" id="tbLock" type="button" aria-label="Bloquear terminal"></button>
@@ -856,9 +852,6 @@
       $(x[0]).addEventListener("click", function () { POS.toast(x[1] + " · demo", { duration: 1400 }); });
     });
     $("#tbTheme").addEventListener("click", openAppearance);
-    function syncLang() { document.querySelectorAll(".topbar__lang button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.lang === POS.lang)); }); }
-    document.querySelectorAll(".topbar__lang button").forEach(function (b) { b.addEventListener("click", function () { POS.setLang(b.dataset.lang); }); });
-    POS.onLangChange(syncLang); syncLang();
 
     function renderCart() { renderDoc(); renderCustomer(); renderLines(); renderSummary(); }
     function renderAll() { applyStatic(); paintStaticIcons(); renderRail(); renderCatalog(); renderCart(); renderOps(); }
