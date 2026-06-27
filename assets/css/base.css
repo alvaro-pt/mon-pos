@@ -283,6 +283,26 @@ img,svg { display:block; }
 .osk--float .osk__grip { display:inline-grid; }
 .osk--float .osk__key { height:46px; font-size:var(--fs-md); }
 
+/* ---------- Drawer lateral ---------- */
+.drawer-backdrop {
+  position:fixed; inset:0; z-index:var(--z-modal);
+  background:rgba(8,12,20,.42); animation:fade var(--t-base) var(--ease);
+  display:flex; justify-content:flex-end;
+}
+.drawer-backdrop.is-clear { background:transparent; } /* ver a app mudar por trás (temas/layout) */
+.drawer-backdrop:has(.drawer--left) { justify-content:flex-start; }
+.drawer {
+  position:relative; width:min(440px, 94vw); height:100%; background:var(--surface);
+  box-shadow:var(--sh-pop); overflow-y:auto; animation:drawer-in var(--t-slow) var(--ease);
+}
+.drawer--left { animation:drawer-in-left var(--t-slow) var(--ease); }
+.drawer.is-leaving { animation:drawer-out var(--t-base) var(--ease) forwards; }
+.drawer--left.is-leaving { animation:drawer-out-left var(--t-base) var(--ease) forwards; }
+@keyframes drawer-in { from{ transform:translateX(100%); } to{ transform:none; } }
+@keyframes drawer-out { to{ transform:translateX(100%); } }
+@keyframes drawer-in-left { from{ transform:translateX(-100%); } to{ transform:none; } }
+@keyframes drawer-out-left { to{ transform:translateX(-100%); } }
+
 /* ---------- Utilitários ---------- */
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 .muted { color:var(--ink-500); }

@@ -41,6 +41,24 @@ window.POS = window.POS || {};
   };
   (function () { var t = POS.theme; if (t && t !== "normal") document.documentElement.setAttribute("data-theme", t); })();
 
+  /* ---------- Layout ---------- */
+  var layoutSubs = [];
+  POS.LAYOUTS = ["a", "b", "c"];
+  POS.layout = (function () { try { return sessionStorage.getItem("pos_layout") || "a"; } catch (e) { return "a"; } })();
+  POS.onLayoutChange = function (fn) { if (typeof fn === "function") layoutSubs.push(fn); };
+  function reducedMotion() { return window.matchMedia && window.matchMedia("(prefers-reduced-motion:reduce)").matches; }
+  POS.setLayout = function (l) {
+    if (POS.LAYOUTS.indexOf(l) < 0) l = "a";
+    var apply = function () { POS.layout = l; document.documentElement.setAttribute("data-layout", l); };
+    if (document.startViewTransition && !reducedMotion()) document.startViewTransition(apply); else apply();
+    try { sessionStorage.setItem("pos_layout", l); } catch (e) {}
+    layoutSubs.forEach(function (fn) { try { fn(l); } catch (e) {} });
+  };
+  (function () {
+    var l = POS.layout; if (l && l !== "a") document.documentElement.setAttribute("data-layout", l);
+    try { var w = sessionStorage.getItem("pos_ops_w"); if (w) document.documentElement.style.setProperty("--ops-w", w); } catch (e) {}
+  })();
+
   /* ---------- dev-nav (andaime de protótipo — só com ?dev=1) ---------- */
   var NAV = [
     { key: "sale",     href: "sale.html",            label: "nav.sale" },
@@ -177,6 +195,44 @@ window.POS = window.POS || {};
     return close;
   };
 
+  /* ---------- Drawer lateral (painéis: definições, listagens) ---------- */
+  POS.openDrawer = function (contentNode, opts) {
+    opts = opts || {};
+    var backdrop = document.createElement("div");
+    backdrop.className = "drawer-backdrop" + (opts.dimmed === false ? " is-clear" : "");
+    var drawer = document.createElement("div");
+    drawer.className = "drawer" + (opts.side === "left" ? " drawer--left" : "") + (opts.className ? " " + opts.className : "");
+    drawer.setAttribute("role", "dialog"); drawer.setAttribute("aria-modal", "true");
+    if (opts.label) drawer.setAttribute("aria-label", opts.label);
+    drawer.appendChild(contentNode);
+    backdrop.appendChild(drawer);
+
+    var bg = document.querySelector(".app") || document.querySelector("main");
+    if (bg && !document.querySelector(".drawer-backdrop,.modal-backdrop")) { bg.setAttribute("inert", ""); bg.setAttribute("aria-hidden", "true"); }
+    var lastFocus = document.activeElement;
+    function close() {
+      document.removeEventListener("keydown", onKey, true);
+      drawer.classList.add("is-leaving");
+      drawer.addEventListener("animationend", function () {
+        backdrop.remove();
+        if (bg && !document.querySelector(".drawer-backdrop,.modal-backdrop")) { bg.removeAttribute("inert"); bg.removeAttribute("aria-hidden"); }
+        if (lastFocus && lastFocus.isConnected && lastFocus.focus) lastFocus.focus();
+        if (opts.onClose) opts.onClose();
+      }, { once: true });
+    }
+    function onKey(e) { if (e.key === "Escape") { e.preventDefault(); close(); } if (e.key === "Tab") trapFocus(e, drawer); }
+    if (opts.noClose !== true) {
+      var xb = document.createElement("button");
+      xb.className = "modal__close"; xb.type = "button"; xb.setAttribute("aria-label", POS.s("act.close"));
+      xb.innerHTML = POS.icon("x", { size: 20 }); xb.addEventListener("click", close); drawer.appendChild(xb);
+    }
+    backdrop.addEventListener("mousedown", function (e) { if (e.target === backdrop && opts.dismissable === true) close(); });
+    document.addEventListener("keydown", onKey, true);
+    document.body.appendChild(backdrop);
+    var f = drawer.querySelector("[autofocus],input,select,textarea,button"); if (f) f.focus();
+    return close;
+  };
+
   /* ---------- Keypad numérico reutilizável ---------- */
   POS.keypad = function (o) {
     o = o || {};
@@ -241,7 +297,7 @@ window.POS = window.POS || {};
       host.setAttribute("aria-label", POS.s("osk.title"));
       var bar = '<div class="osk__bar" id="oskBar">' +
         '<span class="osk__grip" aria-hidden="true">' + POS.icon("grip", { size: 18 }) + "</span>" +
-        '<span class="osk__title">' + POS.s("osk.title") + "</span>" +
+        '<span class="osk__title"></span>' +
         '<button class="osk__tool" type="button" data-act="mode" aria-label="' + POS.s("osk.float") + '"></button>' +
         '<button class="osk__tool" type="button" data-act="close" aria-label="' + POS.s("osk.done") + '">' + POS.icon("x", { size: 18 }) + "</button>" +
       "</div>";

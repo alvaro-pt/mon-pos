@@ -92,7 +92,9 @@ assets/
 
 > **Tema visual: Grafite & Índigo.** Chrome escuro (topbar/rail) em grafite (`--shell-*`); acento de marca índigo-violeta (`--brand-*`). Verde **sóbrio** (`--pay-*`) reservado ao Pagar/sucesso — não usar como "positivo genérico". Destrutivos irreversíveis (cancelar/limpar venda, confirmar eliminação) a **vermelho sólido + texto branco** (`.btn--danger-solid`); ações que só abrem confirmação ou têm desfazer ficam subtis. Cor de família = **tinta suave** (`color-mix`), não saturada. Tokens em `base.css` — não mudar a paleta por hardcode.
 > **Modos/temas:** 4 temas via `:root[data-theme="dark|vivo|clean"]` em `base.css` (Normal = `:root` base). Trocar com `POS.setTheme()` (persiste `pos_theme`; snippet anti-flash no `<head>`). Tintas de família usam `--tint-base`/`--tint-ink` (não `white`) para não partir no dark. Controlos: botão Aspeto no topo + item Definições do rail (`openAppearance`). Idioma migrou da dev-nav para o topo; **dev-nav só com `?dev=1`**.
-> **Diálogos (regra POS):** modais **não fecham por toque fora** — `POS.openModal` injeta sempre um **X** no topo e fecha por X/Esc (toque acidental não pode perder trabalho). Backdrop só fecha se `dismissable:true` explícito.
+> **Layouts:** 3 esquemas via `:root[data-layout="a|b|c"]` + `grid-template-areas` no `.app` (A clássico, B talão à esquerda, C com coluna de **operações**). Trocar com `POS.setLayout()` (View Transitions p/ swipe; persiste `pos_layout`). Coluna de operações redimensionável (`--ops-w`, `pos_ops_w`). Mudar layout/tema **não** reescreve a lógica — só classes/atributos no root.
+> **Diálogos (regra POS):** **não fecham por toque fora.** `POS.openModal` (centrado) e `POS.openDrawer` (lateral) injetam sempre um **X** no topo e fecham por X/Esc; backdrop só fecha com `dismissable:true`. Padrão: confirmação/keypad → modal; **definições e listagens → drawer** (`dimmed:false` deixa ver a app mudar atrás).
+> **Animação:** ao adicionar artigo, um "ghost" voa para o talão (`flyToCart`, respeita `prefers-reduced-motion`).
 > **Iconografia:** **só SVG via `POS.icon()`** — nunca emojis na UI (denunciam um POS datado). Famílias têm `icon` (nome do set); produtos herdam o ícone da família. Teclados: `POS.keypad` (numérico, vírgula/Limpar/Retroceder) e `POS.osk` (QWERTY on-screen, ancorado ou flutuante arrastável).
 > **Navegação do catálogo:** por **família com breadcrumb** (Categorias › Família › Subfamília), estilo Moloni real. Raiz mostra tiles de família; famílias com subfamílias fazem drill-down; Favoritos é família fixa. Pesquisa (nome/ref/código) sobrepõe-se; código exato ou match único + Enter adiciona logo.
 
@@ -165,7 +167,18 @@ Não implementamos certificação real, mas o protótipo tem de **transmitir con
 
 ---
 
-## 8. O que NÃO fazer
+## 8. Migração futura para React (princípio permanente)
+
+O objetivo final é **migrar toda a lógica deste protótipo para um projeto React**. Constrói **sempre** com este princípio de base, para a migração ser o mais direta possível:
+
+- **Lógica separada da apresentação.** Mantém regras de negócio, cálculos e dados em módulos puros (`data.js`, `cart.js`, helpers de `ui.js`) desacoplados do DOM — migram quase copy-paste para `utils`/hooks/store. Evita enterrar lógica dentro de manipulação de DOM.
+- **Cada ecrã = componente isolado** com inputs/outputs claros. Pensa cada página como um componente com estado próprio e dependências explícitas (não globais escondidas).
+- **Estado partilhado bem identificado e centralizado.** Hoje vive em `sessionStorage` + pub/sub (`POS.onCartChange`/`onLangChange`/`onThemeChange`/`onLayoutChange`). Chaves: `pos_lang`, `pos_theme`, `pos_layout`, `pos_ops_w`, `pos_cart`, `pos_payment`, `pos_parked`, `pos_cash`. Em React → `useState`/`useContext`/store (Zustand/Redux); o pub/sub atual mapeia 1:1 para subscrição de store.
+- **Render reativo previsível.** O padrão `render()` + subscritores mapeia para re-render por estado em React. Mantém render idempotente a partir do estado (sem mutações dispersas de DOM).
+- **O que migra fácil:** CSS ~1:1 (→ CSS modules/styled/Tailwind, conforme o destino); lógica pura (copy-paste); HTML→JSX (`class`→`className`). **O que muda de paradigma:** estado (sessionStorage+render → hooks/store), navegação entre páginas (→ React Router), i18n (`POS.s`/`POS.t` → `react-i18next` com as mesmas chaves — por isso mantém as chaves limpas e estáveis).
+- **Stack de destino:** a confirmar (Next.js / Vite+React / CRA; estado; styling; i18n). Quando definido, orientar decisões aqui para minimizar atrito.
+
+## 9. O que NÃO fazer
 
 - **Não** introduzir frameworks/libs/bundlers — o valor é ser vanilla e standalone.
 - **Não** hardcode de texto visível fora do i18n, nem de preços/IVA fora de `data.js`.
