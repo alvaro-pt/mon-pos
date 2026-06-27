@@ -128,6 +128,7 @@ window.POS = window.POS || {};
     clear: function () { state.lines = []; emit(); },
 
     setCustomer: function (id) { state.customerId = id; emit(); },
+    setDocType: function (t) { state.docType = t; emit(); },
     customer: function () { return POS.customers.find(function (c) { return c.id === state.customerId; }) || POS.customers[0]; },
 
     /* ---- totais derivados (tax-inclusive) ---- */

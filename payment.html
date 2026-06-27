@@ -53,9 +53,9 @@
         <div class="big" id="grandTotal">—</div>
       </div>
       <div class="methods" id="methods">
-        <button class="method" type="button" data-m="cash" aria-pressed="true"><span class="ic">💶</span><span id="mCash">Dinheiro</span></button>
-        <button class="method" type="button" data-m="card" aria-pressed="false"><span class="ic">💳</span><span id="mCard">Cartão</span></button>
-        <button class="method" type="button" data-m="mbway" aria-pressed="false"><span class="ic">📲</span>MB WAY</button>
+        <button class="method" type="button" data-m="cash" aria-pressed="true"><span class="ic" data-icon="banknote"></span><span id="mCash">Dinheiro</span></button>
+        <button class="method" type="button" data-m="card" aria-pressed="false"><span class="ic" data-icon="card"></span><span id="mCard">Cartão</span></button>
+        <button class="method" type="button" data-m="mbway" aria-pressed="false"><span class="ic" data-icon="smartphone"></span>MB WAY</button>
       </div>
       <div class="cash show" id="cashBox">
         <div class="cash__row"><span id="lblReceived">Valor recebido</span><b class="num" id="received">0,00 €</b></div>
@@ -79,12 +79,14 @@
 
   <script src="assets/js/data.js"></script>
   <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/icons.js"></script>
   <script src="assets/js/cart.js"></script>
   <script src="assets/js/ui.js"></script>
   <script>
   (function () {
     "use strict";
     var $ = function (s) { return document.querySelector(s); };
+    document.querySelectorAll("[data-icon]").forEach(function (el) { el.innerHTML = POS.icon(el.getAttribute("data-icon"), { size: 32, stroke: 1.6 }); });
     var pt = POS.lang === "pt";
     var data; try { data = JSON.parse(sessionStorage.getItem("pos_payment") || "null"); } catch (e) {}
     if (!data) { window.location.href = "sale.html"; return; }

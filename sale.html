@@ -12,198 +12,362 @@
     <!-- Topbar -->
     <header class="topbar">
       <div class="topbar__logo" aria-hidden="true">m</div>
+      <span class="topbar__store">Mercearia Avenida</span>
       <div class="topbar__meta">
-        <span class="topbar__chip"><span data-s="header.store">Loja</span> <b>#1</b></span>
         <span class="topbar__chip"><span data-s="header.terminal">Terminal</span> <b>#1</b></span>
-        <span class="topbar__chip" id="topDate"></span>
+        <span class="topbar__chip is-date" id="topDate"></span>
       </div>
+      <nav class="topbar__tabs" aria-label="Modo">
+        <span class="topbar__tab" aria-current="page" data-s="header.mode.sales">Vendas</span>
+      </nav>
+      <span class="topbar__spacer"></span>
       <span class="topbar__clock" id="topClock">--:--</span>
-      <div class="topbar__actions">
-        <button class="topbar__btn" type="button" aria-label="Notificações">🔔</button>
-        <button class="topbar__btn" type="button" aria-label="Mensagens">💬</button>
+      <div class="topbar__actions row">
+        <button class="topbar__btn" id="tbBell" type="button" aria-label="Notificações"></button>
+        <button class="topbar__btn" id="tbMsg" type="button" aria-label="Mensagens"></button>
         <span class="topbar__user"><span class="topbar__avatar">AS</span> Ana Sousa</span>
-        <button class="topbar__btn" type="button" aria-label="Bloquear terminal">🔒</button>
+        <button class="topbar__btn" id="tbLock" type="button" aria-label="Bloquear terminal"></button>
       </div>
     </header>
 
     <!-- Rail -->
-    <nav class="rail" aria-label="Secções">
-      <a class="rail__item" href="sale.html" aria-current="page"><span class="ico" aria-hidden="true">🛒</span><span data-s="nav.sale">Venda</span></a>
-      <a class="rail__item" href="register-close.html"><span class="ico" aria-hidden="true">🧾</span><span data-s="nav.register">Caixa</span></a>
-      <a class="rail__item" href="docs.html"><span class="ico" aria-hidden="true">📄</span><span data-s="nav.docs">Docs</span></a>
-      <a class="rail__item" href="tables.html"><span class="ico" aria-hidden="true">🍽️</span><span data-s="nav.tables">Mesas</span></a>
-      <span class="rail__spacer"></span>
-      <a class="rail__item" href="#" id="railSettings"><span class="ico" aria-hidden="true">⚙️</span><span data-s="nav.settings">Definições</span></a>
-    </nav>
+    <nav class="rail" aria-label="Secções" id="rail"></nav>
 
     <!-- Catálogo -->
     <section class="catalog" aria-label="Catálogo">
-      <div class="search" id="searchWrap">
-        <span class="search__icon" aria-hidden="true">🔍</span>
-        <input id="search" type="search" autocomplete="off" aria-label="Procurar produto" />
-        <button class="search__clear" id="searchClear" type="button" aria-label="Limpar pesquisa">✕</button>
+      <h1 class="sr-only">Venda — Terminal 1</h1>
+      <div class="search-row">
+        <div class="search" id="searchWrap">
+          <span class="search__icon" id="searchIcon" aria-hidden="true"></span>
+          <input id="search" type="search" autocomplete="off" aria-label="Procurar produto" />
+          <button class="search__clear" id="searchClear" type="button" aria-label="Limpar pesquisa"></button>
+        </div>
+        <button class="kbd-toggle" id="kbdToggle" type="button" aria-pressed="false" aria-label="Teclado no ecrã"></button>
       </div>
-      <div class="cats" id="cats" role="tablist" aria-label="Categorias"></div>
-      <div class="grid-scroll">
-        <div class="grid" id="grid"></div>
-      </div>
+      <nav class="crumb" id="crumb" aria-label="Navegação de categorias"></nav>
+      <div class="grid-scroll"><div class="grid" id="grid"></div></div>
     </section>
 
     <!-- Talão -->
     <aside class="cart" aria-label="Venda atual">
       <div class="cart__head">
-        <div class="cart__actions">
-          <button class="btn btn--sm" id="btnPark" type="button">⏸︎ <span data-s="cart.park">Suspender</span></button>
-          <button class="btn btn--sm" id="btnRetrieve" type="button">↺ <span data-s="cart.retrieve">Recuperar</span></button>
-          <button class="btn btn--sm btn--icon" id="btnMore" type="button" aria-label="Mais ações">⋯</button>
-        </div>
-        <div class="cart__meta">
-          <span class="cart__doc"><span class="doc-tag" data-s="">Talão</span> <b id="saleNo">#1</b></span>
-          <span class="cart__doc"><span data-s="cart.soldBy">Operador</span>: <b>Ana S.</b></span>
+        <div class="cart__toprow">
+          <button class="btn-soft" id="btnCustomer2" type="button"></button>
+          <div class="docsel" id="docsel">
+            <button class="docsel__btn" id="docBtn" type="button" aria-haspopup="true" aria-expanded="false"></button>
+          </div>
         </div>
         <button class="customer" id="btnCustomer" type="button">
-          <span class="customer__ava" aria-hidden="true">👤</span>
-          <span class="customer__txt"><b id="custName">Consumidor Final</b><span id="custSub" data-s="cart.customer">Cliente</span></span>
-          <span class="customer__chev" aria-hidden="true">›</span>
+          <span class="customer__ava" id="custAva" aria-hidden="true"></span>
+          <span class="customer__txt"><b id="custName">Consumidor Final</b><span id="custSub">Cliente</span></span>
+          <span class="customer__chev" id="custChev" aria-hidden="true"></span>
         </button>
+        <div class="cart__meta">
+          <span class="cart__doc" id="docMeta"></span>
+          <span class="cart__doc"><span data-s="cart.soldBy">Operador</span>: <b>Ana S.</b></span>
+        </div>
       </div>
 
       <div class="lines" id="lines"></div>
-
       <div class="summary" id="summary"></div>
     </aside>
   </main>
 
   <script src="assets/js/data.js"></script>
   <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/icons.js"></script>
   <script src="assets/js/cart.js"></script>
   <script src="assets/js/ui.js"></script>
   <script>
   (function () {
     "use strict";
     var $ = function (s, r) { return (r || document).querySelector(s); };
-    var cart = POS.cart;
-    var activeCat = "favorites";
+    var ic = POS.icon, cart = POS.cart;
+
+    // estado de navegação do catálogo
+    var nav = { cat: null, sub: null };   // null/null = raiz (famílias)
     var query = "";
+    var selectedLine = null;              // linha selecionada p/ desconto
 
-    /* ---------- Topbar relógio ---------- */
+    var DOC_TYPES = ["doc.simplified", "doc.receipt", "doc.invoiceReceipt"];
+    var DOC_PREFIX = { "doc.simplified": "FS", "doc.receipt": "TL", "doc.invoiceReceipt": "FR" };
+
+    /* ---------- Relógio + data ---------- */
     function tick() {
-      var d = new Date();
-      $("#topClock").textContent = d.toLocaleTimeString(POS.lang === "pt" ? "pt-PT" : "en-IE", { hour: "2-digit", minute: "2-digit" });
-      $("#topDate").innerHTML = d.toLocaleDateString(POS.lang === "pt" ? "pt-PT" : "en-IE", { day: "2-digit", month: "short", year: "numeric" });
+      var d = new Date(), loc = POS.lang === "pt" ? "pt-PT" : "en-IE";
+      $("#topClock").textContent = d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" });
+      $("#topDate").textContent = d.toLocaleDateString(loc, { day: "2-digit", month: "short", year: "numeric" });
     }
-    tick(); setInterval(tick, 1000 * 30);
 
-    /* ---------- i18n estático (data-s) ---------- */
+    /* ---------- Ícones estáticos ---------- */
+    function paintStaticIcons() {
+      $("#searchIcon").innerHTML = ic("search", { size: 20 });
+      $("#searchClear").innerHTML = ic("x", { size: 18 });
+      $("#kbdToggle").innerHTML = ic("keyboard", { size: 22 });
+      $("#tbBell").innerHTML = ic("bell", { size: 20 });
+      $("#tbMsg").innerHTML = ic("message", { size: 20 });
+      $("#tbLock").innerHTML = ic("lock", { size: 18 });
+      $("#custAva").innerHTML = ic("user", { size: 18 });
+      $("#custChev").innerHTML = ic("chevron-right", { size: 18 });
+    }
+
     function applyStatic() {
       document.querySelectorAll("[data-s]").forEach(function (el) {
         var k = el.getAttribute("data-s"); if (k) el.textContent = POS.s(k);
       });
       $("#search").placeholder = POS.s("cat.search");
-      // doc-tag (Talão/Receipt) — string simples
-      $(".doc-tag").textContent = POS.lang === "pt" ? "Talão" : "Receipt";
     }
 
-    /* ---------- Categorias ---------- */
-    function renderCats() {
-      var host = $("#cats"); host.innerHTML = "";
-      POS.categories.forEach(function (c) {
-        var b = document.createElement("button");
-        b.className = "chip"; b.type = "button"; b.setAttribute("role", "tab");
-        b.setAttribute("aria-pressed", String(c.id === activeCat));
-        b.style.setProperty("--chip-color", c.color);
-        b.innerHTML = (c.id === "favorites" ? "★ " : '<span class="dot"></span>') +
-          '<span>' + POS.t(c.name) + "</span>";
-        b.addEventListener("click", function () { activeCat = c.id; query = ""; $("#search").value = ""; $("#searchWrap").classList.remove("has-value"); renderCats(); renderGrid(); });
-        host.appendChild(b);
+    /* ---------- Rail ---------- */
+    var RAIL = [
+      { key: "sale", href: "sale.html", icon: "cart", label: "nav.sale", active: true },
+      { key: "register", href: "register-close.html", icon: "register", label: "nav.register" },
+      { key: "docs", href: "docs.html", icon: "file", label: "nav.docs" },
+      { key: "tables", href: "tables.html", icon: "utensils", label: "nav.tables" },
+    ];
+    function renderRail() {
+      var r = $("#rail"); r.innerHTML = "";
+      RAIL.forEach(function (it) {
+        var a = document.createElement("a");
+        a.className = "rail__item"; a.href = it.href;
+        if (it.active) a.setAttribute("aria-current", "page");
+        a.innerHTML = ic(it.icon, { size: 24 }) + "<span>" + POS.s(it.label) + "</span>";
+        r.appendChild(a);
       });
+      var sp = document.createElement("span"); sp.className = "rail__spacer"; r.appendChild(sp);
+      var set = document.createElement("a");
+      set.className = "rail__item"; set.href = "#";
+      set.innerHTML = ic("settings", { size: 24 }) + "<span>" + POS.s("nav.settings") + "</span>";
+      set.addEventListener("click", function (e) { e.preventDefault(); POS.toast(POS.s("nav.settings") + " · demo", { duration: 1500 }); });
+      r.appendChild(set);
     }
 
-    /* ---------- Grelha ---------- */
-    function visibleProducts() {
+    /* ---------- Breadcrumb ---------- */
+    function renderCrumb() {
+      var c = $("#crumb"); c.innerHTML = "";
       if (query) {
-        var q = query.toLowerCase();
-        return POS.products.filter(function (p) {
-          return POS.t(p.name).toLowerCase().indexOf(q) >= 0 || (p.barcode || "").indexOf(q) >= 0;
-        });
-      }
-      return POS.productsByCategory(activeCat);
-    }
-    function renderGrid() {
-      var grid = $("#grid"); var list = visibleProducts();
-      if (!list.length) {
-        grid.innerHTML = '<div class="empty"><span class="emoji">🔎</span><h3>' + POS.s("cat.empty.title") + "</h3><p>" + POS.s("cat.empty.body") + "</p></div>";
+        c.innerHTML = '<span class="crumb__here">' + POS.s("cat.products") +
+          ' <span class="crumb__count">· "' + query + '"</span></span>';
         return;
       }
-      grid.innerHTML = "";
-      list.forEach(function (p) {
-        var cat = POS.getCategory(p.cat);
-        var inCart = cart.lines.filter(function (l) { return l.productId === p.id; })
-                        .reduce(function (n, l) { return n + (l.weighable ? 1 : l.qty); }, 0);
-        var btn = document.createElement("button");
-        btn.className = "tile"; btn.type = "button";
-        btn.style.setProperty("--tile-color", (cat && cat.color) || "#888");
-        btn.innerHTML =
-          '<div class="tile__media">' + (p.emoji || "📦") +
-            (inCart ? '<span class="tile__badge">' + inCart + "</span>" : "") +
-          "</div>" +
-          '<div class="tile__body">' +
-            '<span class="tile__name">' + POS.t(p.name) + "</span>" +
-            '<span class="tile__price">' + POS.money(p.priceCents) +
-              (p.weighable ? ' <small>' + POS.s("cat.weighable") + "</small>" : "") +
-            "</span>" +
-          "</div>";
-        btn.addEventListener("click", function () { addProduct(p, btn); });
-        grid.appendChild(btn);
+      var root = document.createElement("button");
+      root.className = "crumb__btn"; root.type = "button";
+      root.innerHTML = ic("folder", { size: 18 }) + "<span>" + POS.s("cat.categories") + "</span>";
+      root.addEventListener("click", function () { goRoot(); });
+
+      if (!nav.cat) { // raiz
+        c.appendChild(asHere(POS.s("cat.categories")));
+        return;
+      }
+      c.appendChild(root);
+      c.appendChild(sep());
+      var catObj = POS.getCategory(nav.cat);
+      if (!nav.sub) {
+        c.appendChild(asHere(POS.t(catObj.name)));
+      } else {
+        var fb = document.createElement("button");
+        fb.className = "crumb__btn"; fb.type = "button"; fb.textContent = POS.t(catObj.name);
+        fb.addEventListener("click", function () { nav = { cat: catObj.id, sub: null }; renderCatalog(); });
+        c.appendChild(fb);
+        c.appendChild(sep());
+        c.appendChild(asHere(POS.t(POS.getSubcategory(nav.sub).name)));
+      }
+      function asHere(txt) { var s = document.createElement("span"); s.className = "crumb__here"; s.textContent = txt; return s; }
+      function sep() { var s = document.createElement("span"); s.className = "crumb__sep"; s.innerHTML = ic("chevron-right", { size: 16 }); return s; }
+    }
+
+    function goRoot() { nav = { cat: null, sub: null }; query = ""; $("#search").value = ""; $("#searchWrap").classList.remove("has-value"); renderCatalog(); }
+
+    /* ---------- Grelha ---------- */
+    function renderCatalog() { renderCrumb(); renderGrid(); }
+
+    function renderGrid() {
+      var grid = $("#grid"); grid.innerHTML = ""; grid.className = "grid";
+
+      if (query) { return renderProducts(searchProducts()); }
+      if (!nav.cat) {  // raiz: famílias
+        POS.categories.forEach(function (cat) { grid.appendChild(familyTile(cat)); });
+        return;
+      }
+      if (nav.cat === "favorites") return renderProducts(POS.productsByCategory("favorites"));
+      if (POS.hasSub(nav.cat) && !nav.sub) {  // subfamílias
+        POS.getSubcategories(nav.cat).forEach(function (sub) { grid.appendChild(familyTile(sub, true)); });
+        return;
+      }
+      renderProducts(nav.sub ? POS.productsBySubcategory(nav.sub) : POS.productsByCategory(nav.cat));
+    }
+
+    function renderProducts(list) {
+      var grid = $("#grid");
+      if (!list.length) {
+        grid.innerHTML = '<div class="empty">' + ic("search", { size: 44, stroke: 1.5 }) +
+          "<h3>" + POS.s("cat.empty.title") + "</h3><p>" + POS.s("cat.empty.body") + "</p></div>";
+        return;
+      }
+      list.forEach(function (p) { grid.appendChild(productTile(p)); });
+    }
+
+    function familyTile(catOrSub, isSub) {
+      var count = isSub ? POS.productsBySubcategory(catOrSub.id).length : POS.productsByCategory(catOrSub.id).length;
+      var btn = document.createElement("button");
+      btn.className = "ftile"; btn.type = "button";
+      btn.style.setProperty("--fam-color", catOrSub.color || "var(--brand-600)");
+      btn.innerHTML =
+        '<span class="ftile__disc">' + ic(catOrSub.icon || "folder", { size: 26 }) + "</span>" +
+        '<span class="ftile__name">' + POS.t(catOrSub.name) + "</span>" +
+        '<span class="ftile__count">' + count + " " + POS.s(count === 1 ? "tot.item" : "tot.items") + "</span>";
+      btn.addEventListener("click", function () {
+        if (isSub) nav = { cat: nav.cat, sub: catOrSub.id };
+        else nav = { cat: catOrSub.id, sub: null };
+        renderCatalog();
+      });
+      return btn;
+    }
+
+    function productTile(p) {
+      var cat = POS.getCategory(p.cat);
+      var color = (cat && cat.color) || "#888";
+      var inCart = cart.lines.filter(function (l) { return l.productId === p.id; })
+        .reduce(function (n, l) { return n + (l.weighable ? 1 : l.qty); }, 0);
+      var out = p.stock <= 0;
+      var btn = document.createElement("button");
+      btn.className = "tile" + (out ? " is-out" : ""); btn.type = "button";
+      btn.style.setProperty("--tile-color", color);
+      btn.setAttribute("aria-label", POS.s("pd.add") + ": " + POS.t(p.name) + ", " + POS.money(p.priceCents) +
+        (inCart ? " (" + inCart + ")" : ""));
+      btn.innerHTML =
+        '<div class="tile__media">' + ic(p.icon || (cat && cat.icon) || "tag", { size: 40, stroke: 1.6 }) +
+          (inCart ? '<span class="tile__badge" aria-hidden="true">' + inCart + "</span>" : "") +
+          (out ? '<span class="tile__out">' + POS.s("pd.outStock") + "</span>" : "") +
+          '<span class="tile__info" role="button" tabindex="0" aria-label="' + POS.s("cat.details") + '">' + ic("info", { size: 18 }) + "</span>" +
+        "</div>" +
+        '<div class="tile__body"><span class="tile__name">' + POS.t(p.name) + "</span>" +
+          '<span class="tile__price">' + POS.money(p.priceCents) + (p.weighable ? ' <small>' + POS.s("cat.weighable") + "</small>" : "") + "</span>" +
+        "</div>";
+      var info = btn.querySelector(".tile__info");
+      info.addEventListener("click", function (e) { e.stopPropagation(); openDetails(p); });
+      info.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); openDetails(p); } });
+      btn.addEventListener("click", function () { addProduct(p, btn); });
+      return btn;
+    }
+
+    function searchProducts() {
+      var q = query.toLowerCase();
+      return POS.products.filter(function (p) {
+        return POS.t(p.name).toLowerCase().indexOf(q) >= 0 ||
+          (p.barcode || "").indexOf(q) >= 0 || (p.ref || "").toLowerCase().indexOf(q) >= 0;
       });
     }
 
     function addProduct(p, tileEl) {
+      if (p.stock <= 0) { POS.toast(POS.s("pd.outStock"), { variant: "danger", duration: 1600 }); return; }
       if (p.weighable) { openWeight(p); return; }
-      cart.add(p.id);
-      if (tileEl) { tileEl.animate([{ transform: "scale(.94)" }, { transform: "scale(1)" }], { duration: 160, easing: "cubic-bezier(.2,.7,.3,1)" }); }
+      var key = cart.add(p.id); selectedLine = key;
+      if (tileEl && tileEl.animate) tileEl.animate([{ transform: "scale(.94)" }, { transform: "scale(1)" }], { duration: 160, easing: "cubic-bezier(.2,.7,.3,1)" });
+    }
+
+    /* ---------- Dialog de detalhes ---------- */
+    function openDetails(p) {
+      var cat = POS.getCategory(p.cat), tax = POS.getTax(p.tax);
+      var color = (cat && cat.color) || "#888";
+      var net = Math.round(p.priceCents / (1 + tax.rate / 100));
+      var stockTag = p.stock <= 0 ? '<span class="pd__tag out">' + POS.s("pd.outStock") + "</span>"
+        : p.stock <= 5 ? '<span class="pd__tag low">' + POS.s("pd.lowStock") + " · " + p.stock + "</span>"
+        : '<span class="pd__tag ok">' + p.stock + " " + POS.s("pd.inStock") + "</span>";
+
+      var variantsHtml = "";
+      if (p.variants && p.variants.length) {
+        variantsHtml = '<div class="pd__sec"><h4>' + POS.s("pd.variants") + "</h4>" +
+          p.variants.map(function (v) {
+            return '<div style="margin-bottom:8px"><div class="muted" style="font-size:var(--fs-xs);margin-bottom:4px">' + POS.t(v.name) + "</div>" +
+              '<div class="varopts">' + v.options.map(function (o, i) {
+                return '<button class="varopt" type="button" aria-pressed="' + (i === 0) + '">' + o + "</button>";
+              }).join("") + "</div></div>";
+          }).join("") + "</div>";
+      }
+
+      var wrap = document.createElement("div"); wrap.className = "pd";
+      wrap.style.setProperty("--tile-color", color);
+      wrap.innerHTML =
+        '<div class="pd__hero"><div class="pd__media">' + ic(p.icon || (cat && cat.icon) || "tag", { size: 56, stroke: 1.5 }) + "</div>" +
+          '<div class="pd__head"><div class="pd__name">' + POS.t(p.name) + "</div>" +
+            '<div class="pd__ref">' + POS.s("pd.ref") + ": " + p.ref + "</div>" +
+            '<div class="pd__price">' + POS.money(p.priceCents) + (p.weighable ? " <small>" + POS.s("cat.weighable") + "</small>" : "") + "</div>" +
+            '<div class="pd__tags">' + stockTag + '<span class="pd__tag">' + tax.label[POS.lang] + "</span>" +
+              '<span class="pd__tag">' + POS.t(cat.name) + "</span></div>" +
+          "</div></div>" +
+        '<div class="pd__body">' +
+          '<div class="pd__sec"><h4>' + POS.s("pd.desc") + "</h4><p>" + POS.t(p.desc) + "</p></div>" +
+          '<div class="pd__grid">' +
+            '<div class="pd__cell"><div class="k">' + POS.s("pd.priceNoVat") + '</div><div class="v">' + POS.money(net) + "</div></div>" +
+            '<div class="pd__cell"><div class="k">' + POS.s("pd.stock") + '</div><div class="v">' + p.stock + "</div></div>" +
+          "</div>" + variantsHtml +
+        "</div>" +
+        '<div class="pd__foot"><button class="btn" data-k="close">' + POS.s("act.cancel") + "</button>" +
+          '<button class="btn btn--primary" data-k="add"' + (p.stock <= 0 ? " disabled" : "") + ">" + ic("plus", { size: 18 }) + " " + POS.s("pd.add") + "</button></div>";
+
+      wrap.querySelectorAll(".varopt").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var sibs = b.parentElement.querySelectorAll(".varopt");
+          sibs.forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+        });
+      });
+      var close = POS.openModal(wrap, { label: POS.t(p.name) });
+      wrap.querySelector('[data-k="close"]').addEventListener("click", close);
+      wrap.querySelector('[data-k="add"]').addEventListener("click", function () { close(); addProduct(p); });
     }
 
     /* ---------- Talão ---------- */
+    function renderDoc() {
+      var t = cart.state.docType || "receipt";
+      var key = "doc." + (t === "simplified" ? "simplified" : t === "invoiceReceipt" ? "invoiceReceipt" : "receipt");
+      $("#docBtn").innerHTML = "<span>" + POS.s(key) + "</span>" + ic("chevron-down", { size: 18 });
+      $("#btnCustomer2").innerHTML = ic("users", { size: 18 }) + "<span>" + POS.s("act.searchClients") + "</span>";
+      var prefix = DOC_PREFIX[key] || "TL";
+      $("#docMeta").innerHTML = ic("check-circle", { size: 16 }) + " <b>" + prefix + " " + cart.state.saleNo + "</b>";
+    }
+
+    function renderCustomer() {
+      var c = cart.customer();
+      $("#custName").textContent = POS.t(c.name);
+      $("#custSub").textContent = c.nif ? ("NIF " + c.nif) : POS.s("cart.customer");
+    }
+
     function renderLines() {
       var host = $("#lines");
       if (!cart.lines.length) {
-        host.innerHTML =
-          '<div class="cart__empty"><span class="emoji">🧾</span><h3>' + POS.s("cart.empty.title") +
-          "</h3><p>" + POS.s("cart.empty.body") + "</p></div>";
+        host.innerHTML = '<div class="cart__empty">' + ic("inbox", { size: 52, stroke: 1.3 }) +
+          "<h3>" + POS.s("cart.empty.title") + "</h3><p>" + POS.s("cart.empty.body") + "</p></div>";
         return;
       }
-      host.innerHTML = "";
+      host.innerHTML = '<div class="lines__head"><span>' + POS.s("cat.products") +
+        '</span><span>' + POS.s("tot.total") + "</span></div>";
       cart.lines.forEach(function (l) {
         var p = POS.getProduct(l.productId);
         var gross = cart.lineGross(l), tot = cart.lineTotal(l), disc = cart.lineDiscount(l);
         var qtyLabel = l.weighable ? POS.weight(l.qty) : l.qty;
         var row = document.createElement("div"); row.className = "line";
-
-        var stepper = '<div class="stepper">' +
-          '<button type="button" aria-label="−" data-act="dec">−</button>' +
-          '<button type="button" class="qty" data-act="edit" aria-label="' + POS.s("cart.qty") + '">' + qtyLabel + "</button>" +
-          '<button type="button" aria-label="+" data-act="inc">+</button>' +
-        "</div>";
-
-        var info = '<div class="line__info">' +
-          '<div class="line__name">' + POS.t(p.name) + "</div>" +
-          '<div class="line__sub">' +
-            "<small>" + POS.money(l.unitPriceCents) + (l.weighable ? "/kg" : "") + " · " + POS.getTax(p.tax).rate + "%</small>" +
-            (disc ? '<span class="disc-badge">−' + (l.discount.type === "pct" ? l.discount.value + "%" : POS.money(disc)) + "</span>" : "") +
+        row.innerHTML =
+          '<div class="stepper">' +
+            '<button type="button" data-act="dec" aria-label="−">' + ic("minus", { size: 18 }) + "</button>" +
+            '<button type="button" class="qty" data-act="edit" aria-label="' + POS.s("cart.qty") + '">' + qtyLabel + "</button>" +
+            '<button type="button" data-act="inc" aria-label="+">' + ic("plus", { size: 18 }) + "</button>" +
           "</div>" +
-        "</div>";
-
-        var right = '<div class="line__right">' +
-          '<span class="line__price">' + POS.money(tot) + "</span>" +
-          (disc ? '<span class="line__was">' + POS.money(gross) + "</span>" : "") +
-          '<button class="line__del" type="button" aria-label="' + POS.s("cart.remove") + '" data-act="del">🗑</button>' +
-        "</div>";
-
-        row.innerHTML = stepper + info + right;
+          '<button class="line__info" data-act="menu" style="background:none;text-align:left">' +
+            '<span class="line__name">' + POS.t(p.name) + "</span>" +
+            '<span class="line__sub"><small>' + POS.money(l.unitPriceCents) + (l.weighable ? "/kg" : "") + " · " + POS.getTax(p.tax).rate + "%</small>" +
+              (disc ? '<span class="disc-badge">−' + (l.discount.type === "pct" ? l.discount.value + "%" : POS.money(disc)) + "</span>" : "") +
+            "</span>" +
+          "</button>" +
+          '<div class="line__right"><div class="line__amt">' +
+            '<span class="line__price">' + POS.money(tot) + "</span>" +
+            (disc ? '<span class="line__was">' + POS.money(gross) + "</span>" : "") +
+          "</div>" +
+          '<button class="line__del" type="button" data-act="del" aria-label="' + POS.s("cart.remove") + '">' + ic("trash", { size: 18 }) + "</button></div>";
         row.querySelector('[data-act="dec"]').addEventListener("click", function () { cart.changeQty(l.key, -1); });
         row.querySelector('[data-act="inc"]').addEventListener("click", function () { cart.changeQty(l.key, +1); });
         row.querySelector('[data-act="edit"]').addEventListener("click", function () { openQty(l); });
+        row.querySelector('[data-act="menu"]').addEventListener("click", function () { selectedLine = l.key; openLineMenu(l); });
         row.querySelector('[data-act="del"]').addEventListener("click", function () { removeLine(l); });
         host.appendChild(row);
       });
@@ -211,84 +375,111 @@
 
     function removeLine(l) {
       var snap = cart.remove(l.key);
-      POS.toast(POS.s("cart.removed"), {
-        variant: "danger",
-        action: { label: POS.s("cart.undo"), onClick: function () { cart.restore(snap); } },
-      });
+      POS.toast(POS.s("cart.removed"), { variant: "danger", action: { label: POS.s("cart.undo"), onClick: function () { cart.restore(snap); } } });
     }
 
     function renderSummary() {
-      var t = cart.totals(); var host = $("#summary");
+      var t = cart.totals(), host = $("#summary");
       var itemsWord = t.itemCount === 1 ? POS.s("tot.item") : POS.s("tot.items");
-      var rows = "";
-      if (t.discountCents > 0) rows += row(POS.s("tot.discount"), "−" + POS.money(t.discountCents), "summary__disc");
-      t.taxBreakdown.forEach(function (g) { rows += row(POS.s("tot.tax") + " " + g.rate + "%", POS.money(g.tax)); });
-      rows += row(POS.s("tot.subtotal"), POS.money(t.subtotalCents));
+      var taxRows = "";
+      t.taxBreakdown.forEach(function (g) { taxRows += sumRow(POS.s("tot.tax") + " " + g.rate + "%", POS.money(g.tax)); });
+      taxRows += sumRow(POS.s("tot.subtotal"), POS.money(t.subtotalCents));
 
       host.innerHTML =
-        '<button class="btn btn--ghost btn--sm" id="btnDisc" type="button" style="padding-left:0;color:var(--brand-700);font-weight:700">＋ ' + POS.s("act.addDisc") + "</button>" +
-        rows +
-        '<div class="summary__total"><span class="lbl">' + POS.s("tot.total") + '</span><span class="amount">' + POS.money(t.totalCents) + "</span></div>" +
+        '<div class="summary__rows">' +
+          (t.discountCents > 0 ? sumRow(POS.s("tot.discount"), "−" + POS.money(t.discountCents), "summary__disc") : "") +
+          (t.itemCount ? '<button class="summary__toggle" id="taxToggle" type="button">' + ic("chevron-down", { size: 16 }) + " " + POS.s("tot.tax") + " " + POS.s("pd.priceVat").toLowerCase() + "</button>" +
+            '<div class="summary__taxes">' + taxRows + "</div>" : "") +
+        "</div>" +
+        '<div class="summary__total"><span class="lbl">' + POS.s("cart.totalDue") + '</span><span class="amount">' + POS.money(t.totalCents) + "</span></div>" +
+        '<div class="actbar">' +
+          '<button class="btn btn--sm btn--icon" id="btnMore" type="button" aria-label="' + POS.s("cart.more") + '">' + ic("more", { size: 20 }) + "</button>" +
+          '<button class="btn btn--sm btn--danger" id="btnCancel" type="button"' + (t.itemCount ? "" : " disabled") + ">" + POS.s("act.cancel") + "</button>" +
+          '<button class="btn btn--sm" id="btnSuspend" type="button"' + (t.itemCount ? "" : " disabled") + ">" + ic("pause", { size: 16 }) + " " + POS.s("act.suspend") + "</button>" +
+        "</div>" +
         '<button class="pay" id="btnPay" type="button"' + (t.itemCount ? "" : " disabled") + ">" +
-          '<span class="pay__left">' + POS.s("act.pay") +
-            ' <span class="pay__count">' + t.itemCount + " " + itemsWord + "</span></span>" +
-          '<span class="pay__amount">' + POS.money(t.totalCents) + "</span>" +
-        "</button>";
+          '<span class="pay__left">' + POS.s("act.pay") + ' <span class="pay__count">' + t.itemCount + " " + itemsWord + "</span></span>" +
+          '<span class="pay__amount">' + POS.money(t.totalCents) + "</span></button>";
 
-      $("#btnDisc").addEventListener("click", openGlobalDiscountHint);
+      if (t.itemCount) {
+        var tg = $("#taxToggle");
+        tg.addEventListener("click", function () { host.classList.toggle("show-tax"); });
+        $("#btnCancel").addEventListener("click", confirmClear);
+        $("#btnSuspend").addEventListener("click", function () { POS.toast(POS.s("act.parkedSales") + " · demo", { duration: 1600 }); });
+      }
+      $("#btnMore").addEventListener("click", openMoreMenu);
       $("#btnPay").addEventListener("click", pay);
     }
-    function row(label, val, cls) {
-      return '<div class="summary__row"><span>' + label + '</span><span class="val ' + (cls || "") + '">' + val + "</span></div>";
+    function sumRow(l, v, cls) { return '<div class="summary__row"><span>' + l + '</span><span class="val ' + (cls || "") + '">' + v + "</span></div>"; }
+
+    /* ---------- Menus / modais ---------- */
+    function openMoreMenu() {
+      var items = [
+        { icon: "rotate-ccw", label: "act.parkedSales" },
+        { icon: "register", label: "act.movements" },
+        { icon: "file", label: "act.documents" },
+        { icon: "percent", label: "act.addDisc", action: function () { if (cart.lines.length) openDiscount(selectedLine || cart.lines[cart.lines.length - 1].key); else POS.toast(POS.s("cart.empty.title"), { duration: 1400 }); } },
+        { icon: "trash", label: "cart.clear", danger: true, action: confirmClear },
+      ];
+      var wrap = document.createElement("div"); wrap.className = "menu";
+      items.forEach(function (it) {
+        var b = document.createElement("button"); b.type = "button";
+        b.className = "menu__item" + (it.danger ? " danger" : "");
+        b.innerHTML = ic(it.icon, { size: 20 }) + "<span>" + POS.s(it.label) + "</span>";
+        b.addEventListener("click", function () { close(); if (it.action) it.action(); else POS.toast(POS.s(it.label) + " · demo", { duration: 1500 }); });
+        wrap.appendChild(b);
+      });
+      var close = POS.openModal(wrap, { label: POS.s("cart.more") });
     }
 
-    /* ---------- Cliente ---------- */
-    function renderCustomer() {
-      var c = cart.customer();
-      $("#custName").textContent = POS.t(c.name);
-      $("#custSub").textContent = c.nif ? ("NIF " + c.nif) : POS.s("cart.customer");
+    function openLineMenu(l) {
+      var p = POS.getProduct(l.productId);
+      var wrap = document.createElement("div"); wrap.className = "menu";
+      wrap.innerHTML =
+        '<button class="menu__item" data-a="disc">' + ic("percent", { size: 20 }) + "<span>" + POS.s("cart.discountLine") + "</span></button>" +
+        '<button class="menu__item" data-a="qty">' + ic("tag", { size: 20 }) + "<span>" + POS.s("kp.qtyFor") + "</span></button>" +
+        '<button class="menu__item" data-a="info">' + ic("info", { size: 20 }) + "<span>" + POS.s("cat.details") + "</span></button>" +
+        '<button class="menu__item danger" data-a="del">' + ic("trash", { size: 20 }) + "<span>" + POS.s("cart.remove") + "</span></button>";
+      var close = POS.openModal(wrap, { label: POS.t(p.name) });
+      wrap.querySelector('[data-a="disc"]').addEventListener("click", function () { close(); openDiscount(l.key); });
+      wrap.querySelector('[data-a="qty"]').addEventListener("click", function () { close(); openQty(l); });
+      wrap.querySelector('[data-a="info"]').addEventListener("click", function () { close(); openDetails(p); });
+      wrap.querySelector('[data-a="del"]').addEventListener("click", function () { close(); removeLine(l); });
     }
 
-    /* ---------- Modais: keypad de quantidade/peso ---------- */
+    function confirmClear() {
+      if (!cart.lines.length) return;
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      wrap.innerHTML = "<h3>" + POS.s("cart.clearConfirm") + "</h3><div class='sheet__sub'>" + POS.s("cart.clearBody") + "</div>" +
+        '<div class="sheet__foot"><button class="btn" data-k="no">' + POS.s("act.cancel") + "</button>" +
+        '<button class="btn btn--danger" data-k="yes">' + POS.s("cart.clear") + "</button></div>";
+      var close = POS.openModal(wrap, { label: POS.s("cart.clearConfirm") });
+      wrap.querySelector('[data-k="no"]').addEventListener("click", close);
+      wrap.querySelector('[data-k="yes"]').addEventListener("click", function () { close(); cart.clear(); POS.toast(POS.s("cart.cleared"), { variant: "danger" }); });
+    }
+
+    /* keypad genérico */
     function openQty(l) {
       var p = POS.getProduct(l.productId);
-      keypad({
-        title: POS.t(p.name),
-        sub: l.weighable ? POS.s("kp.weightFor") : POS.s("kp.qtyFor"),
-        decimal: l.weighable,
-        initial: l.weighable ? l.qty : l.qty,
-        onConfirm: function (val) {
-          if (val > 0) cart.setQty(l.key, val); else cart.remove(l.key);
-        },
-      });
+      keypad({ title: POS.t(p.name), sub: l.weighable ? POS.s("kp.weightFor") : POS.s("kp.qtyFor"), decimal: l.weighable, initial: l.qty,
+        onConfirm: function (v) { if (v > 0) cart.setQty(l.key, v); else cart.remove(l.key); } });
     }
     function openWeight(p) {
-      keypad({
-        title: POS.t(p.name), sub: POS.s("kp.weightFor") + " · " + POS.money(p.priceCents) + "/kg",
-        decimal: true, initial: 0,
-        onConfirm: function (val) { if (val > 0) cart.add(p.id, { qty: val }); },
-      });
+      keypad({ title: POS.t(p.name), sub: POS.s("kp.weightFor") + " · " + POS.money(p.priceCents) + "/kg", decimal: true, initial: 0,
+        onConfirm: function (v) { if (v > 0) { var k = cart.add(p.id, { qty: v }); selectedLine = k; } } });
     }
-
     function keypad(o) {
       var wrap = document.createElement("div"); wrap.className = "sheet";
       var buf = o.initial ? String(o.initial) : "";
-      wrap.innerHTML =
-        "<h3>" + o.title + "</h3><div class='sheet__sub'>" + o.sub + "</div>" +
-        '<div class="sheet__display" id="kpDisp"></div>' +
-        '<div class="keypad" id="kpPad"></div>' +
-        '<div class="sheet__foot">' +
-          '<button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
-          '<button class="btn btn--primary" data-k="ok">' + POS.s("act.confirm") + "</button>" +
-        "</div>";
-      var keys = ["1","2","3","4","5","6","7","8","9", o.decimal ? "." : "00", "0", "⌫"];
-      var pad = wrap.querySelector("#kpPad");
-      var disp = wrap.querySelector("#kpDisp");
+      wrap.innerHTML = "<h3>" + o.title + "</h3><div class='sheet__sub'>" + o.sub + "</div>" +
+        '<div class="sheet__display" id="kpDisp"></div><div class="keypad" id="kpPad"></div>' +
+        '<div class="sheet__foot"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
+        '<button class="btn btn--primary" data-k="ok">' + POS.s("act.confirm") + "</button></div>";
+      var disp = wrap.querySelector("#kpDisp"), pad = wrap.querySelector("#kpPad");
       function draw() { disp.textContent = buf === "" ? "0" : buf; }
-      draw();
-      keys.forEach(function (k) {
-        var b = document.createElement("button"); b.type = "button"; b.textContent = k;
-        if (k === "⌫") b.className = "key-del";
+      ["1","2","3","4","5","6","7","8","9", o.decimal ? "." : "00", "0", "⌫"].forEach(function (k) {
+        var b = document.createElement("button"); b.type = "button";
+        if (k === "⌫") { b.className = "key-del"; b.innerHTML = ic("x", { size: 22 }); } else b.textContent = k;
         b.addEventListener("click", function () {
           if (k === "⌫") buf = buf.slice(0, -1);
           else if (k === ".") { if (buf.indexOf(".") < 0) buf = (buf || "0") + "."; }
@@ -297,58 +488,38 @@
         });
         pad.appendChild(b);
       });
+      draw();
       var close = POS.openModal(wrap, { label: o.title });
       wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
-      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () {
-        var v = parseFloat(buf || "0"); close(); o.onConfirm(o.decimal ? v : Math.round(v));
-      });
+      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () { var v = parseFloat(buf || "0"); close(); o.onConfirm(o.decimal ? v : Math.round(v)); });
     }
 
-    /* ---------- Modal: desconto na 1ª linha (atalho de demo) ---------- */
-    function openGlobalDiscountHint() {
-      if (!cart.lines.length) return;
-      // Para demo: aplica desconto à linha selecionável; abrimos seletor simples na última linha
-      var l = cart.lines[cart.lines.length - 1];
-      var p = POS.getProduct(l.productId);
+    function openDiscount(lineKey) {
+      var l = cart.lines.find(function (x) { return x.key === lineKey; }); if (!l) return;
+      var p = POS.getProduct(l.productId), mode = "pct", buf = "";
       var wrap = document.createElement("div"); wrap.className = "sheet";
-      var mode = "pct"; var buf = "";
-      wrap.innerHTML =
-        "<h3>" + POS.s("cart.discountLine") + "</h3><div class='sheet__sub'>" + POS.t(p.name) + "</div>" +
-        '<div class="seg" id="dMode">' +
-          '<button type="button" data-m="pct" aria-pressed="true">%</button>' +
-          '<button type="button" data-m="abs" aria-pressed="false">€</button>' +
-        "</div>" +
-        '<div class="sheet__display" id="dDisp">0</div>' +
-        '<div class="keypad" id="dPad"></div>' +
-        '<div class="sheet__foot">' +
-          '<button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
-          '<button class="btn btn--primary" data-k="ok">' + POS.s("act.apply") + "</button>" +
-        "</div>";
+      wrap.innerHTML = "<h3>" + POS.s("cart.discountLine") + "</h3><div class='sheet__sub'>" + POS.t(p.name) + "</div>" +
+        '<div class="seg" id="dMode"><button type="button" data-m="pct" aria-pressed="true">%</button><button type="button" data-m="abs" aria-pressed="false">€</button></div>' +
+        '<div class="sheet__display" id="dDisp">0</div><div class="keypad" id="dPad"></div>' +
+        '<div class="sheet__foot"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
+        '<button class="btn btn--primary" data-k="ok">' + POS.s("act.apply") + "</button></div>";
       var disp = wrap.querySelector("#dDisp");
       function draw() { disp.textContent = (buf || "0") + (mode === "pct" ? " %" : " €"); }
       ["1","2","3","4","5","6","7","8","9","0","00","⌫"].forEach(function (k) {
-        var b = document.createElement("button"); b.type = "button"; b.textContent = k;
-        if (k === "⌫") b.className = "key-del";
-        b.addEventListener("click", function () { if (k === "⌫") buf = buf.slice(0,-1); else buf += k; draw(); });
+        var b = document.createElement("button"); b.type = "button";
+        if (k === "⌫") { b.className = "key-del"; b.innerHTML = ic("x", { size: 22 }); } else b.textContent = k;
+        b.addEventListener("click", function () { if (k === "⌫") buf = buf.slice(0, -1); else buf += k; draw(); });
         wrap.querySelector("#dPad").appendChild(b);
       });
       wrap.querySelectorAll("#dMode button").forEach(function (b) {
-        b.addEventListener("click", function () {
-          mode = b.dataset.m;
-          wrap.querySelectorAll("#dMode button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
-          draw();
-        });
+        b.addEventListener("click", function () { mode = b.dataset.m; wrap.querySelectorAll("#dMode button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); }); draw(); });
       });
       draw();
       var close = POS.openModal(wrap, { label: POS.s("cart.discountLine") });
       wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
-      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () {
-        var v = parseFloat(buf || "0"); close();
-        if (v > 0) cart.setLineDiscount(l.key, { type: mode, value: mode === "abs" ? Math.round(v * 100) : v });
-      });
+      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () { var v = parseFloat(buf || "0"); close(); if (v > 0) cart.setLineDiscount(l.key, { type: mode, value: mode === "abs" ? Math.round(v * 100) : v }); });
     }
 
-    /* ---------- Modal: cliente ---------- */
     function openCustomer() {
       var wrap = document.createElement("div"); wrap.className = "sheet";
       wrap.innerHTML = "<h3>" + POS.s("cart.customer") + "</h3><div class='clist' id='clist'></div>";
@@ -356,54 +527,71 @@
       POS.customers.forEach(function (c) {
         var b = document.createElement("button"); b.type = "button"; b.className = "clist__item";
         b.setAttribute("aria-pressed", String(c.id === cart.state.customerId));
-        b.innerHTML = '<span class="customer__ava">👤</span><span><b>' + POS.t(c.name) + "</b><span>" +
-          (c.nif ? "NIF " + c.nif : POS.s("cart.customer")) + "</span></span>";
+        b.innerHTML = '<span class="customer__ava">' + ic("user", { size: 18 }) + "</span><span><b>" + POS.t(c.name) + "</b><span>" + (c.nif ? "NIF " + c.nif : POS.s("cart.customer")) + "</span></span>";
         b.addEventListener("click", function () { cart.setCustomer(c.id); close(); });
         list.appendChild(b);
       });
       var close = POS.openModal(wrap, { label: POS.s("cart.customer") });
     }
 
+    function openDocMenu() {
+      var btn = $("#docBtn"); var sel = $("#docsel");
+      var existing = sel.querySelector(".docsel__menu");
+      if (existing) { existing.remove(); btn.setAttribute("aria-expanded", "false"); return; }
+      var menu = document.createElement("div"); menu.className = "docsel__menu";
+      DOC_TYPES.forEach(function (key) {
+        var t = key === "doc.simplified" ? "simplified" : key === "doc.invoiceReceipt" ? "invoiceReceipt" : "receipt";
+        var o = document.createElement("button"); o.type = "button"; o.className = "docsel__opt";
+        o.setAttribute("aria-selected", String((cart.state.docType || "receipt") === t));
+        o.innerHTML = "<span>" + POS.s(key) + "</span>" + ((cart.state.docType || "receipt") === t ? ic("check", { size: 18 }) : "");
+        o.addEventListener("click", function () { cart.setDocType(t); menu.remove(); btn.setAttribute("aria-expanded", "false"); });
+        menu.appendChild(o);
+      });
+      sel.appendChild(menu); btn.setAttribute("aria-expanded", "true");
+      setTimeout(function () {
+        document.addEventListener("mousedown", function h(e) { if (!sel.contains(e.target)) { menu.remove(); btn.setAttribute("aria-expanded", "false"); document.removeEventListener("mousedown", h); } });
+      }, 0);
+    }
+
     /* ---------- Pagar ---------- */
     function pay() {
       var t = cart.totals(); if (!t.itemCount) return;
-      try {
-        sessionStorage.setItem("pos_payment", JSON.stringify({
-          totalCents: t.totalCents, taxCents: t.taxCents, subtotalCents: t.subtotalCents,
-          itemCount: t.itemCount, customerId: cart.state.customerId,
-        }));
-      } catch (e) {}
+      try { sessionStorage.setItem("pos_payment", JSON.stringify({ totalCents: t.totalCents, taxCents: t.taxCents, subtotalCents: t.subtotalCents, itemCount: t.itemCount, customerId: cart.state.customerId })); } catch (e) {}
       window.location.href = "payment.html";
     }
 
-    /* ---------- Ações topo do talão ---------- */
-    function notImpl(name) { return function () { POS.toast(name, { duration: 1800 }); }; }
-
-    /* ---------- Render geral + bindings ---------- */
-    function renderAll() { applyStatic(); renderCats(); renderGrid(); renderLines(); renderSummary(); renderCustomer(); }
-
+    /* ---------- Bindings ---------- */
     $("#search").addEventListener("input", function (e) {
       query = e.target.value.trim();
       $("#searchWrap").classList.toggle("has-value", !!query);
-      renderGrid();
+      renderCatalog();
     });
-    $("#searchClear").addEventListener("click", function () {
-      query = ""; $("#search").value = ""; $("#searchWrap").classList.remove("has-value"); $("#search").focus(); renderGrid();
+    $("#search").addEventListener("keydown", function (e) {
+      if (e.key !== "Enter") return;
+      var matches = searchProducts();
+      var exact = POS.products.find(function (p) { return p.barcode === query || (p.ref || "").toLowerCase() === query.toLowerCase(); });
+      var target = exact || (matches.length === 1 ? matches[0] : null);
+      if (target) { addProduct(target); query = ""; e.target.value = ""; $("#searchWrap").classList.remove("has-value"); renderCatalog(); }
     });
+    $("#searchClear").addEventListener("click", function () { query = ""; $("#search").value = ""; $("#searchWrap").classList.remove("has-value"); $("#search").focus(); renderCatalog(); });
+    $("#kbdToggle").addEventListener("click", function () { var b = $("#kbdToggle"); var on = b.getAttribute("aria-pressed") === "true"; b.setAttribute("aria-pressed", String(!on)); $("#search").focus(); });
     $("#btnCustomer").addEventListener("click", openCustomer);
-    $("#btnPark").addEventListener("click", notImpl(POS.lang === "pt" ? "Venda suspensa (demo)" : "Sale parked (demo)"));
-    $("#btnRetrieve").addEventListener("click", notImpl(POS.lang === "pt" ? "Nada para recuperar" : "Nothing to retrieve"));
-    $("#btnMore").addEventListener("click", function () {
-      if (!cart.lines.length) { POS.toast(POS.lang === "pt" ? "Talão vazio" : "Empty receipt", { duration: 1500 }); return; }
-      var msg = POS.s("cart.cleared"); cart.clear(); POS.toast(msg, { variant: "danger" });
+    $("#btnCustomer2").addEventListener("click", openCustomer);
+    $("#docBtn").addEventListener("click", openDocMenu);
+    [["#tbBell","Notificações"],["#tbMsg","Mensagens"],["#tbLock","Bloquear terminal"]].forEach(function (x) {
+      $(x[0]).addEventListener("click", function () { POS.toast(x[1] + " · demo", { duration: 1400 }); });
     });
-    $("#railSettings").addEventListener("click", function (e) { e.preventDefault(); notImpl(POS.s("nav.settings") + " (demo)")(); });
 
-    cart.onCartChange(function () { renderLines(); renderSummary(); renderGrid(); });
+    function renderCart() { renderDoc(); renderCustomer(); renderLines(); renderSummary(); }
+    function renderAll() { applyStatic(); paintStaticIcons(); renderRail(); renderCatalog(); renderCart(); }
+
+    POS.onCartChange(function () { renderLines(); renderSummary(); renderGrid(); });
     POS.onLangChange(renderAll);
 
     POS.mountDevNav("sale");
     renderAll();
+    tick(); setInterval(tick, 1000 * 20);
+    $("#search").focus();
   })();
   </script>
 </body>

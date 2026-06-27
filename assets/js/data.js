@@ -17,17 +17,30 @@ window.POS = window.POS || {};
     exempt:       { id: "exempt",  rate: 0,  label: { pt: "Isento",  en: "Exempt" } },
   };
 
-  /* ---- Categorias ---- */
+  /* ---- Categorias (famílias). icon = nome no set POS.icon ---- */
   POS.categories = [
-    { id: "favorites", name: { pt: "Favoritos",  en: "Favorites" }, icon: "★", color: "#0fb392" },
-    { id: "coffee",    name: { pt: "Café & Bar",  en: "Coffee & Bar" }, icon: "☕", color: "#8a5a36" },
-    { id: "bakery",    name: { pt: "Padaria",     en: "Bakery" },    icon: "🥐", color: "#d39a2a" },
-    { id: "drinks",    name: { pt: "Bebidas",     en: "Drinks" },    icon: "🥤", color: "#2a86d3" },
-    { id: "grocery",   name: { pt: "Mercearia",   en: "Grocery" },   icon: "🛒", color: "#6a59c4" },
-    { id: "produce",   name: { pt: "Frutas & Leg.", en: "Produce" }, icon: "🍎", color: "#3fae54" },
-    { id: "snacks",    name: { pt: "Snacks",      en: "Snacks" },    icon: "🍫", color: "#c4593f" },
-    { id: "home",      name: { pt: "Casa & Limp.", en: "Home" },     icon: "🧽", color: "#46aeb0" },
+    { id: "favorites", name: { pt: "Favoritos",  en: "Favorites" },    icon: "star",      color: "#f5a623", pinned: true },
+    { id: "coffee",    name: { pt: "Café & Bar",  en: "Coffee & Bar" }, icon: "coffee",    color: "#a16a3c" },
+    { id: "bakery",    name: { pt: "Padaria",     en: "Bakery" },       icon: "cookie",    color: "#d39a2a" },
+    { id: "drinks",    name: { pt: "Bebidas",     en: "Drinks" },       icon: "soda",      color: "#2a86d3" },
+    { id: "grocery",   name: { pt: "Mercearia",   en: "Grocery" },      icon: "basket",    color: "#6a59c4" },
+    { id: "produce",   name: { pt: "Frutas & Leg.", en: "Produce" },    icon: "apple",     color: "#3fae54" },
+    { id: "snacks",    name: { pt: "Snacks",      en: "Snacks" },       icon: "chocolate", color: "#c4593f" },
+    { id: "home",      name: { pt: "Casa & Limp.", en: "Home" },        icon: "sparkles",  color: "#2aa8a8" },
   ];
+
+  /* ---- Subfamílias (drill-down). Só algumas famílias as têm. ---- */
+  POS.subcategories = {
+    drinks: [
+      { id: "d-soft",  parent: "drinks", name: { pt: "Refrigerantes & Sumos", en: "Soft drinks & Juice" }, icon: "soda", color: "#2a86d3" },
+      { id: "d-water", parent: "drinks", name: { pt: "Águas",            en: "Water" },        icon: "soda", color: "#2a86d3" },
+      { id: "d-alc",   parent: "drinks", name: { pt: "Vinhos & Cerveja", en: "Wine & Beer" },  icon: "soda", color: "#2a86d3" },
+    ],
+    grocery: [
+      { id: "g-staples", parent: "grocery", name: { pt: "Básicos",  en: "Staples" }, icon: "basket", color: "#6a59c4" },
+      { id: "g-fresh",   parent: "grocery", name: { pt: "Frescos",  en: "Fresh" },   icon: "basket", color: "#6a59c4" },
+    ],
+  };
 
   /* ---- Produtos (preços em cêntimos) ----
      campos: id, name{pt,en}, priceCents, tax(ref POS.TAX.*), cat, emoji,
@@ -100,13 +113,58 @@ window.POS = window.POS || {};
     { id: "t2", label: "E2", zone: { pt: "Esplanada", en: "Terrace" }, state: "free" },
   ];
 
+  /* ---- Atribuição de subfamílias ---- */
+  var SUB = {
+    "p-sumo": "d-soft", "p-refri": "d-soft", "p-agua15": "d-water", "p-cerveja": "d-alc", "p-vinho": "d-alc",
+    "p-leite": "g-fresh", "p-ovos": "g-fresh", "p-arroz": "g-staples", "p-massa": "g-staples",
+    "p-azeite": "g-staples", "p-acucar": "g-staples",
+  };
+
+  /* ---- Descrições + variantes (produtos-chave) ---- */
+  var DETAIL = {
+    "p-cafe":   { desc: { pt: "Espresso encorpado, torra média.", en: "Full-bodied espresso, medium roast." },
+                  variants: [{ name: { pt: "Tipo", en: "Type" }, options: ["Normal", "Descafeinado"] }] },
+    "p-galao":  { desc: { pt: "Café com leite vaporizado, servido em copo.", en: "Coffee with steamed milk, in a glass." } },
+    "p-croiss": { desc: { pt: "Croissant amanteigado, fresco do dia.", en: "Buttery croissant, fresh daily." },
+                  variants: [{ name: { pt: "Recheio", en: "Filling" }, options: ["Simples", "Misto", "Chocolate"] }] },
+    "p-refri":  { desc: { pt: "Refrigerante com gás.", en: "Carbonated soft drink." },
+                  variants: [{ name: { pt: "Formato", en: "Format" }, options: ["Lata 33cl", "Garrafa 50cl"] }] },
+    "p-banana": { desc: { pt: "Banana da Madeira, vendida a peso.", en: "Madeira banana, sold by weight." } },
+    "p-vinho":  { desc: { pt: "Tinto regional, 75cl.", en: "Regional red wine, 75cl." } },
+    "p-leite":  { desc: { pt: "Leite meio-gordo UHT, 1L.", en: "Semi-skimmed UHT milk, 1L." },
+                  variants: [{ name: { pt: "Tipo", en: "Type" }, options: ["Meio-gordo", "Magro", "Gordo"] }] },
+    "p-choco":  { desc: { pt: "Tablete de chocolate de leite.", en: "Milk chocolate bar." } },
+  };
+
+  /* ---- Enriquecimento (ref, stock, desc) ---- */
+  POS.products.forEach(function (p, i) {
+    if (SUB[p.id]) p.sub = SUB[p.id];
+    if (p.ref == null) p.ref = "REF-" + (p.barcode || (1000 + i));
+    if (p.stock == null) p.stock = [6, 24, 12, 40, 8, 30, 15, 50][i % 8] + (p.fav ? 10 : 0);
+    var d = DETAIL[p.id];
+    if (d) { p.desc = d.desc; if (d.variants) p.variants = d.variants; }
+    if (!p.desc) {
+      var c = POS.categories.find(function (cc) { return cc.id === p.cat; });
+      p.desc = { pt: c.name.pt + " · " + p.name.pt, en: c.name.en + " · " + p.name.en };
+    }
+  });
+
   /* ---- Lookups ---- */
   POS.getProduct = function (id) { return POS.products.find(function (p) { return p.id === id; }); };
   POS.getTax = function (key) { return POS.TAX[key] || POS.TAX.normal; };
   POS.getCategory = function (id) { return POS.categories.find(function (c) { return c.id === id; }); };
+  POS.getSubcategories = function (catId) { return POS.subcategories[catId] || []; };
+  POS.getSubcategory = function (subId) {
+    var all = []; Object.keys(POS.subcategories).forEach(function (k) { all = all.concat(POS.subcategories[k]); });
+    return all.find(function (s) { return s.id === subId; });
+  };
+  POS.hasSub = function (catId) { return !!(POS.subcategories[catId] && POS.subcategories[catId].length); };
   POS.productsByCategory = function (catId) {
     if (catId === "favorites") return POS.products.filter(function (p) { return p.fav; });
     return POS.products.filter(function (p) { return p.cat === catId; });
+  };
+  POS.productsBySubcategory = function (subId) {
+    return POS.products.filter(function (p) { return p.sub === subId; });
   };
 
 })(window.POS);

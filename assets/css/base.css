@@ -17,26 +17,30 @@
 
 /* ---------- Tokens ---------- */
 :root {
-  /* Marca / acento (Moloni teal-green) */
-  --brand-900:#063b33; --brand-700:#0a6b59; --brand-600:#0a8870; --brand-500:#0fb392;
-  --brand-400:#3fcaab; --brand-100:#d6f4ec; --brand-50:#eafaf5;
+  /* Acento de marca — Índigo-violeta */
+  --brand-900:#312e81; --brand-700:#4a45d6; --brand-600:#5b5bf0; --brand-500:#6b6bf2;
+  --brand-400:#9a9af6; --brand-100:#e0e3fd; --brand-50:#eef0fe;
 
-  /* Neutros (UI shell) */
-  --ink-900:#0d1b17;   /* texto primário        */
-  --ink-700:#33433d;   /* texto secundário      */
-  --ink-500:#62756d;   /* texto terciário/muted */
-  --ink-300:#9fb0a8;   /* placeholders/disabled */
-  --line:#e2e9e5;      /* bordas                */
-  --line-strong:#cdd8d2;
+  /* Shell escuro (topbar / rail / dev-nav) — Grafite */
+  --shell-900:#1e2330; --shell-800:#252b3a; --shell-700:#2e3547;
+  --shell-line:#3a4256; --shell-ink:#e8eaf2; --shell-muted:#9aa3b8;
+
+  /* Neutros (UI clara) */
+  --ink-900:#15181f;   /* texto primário        */
+  --ink-700:#3a4150;   /* texto secundário      */
+  --ink-500:#6b7280;   /* texto terciário/muted */
+  --ink-300:#aab1bd;   /* placeholders/disabled */
+  --line:#e6e8ee;      /* bordas                */
+  --line-strong:#d4d8e0;
   --surface:#ffffff;   /* cartões               */
-  --surface-2:#f5f8f6; /* fundo da app          */
-  --surface-3:#eef3f0; /* zonas recuadas        */
+  --surface-2:#f6f7f9; /* fundo da app          */
+  --surface-3:#eef0f4; /* zonas recuadas        */
 
   /* Semânticos */
-  --pay-600:#1f9d4d; --pay-500:#22b357; --pay-50:#e7f7ed;   /* confirmar/pagar */
-  --danger-600:#cf3b3b; --danger-500:#e24b4b; --danger-50:#fcebeb;
+  --pay-600:#16a34a; --pay-500:#1eb257; --pay-50:#e7f7ed;   /* confirmar/pagar */
+  --danger-600:#dc3b3b; --danger-500:#e24b4b; --danger-50:#fdecec;
   --warn-600:#c2810a; --warn-500:#e0980f; --warn-50:#fdf3e0;
-  --info-600:#2266c4; --info-50:#e9f1fc;
+  --info-600:#4a45d6; --info-50:#eef0fe;
 
   /* Tipografia */
   --font:"Red Hat Display", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -131,19 +135,19 @@ img,svg { display:block; }
   position:sticky; top:0; z-index:var(--z-nav);
   display:flex; align-items:center; gap:var(--sp-2);
   padding:var(--sp-2) var(--sp-4);
-  background:var(--brand-900); color:#cfe9e1;
+  background:var(--shell-900); color:var(--shell-muted);
   font-size:var(--fs-xs); font-weight:500;
 }
 .dev-nav strong { color:#fff; letter-spacing:.04em; text-transform:uppercase; font-size:11px; }
 .dev-nav .dev-nav__links { display:flex; gap:var(--sp-1); flex:1; flex-wrap:wrap; }
 .dev-nav a {
-  padding:6px 12px; border-radius:var(--r-pill); color:#bfe3da;
+  padding:6px 12px; border-radius:var(--r-pill); color:var(--shell-muted);
   transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 .dev-nav a:hover { background:rgba(255,255,255,.1); color:#fff; }
-.dev-nav a[aria-current="page"] { background:var(--brand-500); color:#04231d; font-weight:700; }
+.dev-nav a[aria-current="page"] { background:var(--brand-600); color:#fff; font-weight:700; }
 .dev-nav__lang { display:flex; background:rgba(255,255,255,.08); border-radius:var(--r-pill); padding:3px; }
-.dev-nav__lang button { padding:5px 12px; border-radius:var(--r-pill); color:#bfe3da; font-size:11px; font-weight:700; }
+.dev-nav__lang button { padding:5px 12px; border-radius:var(--r-pill); color:var(--shell-muted); font-size:11px; font-weight:700; }
 .dev-nav__lang button[aria-pressed="true"] { background:#fff; color:var(--brand-700); }
 
 /* ---------- Toasts ---------- */

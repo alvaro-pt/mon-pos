@@ -75,18 +75,24 @@ Mesmo prisma do protótipo de pricing de onde herdámos os agentes: **páginas s
 ```
 index.html            Launcher (redireciona para sale.html) + hub da dev-nav
 sale.html             Ecrã de venda (catálogo + talão + keypad)   ← coração do POS
-payment.html          Fluxo de pagamento (método, troco, recibo)  (a seguir)
+payment.html          Fluxo de pagamento (método, troco, recibo)
 ...                   tables.html, register-close.html, returns.html (roadmap, secção 5)
 assets/
   css/
     base.css          Design tokens (cores, espaços, tipografia, sombras) + reset + componentes partilhados
     sale.css          CSS dedicado do ecrã de venda
+  fonts/              Red Hat Display (.woff2)
   js/
-    data.js           FONTE DE VERDADE: produtos, categorias, taxas de IVA, mesas, clientes. Namespace global POS.
+    data.js           FONTE DE VERDADE: produtos, categorias+subfamílias, IVA, mesas, clientes. Namespace global POS.
     i18n.js           Strings PT/EN. Toda a UI tem chave PT e EN.
+    icons.js          Set de ícones SVG inline (estilo Lucide). POS.icon('nome', {size}). SEM emojis na UI.
     ui.js             dev-nav, toggle idioma, toasts, formatação de moeda, helpers de modal/foco.
-    cart.js           Estado da venda atual (linhas, totais, IVA) + persistência em sessionStorage.
+    cart.js           Estado da venda atual (linhas, totais, IVA, tipo de doc) + persistência em sessionStorage.
 ```
+
+> **Tema visual: Grafite & Índigo.** Chrome escuro (topbar/rail) em grafite (`--shell-*`); acento de marca índigo-violeta (`--brand-*`); confirmar/pagar verde (`--pay-*`). Tokens em `base.css` — não mudar a paleta por hardcode.
+> **Iconografia:** **só SVG via `POS.icon()`** — nunca emojis na UI (denunciam um POS datado). Famílias têm `icon` (nome do set); produtos herdam o ícone da família.
+> **Navegação do catálogo:** por **família com breadcrumb** (Categorias › Família › Subfamília), estilo Moloni real. Raiz mostra tiles de família; famílias com subfamílias fazem drill-down; Favoritos é família fixa. Pesquisa (nome/ref/código) sobrepõe-se; código exato ou match único + Enter adiciona logo.
 
 ### Convenções (segue-as à risca)
 - Cada `.html` é **standalone**: `<script>` inline no fim para a lógica da página; CSS dedicado em `assets/css/`; `base.css` é partilhado.
@@ -104,10 +110,10 @@ assets/
 
 Definido em `data.js`, namespace `POS`. Princípios:
 
-- **Produto:** `id`, `name {pt,en}`, `priceCents`, `taxRate` (ver IVA), `category`, `color`/`emoji` para o tile, `barcode` (opcional), `variants` (opcional: tamanho/cor), `modifiers` (opcional: para restauração). Suporta **produto pesável** (preço por kg) e **preço aberto**.
-- **Categoria:** `id`, `name {pt,en}`, `color`, ordenação.
-- **Linha de venda (cart):** referência ao produto + `qty`/`weight`, `unitPriceCents` (pode ser editado: preço aberto/desconto), `discount`, `modifiers` escolhidos. Subtotal e IVA derivam-se, não se guardam à mão.
-- **Cliente:** `Consumidor Final` por defeito; opção de associar NIF/nome (para fatura com contribuinte).
+- **Produto:** `id`, `name {pt,en}`, `priceCents`, `tax` (chave em `POS.TAX`), `cat` (família), `sub` (subfamília, opcional), `color`/`icon`, `barcode`/`ref`, `stock`, `desc {pt,en}`, `fav`, `weighable` (preço/kg). `variants` (opcional: tamanho/cor) e `modifiers` (restauração) preparados. Enriquecimento (ref/stock/desc default) no fim de `data.js`.
+- **Categoria (família):** `id`, `name {pt,en}`, `icon` (nome do set), `color`, `pinned`. **Subfamílias** em `POS.subcategories[catId]` (drill-down). Lookups: `productsByCategory`, `productsBySubcategory`, `hasSub`, `getSubcategories`.
+- **Linha de venda (cart):** ref ao produto + `qty`/`weight`, `unitPriceCents` (editável), `discount {type:'pct'|'abs', value}`. Subtotal e IVA derivam-se. Estado tem `docType` (`receipt`/`simplified`/`invoiceReceipt`).
+- **Cliente:** `Consumidor Final` por defeito; opção de NIF/nome.
 - **Mesa** (preparado, restauração): `id`, `zona`, `estado` (livre/aberta/a-pagar), venda associada.
 
 Regra de ouro: **derivar, não duplicar.** Totais, IVA e troco calculam-se a partir das linhas; nunca se guardam dois sítios que possam divergir.
@@ -118,8 +124,8 @@ Regra de ouro: **derivar, não duplicar.** Totais, IVA e troco calculam-se a par
 
 Ordem de construção (cada um navegável e demo-ready antes do seguinte):
 
-1. **Ecrã de venda** (`sale.html`) — catálogo, talão, keypad, descontos, seleção de cliente. ← **estamos aqui**
-2. **Pagamento** (`payment.html`) — método (dinheiro/cartão/MB WAY), valor recebido, **troco**, divisão de pagamento, emissão de talão/recibo.
+1. **Ecrã de venda** (`sale.html`) — ✅ v2: navegação por família (breadcrumb), tiles cor+ícone, dialog de detalhes (stock/IVA/variantes), talão com tipo de doc, keypad, descontos por linha, cliente, ações.
+2. **Pagamento** (`payment.html`) — ✅ base: método (dinheiro/cartão/MB WAY), valor recebido, **troco**, recibo c/ ATCUD/QR simulado. A enriquecer: divisão de pagamento.
 3. **Talão/recibo** — pré-visualização do documento fiscal (com NIF, IVA discriminado, ATCUD/QR simulado).
 4. **Mesas** (`tables.html`) — mapa de mesas, abrir/transferir/dividir conta (ativa a vertente restauração).
 5. **Fecho de caixa** (`register-close.html`) — abertura/fecho de turno, contagem de dinheiro, resumo Z.

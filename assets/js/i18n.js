@@ -66,6 +66,45 @@ window.POS = window.POS || {};
     // Keypad / quantidade
     "kp.qtyFor":     { pt: "Quantidade",    en: "Quantity" },
     "kp.weightFor":  { pt: "Peso (kg)",     en: "Weight (kg)" },
+
+    // Navegação de catálogo (breadcrumb / famílias)
+    "header.mode.sales": { pt: "Vendas",    en: "Sales" },
+    "cat.categories":  { pt: "Categorias",  en: "Categories" },
+    "cat.families":    { pt: "Famílias",    en: "Families" },
+    "cat.products":    { pt: "Artigos",     en: "Items" },
+    "cat.back":        { pt: "Voltar",      en: "Back" },
+    "cat.details":     { pt: "Ver detalhes", en: "View details" },
+
+    // Dialog de detalhes do produto
+    "pd.ref":       { pt: "Referência",  en: "Reference" },
+    "pd.stock":     { pt: "Stock",       en: "Stock" },
+    "pd.inStock":   { pt: "em stock",    en: "in stock" },
+    "pd.outStock":  { pt: "Esgotado",    en: "Out of stock" },
+    "pd.lowStock":  { pt: "Stock baixo", en: "Low stock" },
+    "pd.priceVat":  { pt: "Preço c/ IVA", en: "Price incl. VAT" },
+    "pd.priceNoVat":{ pt: "S/ IVA",      en: "Excl. VAT" },
+    "pd.vat":       { pt: "IVA",         en: "VAT" },
+    "pd.desc":      { pt: "Descrição",   en: "Description" },
+    "pd.variants":  { pt: "Variantes",   en: "Variants" },
+    "pd.add":       { pt: "Adicionar à venda", en: "Add to sale" },
+
+    // Tipos de documento
+    "doc.type":          { pt: "Tipo de documento",  en: "Document type" },
+    "doc.simplified":    { pt: "Fatura simplificada", en: "Simplified invoice" },
+    "doc.receipt":       { pt: "Talão de venda",      en: "Sales receipt" },
+    "doc.invoiceReceipt":{ pt: "Fatura-recibo",       en: "Invoice-receipt" },
+
+    // Ações (coluna central / barra inferior — estilo Moloni)
+    "act.parkedSales":   { pt: "Vendas suspensas",      en: "Parked sales" },
+    "act.movements":     { pt: "Movimentos de caixa",   en: "Cash movements" },
+    "act.documents":     { pt: "Consultar documentos",  en: "Documents" },
+    "act.searchClients": { pt: "Pesquisar clientes",    en: "Search clients" },
+    "act.options":       { pt: "Opções",                en: "Options" },
+    "act.close":         { pt: "Fechar",                en: "Close" },
+    "act.suspend":       { pt: "Suspender",             en: "Park" },
+    "cart.clearConfirm": { pt: "Limpar toda a venda?",  en: "Clear the whole sale?" },
+    "cart.clearBody":    { pt: "Remove todos os artigos do talão. Não há como anular.", en: "Removes all items from the receipt. This can't be undone." },
+    "cart.totalDue":     { pt: "Total a pagar",         en: "Total due" },
   };
 
   // Estado de idioma (persistente)
