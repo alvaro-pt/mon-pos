@@ -1,0 +1,190 @@
+/* =========================================================================
+   Moloni POS — base.css
+   Design tokens + reset + componentes partilhados. Carregado por todas as páginas.
+   Dinheiro: cêntimos inteiros, formatado em JS. Tipografia: Red Hat Display.
+   ========================================================================= */
+
+/* ---------- Fontes (Red Hat Display, local woff2) ---------- */
+@font-face { font-family:"Red Hat Display"; src:url("../fonts/RedHatDisplay-Light.woff2") format("woff2");      font-weight:300; font-style:normal; font-display:swap; }
+@font-face { font-family:"Red Hat Display"; src:url("../fonts/RedHatDisplay-Regular.woff2") format("woff2");    font-weight:400; font-style:normal; font-display:swap; }
+@font-face { font-family:"Red Hat Display"; src:url("../fonts/RedHatDisplay-Medium.woff2") format("woff2");     font-weight:500; font-style:normal; font-display:swap; }
+@font-face { font-family:"Red Hat Display"; src:url("../fonts/RedHatDisplay-SemiBold.woff2") format("woff2");   font-weight:600; font-style:normal; font-display:swap; }
+@font-face { font-family:"Red Hat Display"; src:url("../fonts/RedHatDisplay-Bold.woff2") format("woff2");       font-weight:700; font-style:normal; font-display:swap; }
+@font-face { font-family:"Red Hat Display"; src:url("../fonts/RedHatDisplay-ExtraBold.woff2") format("woff2");  font-weight:800; font-style:normal; font-display:swap; }
+@font-face { font-family:"Red Hat Display"; src:url("../fonts/RedHatDisplay-Black.woff2") format("woff2");      font-weight:900; font-style:normal; font-display:swap; }
+@font-face { font-family:"Red Hat Display"; src:url("../fonts/RedHatDisplay-Italic.woff2") format("woff2");     font-weight:400; font-style:italic; font-display:swap; }
+@font-face { font-family:"Red Hat Display"; src:url("../fonts/RedHatDisplay-BoldItalic.woff2") format("woff2"); font-weight:700; font-style:italic; font-display:swap; }
+
+/* ---------- Tokens ---------- */
+:root {
+  /* Marca / acento (Moloni teal-green) */
+  --brand-900:#063b33; --brand-700:#0a6b59; --brand-600:#0a8870; --brand-500:#0fb392;
+  --brand-400:#3fcaab; --brand-100:#d6f4ec; --brand-50:#eafaf5;
+
+  /* Neutros (UI shell) */
+  --ink-900:#0d1b17;   /* texto primário        */
+  --ink-700:#33433d;   /* texto secundário      */
+  --ink-500:#62756d;   /* texto terciário/muted */
+  --ink-300:#9fb0a8;   /* placeholders/disabled */
+  --line:#e2e9e5;      /* bordas                */
+  --line-strong:#cdd8d2;
+  --surface:#ffffff;   /* cartões               */
+  --surface-2:#f5f8f6; /* fundo da app          */
+  --surface-3:#eef3f0; /* zonas recuadas        */
+
+  /* Semânticos */
+  --pay-600:#1f9d4d; --pay-500:#22b357; --pay-50:#e7f7ed;   /* confirmar/pagar */
+  --danger-600:#cf3b3b; --danger-500:#e24b4b; --danger-50:#fcebeb;
+  --warn-600:#c2810a; --warn-500:#e0980f; --warn-50:#fdf3e0;
+  --info-600:#2266c4; --info-50:#e9f1fc;
+
+  /* Tipografia */
+  --font:"Red Hat Display", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  --fs-xs:12px; --fs-sm:13px; --fs-base:15px; --fs-md:17px; --fs-lg:20px;
+  --fs-xl:24px; --fs-2xl:30px; --fs-3xl:40px; --fs-4xl:52px;
+
+  /* Espaçamento (escala de 4) */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px;
+  --sp-6:24px; --sp-8:32px; --sp-10:40px; --sp-12:48px;
+
+  /* Raio */
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:22px; --r-pill:999px;
+
+  /* Sombra */
+  --sh-sm:0 1px 2px rgba(13,27,23,.06), 0 1px 1px rgba(13,27,23,.04);
+  --sh-md:0 4px 12px rgba(13,27,23,.08), 0 2px 4px rgba(13,27,23,.05);
+  --sh-lg:0 12px 32px rgba(13,27,23,.14), 0 4px 10px rgba(13,27,23,.07);
+  --sh-pop:0 18px 50px rgba(13,27,23,.22);
+
+  /* Alvos de toque POS */
+  --touch:56px; --touch-sm:44px;
+
+  /* Motion */
+  --ease:cubic-bezier(.2,.7,.3,1);
+  --t-fast:120ms; --t-base:180ms; --t-slow:240ms;
+
+  /* Z */
+  --z-nav:50; --z-sticky:60; --z-modal:100; --z-toast:120;
+}
+
+/* ---------- Reset ---------- */
+*,*::before,*::after { box-sizing:border-box; }
+* { margin:0; }
+html,body { height:100%; }
+body {
+  font-family:var(--font);
+  font-size:var(--fs-base);
+  font-weight:400;
+  line-height:1.45;
+  color:var(--ink-900);
+  background:var(--surface-2);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  -webkit-tap-highlight-color:transparent;
+}
+button,input,select,textarea { font:inherit; color:inherit; }
+button { cursor:pointer; border:none; background:none; }
+ul,ol { list-style:none; padding:0; }
+a { color:inherit; text-decoration:none; }
+img,svg { display:block; }
+:where(h1,h2,h3,h4) { line-height:1.15; font-weight:700; }
+
+/* Números: largura tabular para não "saltarem" */
+.num, .tnum { font-variant-numeric:tabular-nums; font-feature-settings:"tnum" 1; }
+
+/* Foco visível (teclado) */
+:focus-visible { outline:3px solid var(--brand-400); outline-offset:2px; border-radius:var(--r-sm); }
+:focus:not(:focus-visible) { outline:none; }
+
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after { animation-duration:.001ms !important; transition-duration:.001ms !important; }
+}
+
+/* ---------- Botões ---------- */
+.btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:var(--sp-2);
+  min-height:var(--touch); padding:0 var(--sp-5);
+  border-radius:var(--r-md); font-weight:600; font-size:var(--fs-md);
+  background:var(--surface); color:var(--ink-900); border:1.5px solid var(--line-strong);
+  transition:transform var(--t-fast) var(--ease), background var(--t-fast) var(--ease),
+             border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+  user-select:none; white-space:nowrap;
+}
+.btn:hover { background:var(--surface-3); }
+.btn:active { transform:scale(.97); }
+.btn:disabled { opacity:.45; pointer-events:none; }
+
+.btn--primary { background:var(--brand-600); color:#fff; border-color:transparent; box-shadow:var(--sh-sm); }
+.btn--primary:hover { background:var(--brand-700); }
+.btn--pay { background:var(--pay-600); color:#fff; border-color:transparent; box-shadow:var(--sh-md); }
+.btn--pay:hover { background:#198a42; }
+.btn--ghost { background:transparent; border-color:transparent; }
+.btn--ghost:hover { background:var(--surface-3); }
+.btn--danger { color:var(--danger-600); border-color:var(--danger-500); background:var(--danger-50); }
+.btn--danger:hover { background:#f7dada; }
+.btn--sm { min-height:var(--touch-sm); padding:0 var(--sp-3); font-size:var(--fs-sm); border-radius:var(--r-sm); }
+.btn--icon { padding:0; width:var(--touch); }
+.btn--block { width:100%; }
+
+/* ---------- dev-nav (andaime de protótipo) ---------- */
+.dev-nav {
+  position:sticky; top:0; z-index:var(--z-nav);
+  display:flex; align-items:center; gap:var(--sp-2);
+  padding:var(--sp-2) var(--sp-4);
+  background:var(--brand-900); color:#cfe9e1;
+  font-size:var(--fs-xs); font-weight:500;
+}
+.dev-nav strong { color:#fff; letter-spacing:.04em; text-transform:uppercase; font-size:11px; }
+.dev-nav .dev-nav__links { display:flex; gap:var(--sp-1); flex:1; flex-wrap:wrap; }
+.dev-nav a {
+  padding:6px 12px; border-radius:var(--r-pill); color:#bfe3da;
+  transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.dev-nav a:hover { background:rgba(255,255,255,.1); color:#fff; }
+.dev-nav a[aria-current="page"] { background:var(--brand-500); color:#04231d; font-weight:700; }
+.dev-nav__lang { display:flex; background:rgba(255,255,255,.08); border-radius:var(--r-pill); padding:3px; }
+.dev-nav__lang button { padding:5px 12px; border-radius:var(--r-pill); color:#bfe3da; font-size:11px; font-weight:700; }
+.dev-nav__lang button[aria-pressed="true"] { background:#fff; color:var(--brand-700); }
+
+/* ---------- Toasts ---------- */
+.toast-host {
+  position:fixed; left:50%; bottom:var(--sp-6); transform:translateX(-50%);
+  z-index:var(--z-toast); display:flex; flex-direction:column; gap:var(--sp-2);
+  align-items:center; pointer-events:none; width:max-content; max-width:92vw;
+}
+.toast {
+  display:flex; align-items:center; gap:var(--sp-3);
+  background:var(--ink-900); color:#fff; padding:var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4);
+  border-radius:var(--r-pill); box-shadow:var(--sh-pop); font-size:var(--fs-base); font-weight:500;
+  pointer-events:auto; animation:toast-in var(--t-slow) var(--ease);
+}
+.toast--success { background:var(--pay-600); }
+.toast--danger  { background:var(--danger-600); }
+.toast__action {
+  margin-left:var(--sp-1); padding:8px 14px; border-radius:var(--r-pill);
+  background:rgba(255,255,255,.16); color:#fff; font-weight:700; font-size:var(--fs-sm);
+}
+.toast__action:hover { background:rgba(255,255,255,.28); }
+.toast.is-leaving { animation:toast-out var(--t-base) var(--ease) forwards; }
+@keyframes toast-in  { from{opacity:0; transform:translateY(12px) scale(.96);} to{opacity:1; transform:none;} }
+@keyframes toast-out { to{opacity:0; transform:translateY(8px) scale(.97);} }
+
+/* ---------- Modal ---------- */
+.modal-backdrop {
+  position:fixed; inset:0; z-index:var(--z-modal);
+  background:rgba(8,20,16,.45); backdrop-filter:blur(2px);
+  display:flex; align-items:center; justify-content:center; padding:var(--sp-4);
+  animation:fade var(--t-base) var(--ease);
+}
+.modal {
+  background:var(--surface); border-radius:var(--r-xl); box-shadow:var(--sh-pop);
+  width:min(440px,100%); max-height:90vh; overflow:auto; animation:pop var(--t-slow) var(--ease);
+}
+@keyframes fade { from{opacity:0;} to{opacity:1;} }
+@keyframes pop  { from{opacity:0; transform:translateY(10px) scale(.97);} to{opacity:1; transform:none;} }
+
+/* ---------- Utilitários ---------- */
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.muted { color:var(--ink-500); }
+.stack { display:flex; flex-direction:column; }
+.row { display:flex; align-items:center; }

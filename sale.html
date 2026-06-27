@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Moloni POS — Venda</title>
+  <link rel="stylesheet" href="assets/css/base.css" />
+  <link rel="stylesheet" href="assets/css/sale.css" />
+</head>
+<body>
+  <main class="app">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar__logo" aria-hidden="true">m</div>
+      <div class="topbar__meta">
+        <span class="topbar__chip"><span data-s="header.store">Loja</span> <b>#1</b></span>
+        <span class="topbar__chip"><span data-s="header.terminal">Terminal</span> <b>#1</b></span>
+        <span class="topbar__chip" id="topDate"></span>
+      </div>
+      <span class="topbar__clock" id="topClock">--:--</span>
+      <div class="topbar__actions">
+        <button class="topbar__btn" type="button" aria-label="Notificações">🔔</button>
+        <button class="topbar__btn" type="button" aria-label="Mensagens">💬</button>
+        <span class="topbar__user"><span class="topbar__avatar">AS</span> Ana Sousa</span>
+        <button class="topbar__btn" type="button" aria-label="Bloquear terminal">🔒</button>
+      </div>
+    </header>
+
+    <!-- Rail -->
+    <nav class="rail" aria-label="Secções">
+      <a class="rail__item" href="sale.html" aria-current="page"><span class="ico" aria-hidden="true">🛒</span><span data-s="nav.sale">Venda</span></a>
+      <a class="rail__item" href="register-close.html"><span class="ico" aria-hidden="true">🧾</span><span data-s="nav.register">Caixa</span></a>
+      <a class="rail__item" href="docs.html"><span class="ico" aria-hidden="true">📄</span><span data-s="nav.docs">Docs</span></a>
+      <a class="rail__item" href="tables.html"><span class="ico" aria-hidden="true">🍽️</span><span data-s="nav.tables">Mesas</span></a>
+      <span class="rail__spacer"></span>
+      <a class="rail__item" href="#" id="railSettings"><span class="ico" aria-hidden="true">⚙️</span><span data-s="nav.settings">Definições</span></a>
+    </nav>
+
+    <!-- Catálogo -->
+    <section class="catalog" aria-label="Catálogo">
+      <div class="search" id="searchWrap">
+        <span class="search__icon" aria-hidden="true">🔍</span>
+        <input id="search" type="search" autocomplete="off" aria-label="Procurar produto" />
+        <button class="search__clear" id="searchClear" type="button" aria-label="Limpar pesquisa">✕</button>
+      </div>
+      <div class="cats" id="cats" role="tablist" aria-label="Categorias"></div>
+      <div class="grid-scroll">
+        <div class="grid" id="grid"></div>
+      </div>
+    </section>
+
+    <!-- Talão -->
+    <aside class="cart" aria-label="Venda atual">
+      <div class="cart__head">
+        <div class="cart__actions">
+          <button class="btn btn--sm" id="btnPark" type="button">⏸︎ <span data-s="cart.park">Suspender</span></button>
+          <button class="btn btn--sm" id="btnRetrieve" type="button">↺ <span data-s="cart.retrieve">Recuperar</span></button>
+          <button class="btn btn--sm btn--icon" id="btnMore" type="button" aria-label="Mais ações">⋯</button>
+        </div>
+        <div class="cart__meta">
+          <span class="cart__doc"><span class="doc-tag" data-s="">Talão</span> <b id="saleNo">#1</b></span>
+          <span class="cart__doc"><span data-s="cart.soldBy">Operador</span>: <b>Ana S.</b></span>
+        </div>
+        <button class="customer" id="btnCustomer" type="button">
+          <span class="customer__ava" aria-hidden="true">👤</span>
+          <span class="customer__txt"><b id="custName">Consumidor Final</b><span id="custSub" data-s="cart.customer">Cliente</span></span>
+          <span class="customer__chev" aria-hidden="true">›</span>
+        </button>
+      </div>
+
+      <div class="lines" id="lines"></div>
+
+      <div class="summary" id="summary"></div>
+    </aside>
+  </main>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/cart.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script>
+  (function () {
+    "use strict";
+    var $ = function (s, r) { return (r || document).querySelector(s); };
+    var cart = POS.cart;
+    var activeCat = "favorites";
+    var query = "";
+
+    /* ---------- Topbar relógio ---------- */
+    function tick() {
+      var d = new Date();
+      $("#topClock").textContent = d.toLocaleTimeString(POS.lang === "pt" ? "pt-PT" : "en-IE", { hour: "2-digit", minute: "2-digit" });
+      $("#topDate").innerHTML = d.toLocaleDateString(POS.lang === "pt" ? "pt-PT" : "en-IE", { day: "2-digit", month: "short", year: "numeric" });
+    }
+    tick(); setInterval(tick, 1000 * 30);
+
+    /* ---------- i18n estático (data-s) ---------- */
+    function applyStatic() {
+      document.querySelectorAll("[data-s]").forEach(function (el) {
+        var k = el.getAttribute("data-s"); if (k) el.textContent = POS.s(k);
+      });
+      $("#search").placeholder = POS.s("cat.search");
+      // doc-tag (Talão/Receipt) — string simples
+      $(".doc-tag").textContent = POS.lang === "pt" ? "Talão" : "Receipt";
+    }
+
+    /* ---------- Categorias ---------- */
+    function renderCats() {
+      var host = $("#cats"); host.innerHTML = "";
+      POS.categories.forEach(function (c) {
+        var b = document.createElement("button");
+        b.className = "chip"; b.type = "button"; b.setAttribute("role", "tab");
+        b.setAttribute("aria-pressed", String(c.id === activeCat));
+        b.style.setProperty("--chip-color", c.color);
+        b.innerHTML = (c.id === "favorites" ? "★ " : '<span class="dot"></span>') +
+          '<span>' + POS.t(c.name) + "</span>";
+        b.addEventListener("click", function () { activeCat = c.id; query = ""; $("#search").value = ""; $("#searchWrap").classList.remove("has-value"); renderCats(); renderGrid(); });
+        host.appendChild(b);
+      });
+    }
+
+    /* ---------- Grelha ---------- */
+    function visibleProducts() {
+      if (query) {
+        var q = query.toLowerCase();
+        return POS.products.filter(function (p) {
+          return POS.t(p.name).toLowerCase().indexOf(q) >= 0 || (p.barcode || "").indexOf(q) >= 0;
+        });
+      }
+      return POS.productsByCategory(activeCat);
+    }
+    function renderGrid() {
+      var grid = $("#grid"); var list = visibleProducts();
+      if (!list.length) {
+        grid.innerHTML = '<div class="empty"><span class="emoji">🔎</span><h3>' + POS.s("cat.empty.title") + "</h3><p>" + POS.s("cat.empty.body") + "</p></div>";
+        return;
+      }
+      grid.innerHTML = "";
+      list.forEach(function (p) {
+        var cat = POS.getCategory(p.cat);
+        var inCart = cart.lines.filter(function (l) { return l.productId === p.id; })
+                        .reduce(function (n, l) { return n + (l.weighable ? 1 : l.qty); }, 0);
+        var btn = document.createElement("button");
+        btn.className = "tile"; btn.type = "button";
+        btn.style.setProperty("--tile-color", (cat && cat.color) || "#888");
+        btn.innerHTML =
+          '<div class="tile__media">' + (p.emoji || "📦") +
+            (inCart ? '<span class="tile__badge">' + inCart + "</span>" : "") +
+          "</div>" +
+          '<div class="tile__body">' +
+            '<span class="tile__name">' + POS.t(p.name) + "</span>" +
+            '<span class="tile__price">' + POS.money(p.priceCents) +
+              (p.weighable ? ' <small>' + POS.s("cat.weighable") + "</small>" : "") +
+            "</span>" +
+          "</div>";
+        btn.addEventListener("click", function () { addProduct(p, btn); });
+        grid.appendChild(btn);
+      });
+    }
+
+    function addProduct(p, tileEl) {
+      if (p.weighable) { openWeight(p); return; }
+      cart.add(p.id);
+      if (tileEl) { tileEl.animate([{ transform: "scale(.94)" }, { transform: "scale(1)" }], { duration: 160, easing: "cubic-bezier(.2,.7,.3,1)" }); }
+    }
+
+    /* ---------- Talão ---------- */
+    function renderLines() {
+      var host = $("#lines");
+      if (!cart.lines.length) {
+        host.innerHTML =
+          '<div class="cart__empty"><span class="emoji">🧾</span><h3>' + POS.s("cart.empty.title") +
+          "</h3><p>" + POS.s("cart.empty.body") + "</p></div>";
+        return;
+      }
+      host.innerHTML = "";
+      cart.lines.forEach(function (l) {
+        var p = POS.getProduct(l.productId);
+        var gross = cart.lineGross(l), tot = cart.lineTotal(l), disc = cart.lineDiscount(l);
+        var qtyLabel = l.weighable ? POS.weight(l.qty) : l.qty;
+        var row = document.createElement("div"); row.className = "line";
+
+        var stepper = '<div class="stepper">' +
+          '<button type="button" aria-label="−" data-act="dec">−</button>' +
+          '<button type="button" class="qty" data-act="edit" aria-label="' + POS.s("cart.qty") + '">' + qtyLabel + "</button>" +
+          '<button type="button" aria-label="+" data-act="inc">+</button>' +
+        "</div>";
+
+        var info = '<div class="line__info">' +
+          '<div class="line__name">' + POS.t(p.name) + "</div>" +
+          '<div class="line__sub">' +
+            "<small>" + POS.money(l.unitPriceCents) + (l.weighable ? "/kg" : "") + " · " + POS.getTax(p.tax).rate + "%</small>" +
+            (disc ? '<span class="disc-badge">−' + (l.discount.type === "pct" ? l.discount.value + "%" : POS.money(disc)) + "</span>" : "") +
+          "</div>" +
+        "</div>";
+
+        var right = '<div class="line__right">' +
+          '<span class="line__price">' + POS.money(tot) + "</span>" +
+          (disc ? '<span class="line__was">' + POS.money(gross) + "</span>" : "") +
+          '<button class="line__del" type="button" aria-label="' + POS.s("cart.remove") + '" data-act="del">🗑</button>' +
+        "</div>";
+
+        row.innerHTML = stepper + info + right;
+        row.querySelector('[data-act="dec"]').addEventListener("click", function () { cart.changeQty(l.key, -1); });
+        row.querySelector('[data-act="inc"]').addEventListener("click", function () { cart.changeQty(l.key, +1); });
+        row.querySelector('[data-act="edit"]').addEventListener("click", function () { openQty(l); });
+        row.querySelector('[data-act="del"]').addEventListener("click", function () { removeLine(l); });
+        host.appendChild(row);
+      });
+    }
+
+    function removeLine(l) {
+      var snap = cart.remove(l.key);
+      POS.toast(POS.s("cart.removed"), {
+        variant: "danger",
+        action: { label: POS.s("cart.undo"), onClick: function () { cart.restore(snap); } },
+      });
+    }
+
+    function renderSummary() {
+      var t = cart.totals(); var host = $("#summary");
+      var itemsWord = t.itemCount === 1 ? POS.s("tot.item") : POS.s("tot.items");
+      var rows = "";
+      if (t.discountCents > 0) rows += row(POS.s("tot.discount"), "−" + POS.money(t.discountCents), "summary__disc");
+      t.taxBreakdown.forEach(function (g) { rows += row(POS.s("tot.tax") + " " + g.rate + "%", POS.money(g.tax)); });
+      rows += row(POS.s("tot.subtotal"), POS.money(t.subtotalCents));
+
+      host.innerHTML =
+        '<button class="btn btn--ghost btn--sm" id="btnDisc" type="button" style="padding-left:0;color:var(--brand-700);font-weight:700">＋ ' + POS.s("act.addDisc") + "</button>" +
+        rows +
+        '<div class="summary__total"><span class="lbl">' + POS.s("tot.total") + '</span><span class="amount">' + POS.money(t.totalCents) + "</span></div>" +
+        '<button class="pay" id="btnPay" type="button"' + (t.itemCount ? "" : " disabled") + ">" +
+          '<span class="pay__left">' + POS.s("act.pay") +
+            ' <span class="pay__count">' + t.itemCount + " " + itemsWord + "</span></span>" +
+          '<span class="pay__amount">' + POS.money(t.totalCents) + "</span>" +
+        "</button>";
+
+      $("#btnDisc").addEventListener("click", openGlobalDiscountHint);
+      $("#btnPay").addEventListener("click", pay);
+    }
+    function row(label, val, cls) {
+      return '<div class="summary__row"><span>' + label + '</span><span class="val ' + (cls || "") + '">' + val + "</span></div>";
+    }
+
+    /* ---------- Cliente ---------- */
+    function renderCustomer() {
+      var c = cart.customer();
+      $("#custName").textContent = POS.t(c.name);
+      $("#custSub").textContent = c.nif ? ("NIF " + c.nif) : POS.s("cart.customer");
+    }
+
+    /* ---------- Modais: keypad de quantidade/peso ---------- */
+    function openQty(l) {
+      var p = POS.getProduct(l.productId);
+      keypad({
+        title: POS.t(p.name),
+        sub: l.weighable ? POS.s("kp.weightFor") : POS.s("kp.qtyFor"),
+        decimal: l.weighable,
+        initial: l.weighable ? l.qty : l.qty,
+        onConfirm: function (val) {
+          if (val > 0) cart.setQty(l.key, val); else cart.remove(l.key);
+        },
+      });
+    }
+    function openWeight(p) {
+      keypad({
+        title: POS.t(p.name), sub: POS.s("kp.weightFor") + " · " + POS.money(p.priceCents) + "/kg",
+        decimal: true, initial: 0,
+        onConfirm: function (val) { if (val > 0) cart.add(p.id, { qty: val }); },
+      });
+    }
+
+    function keypad(o) {
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      var buf = o.initial ? String(o.initial) : "";
+      wrap.innerHTML =
+        "<h3>" + o.title + "</h3><div class='sheet__sub'>" + o.sub + "</div>" +
+        '<div class="sheet__display" id="kpDisp"></div>' +
+        '<div class="keypad" id="kpPad"></div>' +
+        '<div class="sheet__foot">' +
+          '<button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
+          '<button class="btn btn--primary" data-k="ok">' + POS.s("act.confirm") + "</button>" +
+        "</div>";
+      var keys = ["1","2","3","4","5","6","7","8","9", o.decimal ? "." : "00", "0", "⌫"];
+      var pad = wrap.querySelector("#kpPad");
+      var disp = wrap.querySelector("#kpDisp");
+      function draw() { disp.textContent = buf === "" ? "0" : buf; }
+      draw();
+      keys.forEach(function (k) {
+        var b = document.createElement("button"); b.type = "button"; b.textContent = k;
+        if (k === "⌫") b.className = "key-del";
+        b.addEventListener("click", function () {
+          if (k === "⌫") buf = buf.slice(0, -1);
+          else if (k === ".") { if (buf.indexOf(".") < 0) buf = (buf || "0") + "."; }
+          else buf += k;
+          draw();
+        });
+        pad.appendChild(b);
+      });
+      var close = POS.openModal(wrap, { label: o.title });
+      wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
+      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () {
+        var v = parseFloat(buf || "0"); close(); o.onConfirm(o.decimal ? v : Math.round(v));
+      });
+    }
+
+    /* ---------- Modal: desconto na 1ª linha (atalho de demo) ---------- */
+    function openGlobalDiscountHint() {
+      if (!cart.lines.length) return;
+      // Para demo: aplica desconto à linha selecionável; abrimos seletor simples na última linha
+      var l = cart.lines[cart.lines.length - 1];
+      var p = POS.getProduct(l.productId);
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      var mode = "pct"; var buf = "";
+      wrap.innerHTML =
+        "<h3>" + POS.s("cart.discountLine") + "</h3><div class='sheet__sub'>" + POS.t(p.name) + "</div>" +
+        '<div class="seg" id="dMode">' +
+          '<button type="button" data-m="pct" aria-pressed="true">%</button>' +
+          '<button type="button" data-m="abs" aria-pressed="false">€</button>' +
+        "</div>" +
+        '<div class="sheet__display" id="dDisp">0</div>' +
+        '<div class="keypad" id="dPad"></div>' +
+        '<div class="sheet__foot">' +
+          '<button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
+          '<button class="btn btn--primary" data-k="ok">' + POS.s("act.apply") + "</button>" +
+        "</div>";
+      var disp = wrap.querySelector("#dDisp");
+      function draw() { disp.textContent = (buf || "0") + (mode === "pct" ? " %" : " €"); }
+      ["1","2","3","4","5","6","7","8","9","0","00","⌫"].forEach(function (k) {
+        var b = document.createElement("button"); b.type = "button"; b.textContent = k;
+        if (k === "⌫") b.className = "key-del";
+        b.addEventListener("click", function () { if (k === "⌫") buf = buf.slice(0,-1); else buf += k; draw(); });
+        wrap.querySelector("#dPad").appendChild(b);
+      });
+      wrap.querySelectorAll("#dMode button").forEach(function (b) {
+        b.addEventListener("click", function () {
+          mode = b.dataset.m;
+          wrap.querySelectorAll("#dMode button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+          draw();
+        });
+      });
+      draw();
+      var close = POS.openModal(wrap, { label: POS.s("cart.discountLine") });
+      wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
+      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () {
+        var v = parseFloat(buf || "0"); close();
+        if (v > 0) cart.setLineDiscount(l.key, { type: mode, value: mode === "abs" ? Math.round(v * 100) : v });
+      });
+    }
+
+    /* ---------- Modal: cliente ---------- */
+    function openCustomer() {
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      wrap.innerHTML = "<h3>" + POS.s("cart.customer") + "</h3><div class='clist' id='clist'></div>";
+      var list = wrap.querySelector("#clist");
+      POS.customers.forEach(function (c) {
+        var b = document.createElement("button"); b.type = "button"; b.className = "clist__item";
+        b.setAttribute("aria-pressed", String(c.id === cart.state.customerId));
+        b.innerHTML = '<span class="customer__ava">👤</span><span><b>' + POS.t(c.name) + "</b><span>" +
+          (c.nif ? "NIF " + c.nif : POS.s("cart.customer")) + "</span></span>";
+        b.addEventListener("click", function () { cart.setCustomer(c.id); close(); });
+        list.appendChild(b);
+      });
+      var close = POS.openModal(wrap, { label: POS.s("cart.customer") });
+    }
+
+    /* ---------- Pagar ---------- */
+    function pay() {
+      var t = cart.totals(); if (!t.itemCount) return;
+      try {
+        sessionStorage.setItem("pos_payment", JSON.stringify({
+          totalCents: t.totalCents, taxCents: t.taxCents, subtotalCents: t.subtotalCents,
+          itemCount: t.itemCount, customerId: cart.state.customerId,
+        }));
+      } catch (e) {}
+      window.location.href = "payment.html";
+    }
+
+    /* ---------- Ações topo do talão ---------- */
+    function notImpl(name) { return function () { POS.toast(name, { duration: 1800 }); }; }
+
+    /* ---------- Render geral + bindings ---------- */
+    function renderAll() { applyStatic(); renderCats(); renderGrid(); renderLines(); renderSummary(); renderCustomer(); }
+
+    $("#search").addEventListener("input", function (e) {
+      query = e.target.value.trim();
+      $("#searchWrap").classList.toggle("has-value", !!query);
+      renderGrid();
+    });
+    $("#searchClear").addEventListener("click", function () {
+      query = ""; $("#search").value = ""; $("#searchWrap").classList.remove("has-value"); $("#search").focus(); renderGrid();
+    });
+    $("#btnCustomer").addEventListener("click", openCustomer);
+    $("#btnPark").addEventListener("click", notImpl(POS.lang === "pt" ? "Venda suspensa (demo)" : "Sale parked (demo)"));
+    $("#btnRetrieve").addEventListener("click", notImpl(POS.lang === "pt" ? "Nada para recuperar" : "Nothing to retrieve"));
+    $("#btnMore").addEventListener("click", function () {
+      if (!cart.lines.length) { POS.toast(POS.lang === "pt" ? "Talão vazio" : "Empty receipt", { duration: 1500 }); return; }
+      var msg = POS.s("cart.cleared"); cart.clear(); POS.toast(msg, { variant: "danger" });
+    });
+    $("#railSettings").addEventListener("click", function (e) { e.preventDefault(); notImpl(POS.s("nav.settings") + " (demo)")(); });
+
+    cart.onCartChange(function () { renderLines(); renderSummary(); renderGrid(); });
+    POS.onLangChange(renderAll);
+
+    POS.mountDevNav("sale");
+    renderAll();
+  })();
+  </script>
+</body>
+</html>

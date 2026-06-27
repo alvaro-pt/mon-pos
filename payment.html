@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Moloni POS — Pagamento</title>
+  <link rel="stylesheet" href="assets/css/base.css" />
+  <link rel="stylesheet" href="assets/css/sale.css" />
+  <style>
+    body { display:flex; flex-direction:column; height:100dvh; }
+    .pay-screen { flex:1; min-height:0; display:grid; grid-template-columns: 1fr clamp(380px,34vw,460px); background:var(--surface-2); }
+    .pay-left { padding:var(--sp-8); display:flex; flex-direction:column; }
+    .pay-back { align-self:flex-start; margin-bottom:var(--sp-6); }
+    .pay-total { margin-bottom:var(--sp-8); }
+    .pay-total .lbl { color:var(--ink-500); font-weight:600; }
+    .pay-total .big { font-size:var(--fs-4xl); font-weight:900; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+    .methods { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--sp-3); margin-bottom:var(--sp-6); }
+    .method {
+      min-height:120px; border-radius:var(--r-lg); border:2px solid var(--line); background:var(--surface);
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+      font-size:var(--fs-md); font-weight:700; color:var(--ink-700);
+      transition:transform var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), box-shadow var(--t-base) var(--ease);
+    }
+    .method .ic { font-size:36px; }
+    .method:hover { transform:translateY(-3px); box-shadow:var(--sh-md); }
+    .method[aria-pressed="true"] { border-color:var(--brand-500); background:var(--brand-50); color:var(--brand-700); box-shadow:var(--sh-sm); }
+    .cash { background:var(--surface); border-radius:var(--r-lg); border:1px solid var(--line); padding:var(--sp-5); display:none; }
+    .cash.show { display:block; }
+    .cash__row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; font-size:var(--fs-md); }
+    .cash__change { font-size:var(--fs-2xl); font-weight:900; color:var(--pay-600); font-variant-numeric:tabular-nums; }
+    .quick { display:flex; gap:var(--sp-2); flex-wrap:wrap; margin:var(--sp-3) 0; }
+    .quick button { flex:1; min-width:80px; min-height:48px; border-radius:var(--r-md); border:1.5px solid var(--line); background:var(--surface-2); font-weight:700; }
+    .quick button:hover { background:var(--surface-3); }
+    .pay-right { background:var(--surface); border-left:1px solid var(--line); padding:var(--sp-6); display:flex; flex-direction:column; }
+    .receipt { flex:1; }
+    .receipt h3 { font-size:var(--fs-lg); margin-bottom:var(--sp-4); }
+    .rrow { display:flex; justify-content:space-between; padding:5px 0; font-size:var(--fs-sm); color:var(--ink-700); }
+    .rrow.tot { border-top:1px dashed var(--line); margin-top:8px; padding-top:12px; font-size:var(--fs-md); font-weight:800; color:var(--ink-900); }
+    .cert { margin-top:var(--sp-6); padding-top:var(--sp-4); border-top:1px solid var(--line); color:var(--ink-500); font-size:var(--fs-xs); text-align:center; }
+    .cert .qr { width:88px; height:88px; margin:0 auto var(--sp-2); border-radius:var(--r-sm);
+      background:
+        repeating-linear-gradient(90deg,#0d1b17 0 6px,transparent 6px 12px),
+        repeating-linear-gradient(0deg,#0d1b17 0 6px,transparent 6px 12px);
+      background-color:#fff; border:4px solid #fff; box-shadow:0 0 0 1px var(--line); opacity:.85; }
+  </style>
+</head>
+<body>
+  <main class="pay-screen">
+    <section class="pay-left">
+      <a class="btn btn--sm pay-back" href="sale.html">‹ <span data-s="act.cancel">Cancelar</span></a>
+      <div class="pay-total">
+        <div class="lbl" data-s="tot.total">Total a pagar</div>
+        <div class="big" id="grandTotal">—</div>
+      </div>
+      <div class="methods" id="methods">
+        <button class="method" type="button" data-m="cash" aria-pressed="true"><span class="ic">💶</span><span id="mCash">Dinheiro</span></button>
+        <button class="method" type="button" data-m="card" aria-pressed="false"><span class="ic">💳</span><span id="mCard">Cartão</span></button>
+        <button class="method" type="button" data-m="mbway" aria-pressed="false"><span class="ic">📲</span>MB WAY</button>
+      </div>
+      <div class="cash show" id="cashBox">
+        <div class="cash__row"><span id="lblReceived">Valor recebido</span><b class="num" id="received">0,00 €</b></div>
+        <div class="quick" id="quick"></div>
+        <div class="cash__row"><span id="lblChange">Troco</span><span class="cash__change num" id="change">0,00 €</span></div>
+      </div>
+    </section>
+
+    <aside class="pay-right">
+      <div class="receipt">
+        <h3 id="rTitle">Resumo</h3>
+        <div id="rRows"></div>
+      </div>
+      <button class="pay" id="finish" type="button"><span id="finishLbl">Finalizar</span></button>
+      <div class="cert">
+        <div class="qr" aria-hidden="true"></div>
+        ATCUD: 0 · <span id="certTxt">Processado por programa certificado</span>
+      </div>
+    </aside>
+  </main>
+
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/i18n.js"></script>
+  <script src="assets/js/cart.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script>
+  (function () {
+    "use strict";
+    var $ = function (s) { return document.querySelector(s); };
+    var pt = POS.lang === "pt";
+    var data; try { data = JSON.parse(sessionStorage.getItem("pos_payment") || "null"); } catch (e) {}
+    if (!data) { window.location.href = "sale.html"; return; }
+
+    var total = data.totalCents;
+    var method = "cash";
+    var receivedCents = 0;
+
+    // labels
+    $("#mCash").textContent = pt ? "Dinheiro" : "Cash";
+    $("#mCard").textContent = pt ? "Cartão" : "Card";
+    $("#rTitle").textContent = pt ? "Resumo" : "Summary";
+    $("#finishLbl").textContent = pt ? "Finalizar pagamento" : "Complete payment";
+    $("#lblReceived").textContent = pt ? "Valor recebido" : "Amount received";
+    $("#lblChange").textContent = pt ? "Troco" : "Change";
+    $("#certTxt").textContent = pt ? "Processado por programa certificado" : "Processed by certified software";
+    document.querySelectorAll("[data-s]").forEach(function (el) { el.textContent = POS.s(el.getAttribute("data-s")); });
+    $(".pay-back").innerHTML = "‹ " + (pt ? "Voltar" : "Back");
+
+    $("#grandTotal").textContent = POS.money(total);
+
+    // resumo
+    var t = POS.cart.totals();
+    var rows = "";
+    rows += rrow(POS.s("tot.subtotal"), POS.money(t.subtotalCents));
+    t.taxBreakdown.forEach(function (g) { rows += rrow(POS.s("tot.tax") + " " + g.rate + "%", POS.money(g.tax)); });
+    if (t.discountCents > 0) rows += rrow(POS.s("tot.discount"), "−" + POS.money(t.discountCents));
+    rows += '<div class="rrow tot"><span>' + POS.s("tot.total") + "</span><span>" + POS.money(total) + "</span></div>";
+    $("#rRows").innerHTML = rows;
+    function rrow(l, v) { return '<div class="rrow"><span>' + l + "</span><span class='num'>" + v + "</span></div>"; }
+
+    // quick cash
+    var notes = [total, ceil(total, 500), ceil(total, 1000), ceil(total, 2000), 5000].filter(uniq);
+    var q = $("#quick");
+    notes.forEach(function (n) {
+      var b = document.createElement("button"); b.type = "button";
+      b.textContent = n === total ? (pt ? "Certo" : "Exact") : POS.money(n);
+      b.addEventListener("click", function () { receivedCents = n; drawCash(); });
+      q.appendChild(b);
+    });
+    function ceil(v, step) { return Math.ceil(v / step) * step; }
+    function uniq(v, i, a) { return a.indexOf(v) === i; }
+
+    function drawCash() {
+      $("#received").textContent = POS.money(receivedCents);
+      var change = Math.max(0, receivedCents - total);
+      $("#change").textContent = POS.money(change);
+    }
+    drawCash();
+
+    // methods
+    document.querySelectorAll(".method").forEach(function (m) {
+      m.addEventListener("click", function () {
+        method = m.dataset.m;
+        document.querySelectorAll(".method").forEach(function (x) { x.setAttribute("aria-pressed", String(x === m)); });
+        $("#cashBox").classList.toggle("show", method === "cash");
+      });
+    });
+
+    $("#finish").addEventListener("click", function () {
+      if (method === "cash" && receivedCents < total) {
+        POS.toast(pt ? "Valor recebido insuficiente" : "Insufficient amount", { variant: "danger" });
+        return;
+      }
+      POS.cart.clear();
+      try { sessionStorage.removeItem("pos_payment"); } catch (e) {}
+      POS.toast(pt ? "Pagamento concluído ✓" : "Payment complete ✓", { variant: "success", duration: 2200 });
+      setTimeout(function () { window.location.href = "sale.html"; }, 900);
+    });
+  })();
+  </script>
+</body>
+</html>
