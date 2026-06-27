@@ -393,7 +393,7 @@
         '<div class="summary__total"><span class="lbl">' + POS.s("cart.totalDue") + '</span><span class="amount">' + POS.money(t.totalCents) + "</span></div>" +
         '<div class="actbar">' +
           '<button class="btn btn--sm btn--icon" id="btnMore" type="button" aria-label="' + POS.s("cart.more") + '">' + ic("more", { size: 20 }) + "</button>" +
-          '<button class="btn btn--sm btn--danger" id="btnCancel" type="button"' + (t.itemCount ? "" : " disabled") + ">" + POS.s("act.cancel") + "</button>" +
+          '<button class="btn btn--sm btn--danger-solid" id="btnCancel" type="button"' + (t.itemCount ? "" : " disabled") + ">" + POS.s("act.cancel") + "</button>" +
           '<button class="btn btn--sm" id="btnSuspend" type="button"' + (t.itemCount ? "" : " disabled") + ">" + ic("pause", { size: 16 }) + " " + POS.s("act.suspend") + "</button>" +
         "</div>" +
         '<button class="pay" id="btnPay" type="button"' + (t.itemCount ? "" : " disabled") + ">" +
@@ -475,7 +475,7 @@
       var wrap = document.createElement("div"); wrap.className = "sheet";
       wrap.innerHTML = "<h3>" + POS.s("cart.clearConfirm") + "</h3><div class='sheet__sub'>" + POS.s("cart.clearBody") + "</div>" +
         '<div class="sheet__foot"><button class="btn" data-k="no">' + POS.s("act.cancel") + "</button>" +
-        '<button class="btn btn--danger" data-k="yes">' + POS.s("cart.clear") + "</button></div>";
+        '<button class="btn btn--danger-solid" data-k="yes">' + POS.s("cart.clear") + "</button></div>";
       var close = POS.openModal(wrap, { label: POS.s("cart.clearConfirm") });
       wrap.querySelector('[data-k="no"]').addEventListener("click", close);
       wrap.querySelector('[data-k="yes"]').addEventListener("click", function () { close(); cart.clear(); POS.toast(POS.s("cart.cleared"), { variant: "danger" }); });
@@ -530,13 +530,14 @@
         '<div class="search" style="margin-bottom:var(--sp-3)"><span class="search__icon">' + ic("search", { size: 18 }) + "</span>" +
           '<input id="custSearch" type="search" autocomplete="off" placeholder="' + POS.s("cust.search") + '" style="padding-left:42px"></div>' +
         "<div class='clist' id='clist'></div>" +
-        '<div class="pd__foot" style="padding:var(--sp-3) 0 0;border:none">' +
+        '<div class="pd__foot" style="padding:var(--sp-3) 0 0;margin-top:var(--sp-2)">' +
           '<input id="nifInput" inputmode="numeric" placeholder="' + POS.s("cust.nifPlaceholder") + '" style="flex:1;height:46px;border:1.5px solid var(--line);border-radius:var(--r-md);padding:0 12px">' +
           '<button class="btn btn--primary" id="nifUse" type="button">' + POS.s("cust.invoiceNif") + "</button></div>";
       var list = wrap.querySelector("#clist");
       function paint(q) {
         list.innerHTML = "";
         var rows = POS.customers.filter(function (c) {
+          if (c.id === "adhoc") return false;
           if (!q) return true; q = q.toLowerCase();
           return POS.t(c.name).toLowerCase().indexOf(q) >= 0 || (c.nif || "").indexOf(q) >= 0;
         });

@@ -90,7 +90,7 @@ assets/
     cart.js           Estado da venda (linhas, totais, IVA, tipo de doc) + suspender/recuperar (park) + persistência.
 ```
 
-> **Tema visual: Grafite & Índigo.** Chrome escuro (topbar/rail) em grafite (`--shell-*`); acento de marca índigo-violeta (`--brand-*`); confirmar/pagar verde (`--pay-*`). Tokens em `base.css` — não mudar a paleta por hardcode.
+> **Tema visual: Grafite & Índigo.** Chrome escuro (topbar/rail) em grafite (`--shell-*`); acento de marca índigo-violeta (`--brand-*`). Verde **sóbrio** (`--pay-*`) reservado ao Pagar/sucesso — não usar como "positivo genérico". Destrutivos irreversíveis (cancelar/limpar venda, confirmar eliminação) a **vermelho sólido + texto branco** (`.btn--danger-solid`); ações que só abrem confirmação ou têm desfazer ficam subtis. Cor de família = **tinta suave** (`color-mix`), não saturada. Tokens em `base.css` — não mudar a paleta por hardcode.
 > **Iconografia:** **só SVG via `POS.icon()`** — nunca emojis na UI (denunciam um POS datado). Famílias têm `icon` (nome do set); produtos herdam o ícone da família.
 > **Navegação do catálogo:** por **família com breadcrumb** (Categorias › Família › Subfamília), estilo Moloni real. Raiz mostra tiles de família; famílias com subfamílias fazem drill-down; Favoritos é família fixa. Pesquisa (nome/ref/código) sobrepõe-se; código exato ou match único + Enter adiciona logo.
 

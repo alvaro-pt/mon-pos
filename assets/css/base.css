@@ -37,7 +37,7 @@
   --surface-3:#eef0f4; /* zonas recuadas        */
 
   /* Semânticos */
-  --pay-600:#16a34a; --pay-500:#1eb257; --pay-50:#e7f7ed;   /* confirmar/pagar */
+  --pay-700:#11713e; --pay-600:#15894a; --pay-500:#1aa052; --pay-50:#e8f3ec;   /* confirmar/pagar (verde sóbrio) */
   --danger-600:#dc3b3b; --danger-500:#e24b4b; --danger-50:#fdecec;
   --warn-600:#c2810a; --warn-500:#e0980f; --warn-50:#fdf3e0;
   --info-600:#4a45d6; --info-50:#eef0fe;
@@ -121,11 +121,13 @@ img,svg { display:block; }
 .btn--primary { background:var(--brand-600); color:#fff; border-color:transparent; box-shadow:var(--sh-sm); }
 .btn--primary:hover { background:var(--brand-700); }
 .btn--pay { background:var(--pay-600); color:#fff; border-color:transparent; box-shadow:var(--sh-md); }
-.btn--pay:hover { background:#198a42; }
+.btn--pay:hover { background:var(--pay-700); }
 .btn--ghost { background:transparent; border-color:transparent; }
 .btn--ghost:hover { background:var(--surface-3); }
 .btn--danger { color:var(--danger-600); border-color:var(--danger-500); background:var(--danger-50); }
 .btn--danger:hover { background:#f7dada; }
+.btn--danger-solid { background:var(--danger-600); color:#fff; border-color:transparent; }
+.btn--danger-solid:hover { background:#c22f2f; }
 .btn--sm { min-height:var(--touch-sm); padding:0 var(--sp-3); font-size:var(--fs-sm); border-radius:var(--r-sm); }
 .btn--icon { padding:0; width:var(--touch); }
 .btn--block { width:100%; }
