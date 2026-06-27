@@ -54,6 +54,9 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
   color:var(--shell-ink); transition:background var(--t-fast) var(--ease);
 }
 .topbar__btn:hover { background:rgba(255,255,255,.1); }
+.topbar__lang { display:flex; background:rgba(255,255,255,.08); border-radius:var(--r-pill); padding:3px; }
+.topbar__lang button { padding:6px 11px; border-radius:var(--r-pill); color:var(--shell-muted); font-size:12px; font-weight:700; transition:background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.topbar__lang button[aria-pressed="true"] { background:#fff; color:var(--shell-900); }
 .topbar__user {
   display:flex; align-items:center; gap:var(--sp-2); padding:4px 12px 4px 4px;
   border-radius:var(--r-pill); background:rgba(255,255,255,.08); color:#fff; font-weight:600; font-size:var(--fs-sm);
@@ -131,9 +134,10 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .ftile:active { transform:translateY(0) scale(.98); }
 .ftile__disc {
   width:54px; height:54px; border-radius:15px; display:grid; place-items:center;
-  background:color-mix(in srgb, var(--fam-color, var(--brand-600)) 15%, white);
-  color:color-mix(in srgb, var(--fam-color, var(--brand-600)) 70%, #1b1b1b);
+  background:color-mix(in srgb, var(--fam-color, var(--brand-600)) 15%, var(--tint-base));
+  color:color-mix(in srgb, var(--fam-color, var(--brand-600)) 70%, var(--tint-ink));
 }
+[data-theme="clean"] .ftile__disc, [data-theme="clean"] .tile__media, [data-theme="clean"] .pd__media { filter:saturate(.3); }
 .ftile__name { font-size:var(--fs-md); font-weight:700; color:var(--ink-900); line-height:1.2; }
 .ftile__count { font-size:var(--fs-sm); color:var(--ink-500); font-weight:500; margin-top:auto; }
 
@@ -149,8 +153,8 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .tile__add { display:flex; flex-direction:column; text-align:left; background:none; padding:0; width:100%; }
 .tile__media {
   position:relative; aspect-ratio:5/3; display:grid; place-items:center;
-  background:color-mix(in srgb, var(--tile-color, #888) 12%, white);
-  color:color-mix(in srgb, var(--tile-color, #888) 78%, #1b1b1b);
+  background:color-mix(in srgb, var(--tile-color, #888) 12%, var(--tint-base));
+  color:color-mix(in srgb, var(--tile-color, #888) 78%, var(--tint-ink));
 }
 .tile__badge {
   position:absolute; top:8px; left:8px; min-width:26px; height:26px; padding:0 7px;
@@ -282,7 +286,7 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .pd { width:min(560px,100%); }
 .pd__hero { display:flex; gap:var(--sp-4); padding:var(--sp-5); border-bottom:1px solid var(--line); }
 .pd__media { width:120px; height:120px; border-radius:var(--r-lg); display:grid; place-items:center; flex:none;
-  background:color-mix(in srgb, var(--tile-color, #888) 14%, white); color:color-mix(in srgb, var(--tile-color, #888) 80%, #1b1b1b); }
+  background:color-mix(in srgb, var(--tile-color, #888) 14%, var(--tint-base)); color:color-mix(in srgb, var(--tile-color, #888) 80%, var(--tint-ink)); }
 .pd__head { flex:1; min-width:0; }
 .pd__name { font-size:var(--fs-xl); font-weight:800; line-height:1.15; }
 .pd__ref { color:var(--ink-500); font-size:var(--fs-sm); margin-top:2px; }
@@ -320,16 +324,33 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .kp-clear:hover { background:var(--surface-3); }
 .kp-clear:active { transform:scale(.96); }
 .keypad { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--sp-2); }
-.keypad button { height:60px; border-radius:var(--r-md); background:var(--surface-2); border:1px solid var(--line); font-size:var(--fs-xl); font-weight:700; transition:background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease); }
+.keypad button { height:60px; border-radius:var(--r-md); background:var(--surface-2); border:1px solid var(--line); font-size:var(--fs-xl); font-weight:700; display:grid; place-items:center; transition:background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease); }
 .keypad button:hover { background:var(--surface-3); }
 .keypad button:active { transform:scale(.95); }
 .keypad button.key-back { color:var(--ink-700); }
+.keypad button.key-back .ic-svg { margin:0 auto; }
 .keypad button.key-back:hover { background:var(--surface-3); }
 .sheet__foot { display:flex; gap:var(--sp-2); margin-top:var(--sp-4); }
 .sheet__foot .btn { flex:1; }
 .seg { display:flex; gap:var(--sp-2); margin-bottom:var(--sp-4); }
 .seg button { flex:1; height:48px; border-radius:var(--r-md); border:1.5px solid var(--line); background:var(--surface); font-weight:700; color:var(--ink-700); }
 .seg button[aria-pressed="true"] { background:var(--brand-50); border-color:var(--brand-400); color:var(--brand-700); }
+
+/* aspeto (tema + idioma) */
+.set-sec { margin-top:var(--sp-4); }
+.set-sec h4 { font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.04em; color:var(--ink-500); margin-bottom:var(--sp-2); }
+.theme-grid { display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-2); }
+.theme-card { display:flex; flex-direction:column; gap:8px; padding:10px; border:1.5px solid var(--line); border-radius:var(--r-md); background:var(--surface);
+  transition:border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease); }
+.theme-card:hover { border-color:var(--line-strong); }
+.theme-card[aria-pressed="true"] { border-color:var(--brand-400); box-shadow:0 0 0 3px var(--brand-50); }
+.theme-sw { display:flex; height:40px; border-radius:8px; overflow:hidden; border:1px solid var(--line); }
+.theme-sw span { flex:1; }
+.theme-name { display:flex; align-items:center; gap:6px; font-weight:700; font-size:var(--fs-sm); color:var(--ink-900); }
+.theme-chk { color:var(--brand-600); display:inline-grid; }
+
+/* hierarquia da barra de ações: Suspender = outline forte */
+.actbar #btnSuspend { font-weight:700; border-color:var(--line-strong); color:var(--ink-900); }
 
 /* movimentos de caixa */
 .cash-status { display:flex; align-items:center; justify-content:space-between; gap:var(--sp-2); padding:10px 14px; border-radius:var(--r-md);

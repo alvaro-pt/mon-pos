@@ -26,7 +26,22 @@ window.POS = window.POS || {};
     }).format(kg) + " kg";
   };
 
-  /* ---------- dev-nav (andaime de protótipo) ---------- */
+  /* ---------- Tema / modo ---------- */
+  var themeSubs = [];
+  POS.THEMES = ["normal", "dark", "vivo", "clean"];
+  POS.theme = (function () { try { return sessionStorage.getItem("pos_theme") || "normal"; } catch (e) { return "normal"; } })();
+  POS.onThemeChange = function (fn) { if (typeof fn === "function") themeSubs.push(fn); };
+  POS.setTheme = function (t) {
+    if (POS.THEMES.indexOf(t) < 0) t = "normal";
+    POS.theme = t;
+    var r = document.documentElement;
+    if (t === "normal") r.removeAttribute("data-theme"); else r.setAttribute("data-theme", t);
+    try { sessionStorage.setItem("pos_theme", t); } catch (e) {}
+    themeSubs.forEach(function (fn) { try { fn(t); } catch (e) {} });
+  };
+  (function () { var t = POS.theme; if (t && t !== "normal") document.documentElement.setAttribute("data-theme", t); })();
+
+  /* ---------- dev-nav (andaime de protótipo — só com ?dev=1) ---------- */
   var NAV = [
     { key: "sale",     href: "sale.html",            label: "nav.sale" },
     { key: "register", href: "register-close.html",  label: "nav.register" },
@@ -35,6 +50,9 @@ window.POS = window.POS || {};
   ];
 
   POS.mountDevNav = function (activeKey) {
+    var dev = /[?&]dev=1/.test(location.search);
+    try { if (localStorage.getItem("pos_dev") === "1") dev = true; } catch (e) {}
+    if (!dev) return;
     var nav = document.createElement("nav");
     nav.className = "dev-nav";
     nav.setAttribute("aria-label", "Protótipo");
@@ -137,13 +155,24 @@ window.POS = window.POS || {};
       if (e.key === "Escape") { e.preventDefault(); close(); }
       if (e.key === "Tab") trapFocus(e, modal);
     }
+    // Botão de fechar (X) — padrão em todos os diálogos. NÃO fechamos por toque fora
+    // (num POS, um toque acidental não pode perder o que se está a fazer).
+    if (opts.noClose !== true) {
+      var xb = document.createElement("button");
+      xb.className = "modal__close"; xb.type = "button";
+      xb.setAttribute("aria-label", POS.s("act.close"));
+      xb.innerHTML = POS.icon("x", { size: 20 });
+      xb.addEventListener("click", close);
+      modal.appendChild(xb);
+    }
+    // backdrop só fecha se explicitamente permitido (opts.dismissable === true)
     backdrop.addEventListener("mousedown", function (e) {
-      if (e.target === backdrop && opts.dismissable !== false) close();
+      if (e.target === backdrop && opts.dismissable === true) close();
     });
     document.addEventListener("keydown", onKey, true);
     document.body.appendChild(backdrop);
 
-    var focusable = modal.querySelector("[autofocus],button,input,select,textarea,[tabindex]");
+    var focusable = modal.querySelector("[autofocus],input,select,textarea,button");
     if (focusable) focusable.focus();
     return close;
   };
@@ -194,45 +223,80 @@ window.POS = window.POS || {};
 
   /* ---------- Teclado QWERTY on-screen (touch) ---------- */
   POS.osk = (function () {
-    var host = null, target = null, shift = false;
+    var host = null, target = null, shift = false, floating = false;
+    try { floating = sessionStorage.getItem("pos_osk_float") === "1"; } catch (e) {}
     var ROWS = [
-      "1 2 3 4 5 6 7 8 9 0".split(" "),
-      "q w e r t y u i o p".split(" "),
-      "a s d f g h j k l ç".split(" "),
-      "z x c v b n m , . -".split(" "),
+      { keys: "1 2 3 4 5 6 7 8 9 0".split(" "), back: true },
+      { keys: "q w e r t y u i o p".split(" ") },
+      { keys: "a s d f g h j k l ç".split(" ") },
+      { keys: "z x c v b n m , . -".split(" "), shift: true },
     ];
     function isText(el) { return el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA") && el.type !== "checkbox" && el.type !== "radio"; }
     document.addEventListener("focusin", function (e) { if (isText(e.target)) { target = e.target; if (host) refreshCaps(); } });
 
     function build() {
       host = document.createElement("div");
-      host.className = "osk";
+      host.className = "osk" + (floating ? " osk--float" : "");
       host.setAttribute("role", "group");
-      host.setAttribute("aria-label", "Teclado");
-      var rowsHtml = ROWS.map(function (row, i) {
-        var keys = row.map(function (k) { return '<button class="osk__key" type="button" data-k="' + k + '">' + k + "</button>"; }).join("");
-        if (i === 1) keys = '<button class="osk__key osk__bksp" type="button" data-act="back" aria-label="' + POS.s("kp.back") + '"></button>' + keys;
-        if (i === 3) keys = '<button class="osk__key osk__shift" type="button" data-act="shift" aria-pressed="false">⇧</button>' + keys + '<button class="osk__key osk__shift" type="button" data-act="shift2" aria-hidden="true">⇧</button>';
+      host.setAttribute("aria-label", POS.s("osk.title"));
+      var bar = '<div class="osk__bar" id="oskBar">' +
+        '<span class="osk__grip" aria-hidden="true">' + POS.icon("grip", { size: 18 }) + "</span>" +
+        '<span class="osk__title">' + POS.s("osk.title") + "</span>" +
+        '<button class="osk__tool" type="button" data-act="mode" aria-label="' + POS.s("osk.float") + '"></button>' +
+        '<button class="osk__tool" type="button" data-act="close" aria-label="' + POS.s("osk.done") + '">' + POS.icon("x", { size: 18 }) + "</button>" +
+      "</div>";
+      var rowsHtml = ROWS.map(function (row) {
+        var keys = row.keys.map(function (k) { return '<button class="osk__key" type="button" data-k="' + k + '">' + k + "</button>"; }).join("");
+        if (row.back) keys += '<button class="osk__key osk__bksp" type="button" data-act="back" aria-label="' + POS.s("kp.back") + '"></button>';
+        if (row.shift) keys = '<button class="osk__key osk__shift" type="button" data-act="shift" aria-pressed="false"></button>' + keys + '<button class="osk__key osk__shift" type="button" data-act="shift2" aria-label="Shift"></button>';
         return '<div class="osk__row">' + keys + "</div>";
       }).join("");
-      host.innerHTML = rowsHtml +
+      host.innerHTML = bar + rowsHtml +
         '<div class="osk__row osk__row--space">' +
-          '<button class="osk__key" type="button" data-k="@">@</button>' +
+          '<button class="osk__key osk__wide" type="button" data-k="@">@</button>' +
           '<button class="osk__key osk__space" type="button" data-k=" ">' + POS.s("osk.space") + "</button>" +
-          '<button class="osk__key" type="button" data-k=".">.</button>' +
+          '<button class="osk__key osk__wide" type="button" data-k=".">.</button>' +
           '<button class="osk__key osk__done" type="button" data-act="close">' + POS.s("osk.done") + "</button>" +
         "</div>";
-      // mousedown: não perder foco do input
       host.addEventListener("mousedown", function (e) {
         var b = e.target.closest("button"); if (!b) return; e.preventDefault();
         var act = b.dataset.act;
         if (act === "back") return backspace();
         if (act === "close") return POS.osk.close();
+        if (act === "mode") return setFloating(!floating);
         if (act === "shift" || act === "shift2") { shift = !shift; refreshCaps(); return; }
         if (b.dataset.k != null) { insert(shift ? b.dataset.k.toUpperCase() : b.dataset.k); if (shift) { shift = false; refreshCaps(); } }
       });
       host.querySelector(".osk__bksp").innerHTML = POS.icon("backspace", { size: 24 });
+      host.querySelectorAll(".osk__shift").forEach(function (s) { s.innerHTML = POS.icon("shift", { size: 22, fill: true, stroke: 0 }); });
       document.body.appendChild(host);
+      setupDrag();
+      refreshMode();
+    }
+    function refreshMode() {
+      host.classList.toggle("osk--float", floating);
+      var tool = host.querySelector('[data-act="mode"]');
+      tool.innerHTML = POS.icon(floating ? "dock" : "float", { size: 18 });
+      tool.setAttribute("aria-label", POS.s(floating ? "osk.dock" : "osk.float"));
+      if (floating) { // posição inicial centrada em baixo
+        if (!host.style.left) { host.style.left = Math.max(8, (window.innerWidth - host.offsetWidth) / 2) + "px"; host.style.top = (window.innerHeight - host.offsetHeight - 24) + "px"; }
+      } else { host.style.left = ""; host.style.top = ""; }
+    }
+    function setFloating(v) { floating = v; try { sessionStorage.setItem("pos_osk_float", v ? "1" : "0"); } catch (e) {} refreshMode(); }
+    function setupDrag() {
+      var bar = host.querySelector("#oskBar"), dragging = false, ox = 0, oy = 0;
+      bar.addEventListener("pointerdown", function (e) {
+        if (!floating || e.target.closest(".osk__tool")) return;
+        dragging = true; ox = e.clientX - host.offsetLeft; oy = e.clientY - host.offsetTop;
+        bar.setPointerCapture(e.pointerId); e.preventDefault();
+      });
+      bar.addEventListener("pointermove", function (e) {
+        if (!dragging) return;
+        var x = Math.min(Math.max(0, e.clientX - ox), window.innerWidth - host.offsetWidth);
+        var y = Math.min(Math.max(0, e.clientY - oy), window.innerHeight - host.offsetHeight);
+        host.style.left = x + "px"; host.style.top = y + "px";
+      });
+      bar.addEventListener("pointerup", function () { dragging = false; });
     }
     function refreshCaps() {
       if (!host) return;

@@ -21,6 +21,13 @@ window.POS = window.POS || {};
     "nav.tables":      { pt: "Mesas",            en: "Tables" },
     "nav.options":     { pt: "Opções",           en: "Options" },
     "nav.settings":    { pt: "Definições",       en: "Settings" },
+    "set.appearance":  { pt: "Aspeto",           en: "Appearance" },
+    "set.theme":       { pt: "Tema",             en: "Theme" },
+    "set.language":    { pt: "Idioma",           en: "Language" },
+    "theme.normal":    { pt: "Normal",           en: "Normal" },
+    "theme.dark":      { pt: "Escuro",           en: "Dark" },
+    "theme.vivo":      { pt: "Vivo",             en: "Vivid" },
+    "theme.clean":     { pt: "Clean",            en: "Clean" },
     "header.store":    { pt: "Loja",             en: "Store" },
     "header.terminal": { pt: "Terminal",         en: "Terminal" },
 
@@ -70,6 +77,9 @@ window.POS = window.POS || {};
     "kp.back":       { pt: "Retroceder",    en: "Backspace" },
     "osk.space":     { pt: "espaço",        en: "space" },
     "osk.done":      { pt: "Fechar",        en: "Done" },
+    "osk.title":     { pt: "Teclado",       en: "Keyboard" },
+    "osk.float":     { pt: "Tornar flutuante", en: "Make floating" },
+    "osk.dock":      { pt: "Ancorar em baixo", en: "Dock to bottom" },
 
     // Navegação de catálogo (breadcrumb / famílias)
     "header.mode.sales": { pt: "Vendas",    en: "Sales" },

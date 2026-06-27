@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Moloni POS — Venda</title>
+  <script>try{var t=sessionStorage.getItem('pos_theme');if(t&&t!=='normal')document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
   <link rel="stylesheet" href="assets/css/base.css" />
   <link rel="stylesheet" href="assets/css/sale.css" />
 </head>
@@ -24,6 +25,11 @@
       <div class="topbar__actions row">
         <button class="topbar__btn" id="tbBell" type="button" aria-label="Notificações"></button>
         <button class="topbar__btn" id="tbMsg" type="button" aria-label="Mensagens"></button>
+        <div class="topbar__lang" role="group" aria-label="Idioma">
+          <button type="button" data-lang="pt">PT</button>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+        <button class="topbar__btn" id="tbTheme" type="button" aria-label="Aspeto"></button>
         <span class="topbar__user"><span class="topbar__avatar">AS</span> Ana Sousa</span>
         <button class="topbar__btn" id="tbLock" type="button" aria-label="Bloquear terminal"></button>
       </div>
@@ -104,6 +110,7 @@
       $("#kbdToggle").innerHTML = ic("keyboard", { size: 22 });
       $("#tbBell").innerHTML = ic("bell", { size: 20 });
       $("#tbMsg").innerHTML = ic("message", { size: 20 });
+      $("#tbTheme").innerHTML = ic("palette", { size: 20 });
       $("#tbLock").innerHTML = ic("lock", { size: 18 });
       $("#custAva").innerHTML = ic("user", { size: 18 });
       $("#custChev").innerHTML = ic("chevron-right", { size: 18 });
@@ -136,7 +143,7 @@
       var set = document.createElement("a");
       set.className = "rail__item"; set.href = "#";
       set.innerHTML = ic("settings", { size: 24 }) + "<span>" + POS.s("nav.settings") + "</span>";
-      set.addEventListener("click", function (e) { e.preventDefault(); POS.toast(POS.s("nav.settings") + " · demo", { duration: 1500 }); });
+      set.addEventListener("click", function (e) { e.preventDefault(); openAppearance(); });
       r.appendChild(set);
     }
 
@@ -392,7 +399,7 @@
         '<div class="summary__total"><span class="lbl">' + POS.s("cart.totalDue") + '</span><span class="amount">' + POS.money(t.totalCents) + "</span></div>" +
         '<div class="actbar">' +
           '<button class="btn btn--sm btn--icon" id="btnMore" type="button" aria-label="' + POS.s("cart.more") + '">' + ic("more", { size: 20 }) + "</button>" +
-          '<button class="btn btn--sm btn--danger-solid" id="btnCancel" type="button"' + (t.itemCount ? "" : " disabled") + ">" + POS.s("act.cancel") + "</button>" +
+          '<button class="btn btn--sm btn--danger" id="btnCancel" type="button"' + (t.itemCount ? "" : " disabled") + ">" + POS.s("act.cancel") + "</button>" +
           '<button class="btn btn--sm" id="btnSuspend" type="button"' + (t.itemCount ? "" : " disabled") + ">" + POS.s("act.suspend") + "</button>" +
         "</div>" +
         '<button class="pay" id="btnPay" type="button"' + (t.itemCount ? "" : " disabled") + ">" +
@@ -703,6 +710,41 @@
       }, 0);
     }
 
+    /* ---------- Aspeto (tema + idioma) ---------- */
+    var THEME_SW = {
+      normal: ["#1e2330", "#f6f7f9", "#5b5bf0"],
+      dark:   ["#0e121b", "#1a1f2b", "#7d7bf5"],
+      vivo:   ["#1e2330", "#f4f2fb", "#6a2bf5"],
+      clean:  ["#1e2330", "#f3f4f6", "#4d556a"],
+    };
+    function openAppearance() {
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      wrap.innerHTML = "<h3>" + POS.s("set.appearance") + "</h3>" +
+        '<div class="set-sec"><h4>' + POS.s("set.theme") + '</h4><div class="theme-grid" id="themeGrid"></div></div>' +
+        '<div class="set-sec"><h4>' + POS.s("set.language") + '</h4><div class="seg" id="langSeg">' +
+          '<button type="button" data-l="pt" aria-pressed="' + (POS.lang === "pt") + '">Português</button>' +
+          '<button type="button" data-l="en" aria-pressed="' + (POS.lang === "en") + '">English</button></div></div>';
+      var grid = wrap.querySelector("#themeGrid");
+      function paintCards() {
+        grid.querySelectorAll(".theme-card").forEach(function (b) {
+          var t = b.dataset.t; b.setAttribute("aria-pressed", String(POS.theme === t));
+          b.querySelector(".theme-name").innerHTML = POS.s("theme." + t) + (POS.theme === t ? ' <span class="theme-chk">' + ic("check", { size: 16 }) + "</span>" : "");
+        });
+      }
+      POS.THEMES.forEach(function (t) {
+        var b = document.createElement("button"); b.type = "button"; b.className = "theme-card"; b.dataset.t = t;
+        b.innerHTML = '<span class="theme-sw">' + THEME_SW[t].map(function (c) { return '<span style="background:' + c + '"></span>'; }).join("") + "</span>" +
+          '<span class="theme-name"></span>';
+        b.addEventListener("click", function () { POS.setTheme(t); paintCards(); });
+        grid.appendChild(b);
+      });
+      paintCards();
+      wrap.querySelectorAll("#langSeg button").forEach(function (b) {
+        b.addEventListener("click", function () { POS.setLang(b.dataset.l); wrap.querySelectorAll("#langSeg button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); }); });
+      });
+      POS.openModal(wrap, { label: POS.s("set.appearance") });
+    }
+
     /* ---------- Pagar ---------- */
     function pay() {
       var t = cart.totals(); if (!t.itemCount) return;
@@ -730,6 +772,10 @@
     [["#tbBell","Notificações"],["#tbMsg","Mensagens"],["#tbLock","Bloquear terminal"]].forEach(function (x) {
       $(x[0]).addEventListener("click", function () { POS.toast(x[1] + " · demo", { duration: 1400 }); });
     });
+    $("#tbTheme").addEventListener("click", openAppearance);
+    function syncLang() { document.querySelectorAll(".topbar__lang button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.lang === POS.lang)); }); }
+    document.querySelectorAll(".topbar__lang button").forEach(function (b) { b.addEventListener("click", function () { POS.setLang(b.dataset.lang); }); });
+    POS.onLangChange(syncLang); syncLang();
 
     function renderCart() { renderDoc(); renderCustomer(); renderLines(); renderSummary(); }
     function renderAll() { applyStatic(); paintStaticIcons(); renderRail(); renderCatalog(); renderCart(); }

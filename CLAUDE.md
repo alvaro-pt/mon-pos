@@ -91,7 +91,9 @@ assets/
 ```
 
 > **Tema visual: Grafite & Índigo.** Chrome escuro (topbar/rail) em grafite (`--shell-*`); acento de marca índigo-violeta (`--brand-*`). Verde **sóbrio** (`--pay-*`) reservado ao Pagar/sucesso — não usar como "positivo genérico". Destrutivos irreversíveis (cancelar/limpar venda, confirmar eliminação) a **vermelho sólido + texto branco** (`.btn--danger-solid`); ações que só abrem confirmação ou têm desfazer ficam subtis. Cor de família = **tinta suave** (`color-mix`), não saturada. Tokens em `base.css` — não mudar a paleta por hardcode.
-> **Iconografia:** **só SVG via `POS.icon()`** — nunca emojis na UI (denunciam um POS datado). Famílias têm `icon` (nome do set); produtos herdam o ícone da família.
+> **Modos/temas:** 4 temas via `:root[data-theme="dark|vivo|clean"]` em `base.css` (Normal = `:root` base). Trocar com `POS.setTheme()` (persiste `pos_theme`; snippet anti-flash no `<head>`). Tintas de família usam `--tint-base`/`--tint-ink` (não `white`) para não partir no dark. Controlos: botão Aspeto no topo + item Definições do rail (`openAppearance`). Idioma migrou da dev-nav para o topo; **dev-nav só com `?dev=1`**.
+> **Diálogos (regra POS):** modais **não fecham por toque fora** — `POS.openModal` injeta sempre um **X** no topo e fecha por X/Esc (toque acidental não pode perder trabalho). Backdrop só fecha se `dismissable:true` explícito.
+> **Iconografia:** **só SVG via `POS.icon()`** — nunca emojis na UI (denunciam um POS datado). Famílias têm `icon` (nome do set); produtos herdam o ícone da família. Teclados: `POS.keypad` (numérico, vírgula/Limpar/Retroceder) e `POS.osk` (QWERTY on-screen, ancorado ou flutuante arrastável).
 > **Navegação do catálogo:** por **família com breadcrumb** (Categorias › Família › Subfamília), estilo Moloni real. Raiz mostra tiles de família; famílias com subfamílias fazem drill-down; Favoritos é família fixa. Pesquisa (nome/ref/código) sobrepõe-se; código exato ou match único + Enter adiciona logo.
 
 ### Convenções (segue-as à risca)
