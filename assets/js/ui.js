@@ -122,11 +122,15 @@ window.POS = window.POS || {};
     modal.appendChild(contentNode);
     backdrop.appendChild(modal);
 
+    var bg = document.querySelector(".app") || document.querySelector("main");
+    if (bg && !document.querySelector(".modal-backdrop")) { bg.setAttribute("inert", ""); bg.setAttribute("aria-hidden", "true"); }
+
     var lastFocus = document.activeElement;
     function close() {
       document.removeEventListener("keydown", onKey, true);
       backdrop.remove();
-      if (lastFocus && lastFocus.focus) lastFocus.focus();
+      if (bg && !document.querySelector(".modal-backdrop")) { bg.removeAttribute("inert"); bg.removeAttribute("aria-hidden"); }
+      if (lastFocus && lastFocus.isConnected && lastFocus.focus) lastFocus.focus();
       if (opts.onClose) opts.onClose();
     }
     function onKey(e) {
@@ -141,6 +145,45 @@ window.POS = window.POS || {};
 
     var focusable = modal.querySelector("[autofocus],button,input,select,textarea,[tabindex]");
     if (focusable) focusable.focus();
+    return close;
+  };
+
+  /* ---------- Keypad numérico reutilizável ---------- */
+  POS.keypad = function (o) {
+    o = o || {};
+    var maxInt = o.maxInt || 4, maxDec = o.maxDec || 3;
+    var buf = (o.initial != null && o.initial !== 0) ? String(o.initial) : "";
+    var wrap = document.createElement("div"); wrap.className = "sheet";
+    wrap.innerHTML =
+      "<h3>" + (o.title || "") + "</h3>" + (o.sub ? "<div class='sheet__sub'>" + o.sub + "</div>" : "") +
+      '<div class="sheet__display" id="kpDisp"></div><div class="keypad" id="kpPad"></div>' +
+      '<div class="sheet__foot"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
+      '<button class="btn btn--primary" data-k="ok">' + (o.confirmLabel || POS.s("act.confirm")) + "</button></div>";
+    var disp = wrap.querySelector("#kpDisp"), pad = wrap.querySelector("#kpPad");
+    function draw() { disp.textContent = (buf === "" ? "0" : buf) + (o.suffix ? " " + o.suffix : ""); }
+    function canAdd(next) {
+      var parts = next.split("."); if (parts[0].replace("-", "").length > maxInt) return false;
+      if (parts[1] != null && parts[1].length > maxDec) return false;
+      return true;
+    }
+    ["1","2","3","4","5","6","7","8","9", o.decimal ? "." : "00", "0", "del"].forEach(function (k) {
+      var b = document.createElement("button"); b.type = "button";
+      if (k === "del") { b.className = "key-del"; b.setAttribute("aria-label", "Apagar"); b.innerHTML = POS.icon("x", { size: 22 }); }
+      else b.textContent = k;
+      b.addEventListener("click", function () {
+        if (k === "del") buf = buf.slice(0, -1);
+        else if (k === ".") { if (buf.indexOf(".") < 0) buf = (buf || "0") + "."; }
+        else { var next = buf + k; if (next === "00") return; if (canAdd(next)) buf = next; }
+        draw();
+      });
+      pad.appendChild(b);
+    });
+    draw();
+    var close = POS.openModal(wrap, { label: o.title });
+    wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
+    wrap.querySelector('[data-k="ok"]').addEventListener("click", function () {
+      var v = parseFloat(buf || "0"); close(); o.onConfirm(o.decimal ? v : Math.round(v));
+    });
     return close;
   };
 

@@ -52,7 +52,6 @@
     <aside class="cart" aria-label="Venda atual">
       <div class="cart__head">
         <div class="cart__toprow">
-          <button class="btn-soft" id="btnCustomer2" type="button"></button>
           <div class="docsel" id="docsel">
             <button class="docsel__btn" id="docBtn" type="button" aria-haspopup="true" aria-expanded="false"></button>
           </div>
@@ -230,25 +229,26 @@
       var inCart = cart.lines.filter(function (l) { return l.productId === p.id; })
         .reduce(function (n, l) { return n + (l.weighable ? 1 : l.qty); }, 0);
       var out = p.stock <= 0;
-      var btn = document.createElement("button");
-      btn.className = "tile" + (out ? " is-out" : ""); btn.type = "button";
-      btn.style.setProperty("--tile-color", color);
-      btn.setAttribute("aria-label", POS.s("pd.add") + ": " + POS.t(p.name) + ", " + POS.money(p.priceCents) +
-        (inCart ? " (" + inCart + ")" : ""));
-      btn.innerHTML =
-        '<div class="tile__media">' + ic(p.icon || (cat && cat.icon) || "tag", { size: 40, stroke: 1.6 }) +
-          (inCart ? '<span class="tile__badge" aria-hidden="true">' + inCart + "</span>" : "") +
-          (out ? '<span class="tile__out">' + POS.s("pd.outStock") + "</span>" : "") +
-          '<span class="tile__info" role="button" tabindex="0" aria-label="' + POS.s("cat.details") + '">' + ic("info", { size: 18 }) + "</span>" +
-        "</div>" +
-        '<div class="tile__body"><span class="tile__name">' + POS.t(p.name) + "</span>" +
-          '<span class="tile__price">' + POS.money(p.priceCents) + (p.weighable ? ' <small>' + POS.s("cat.weighable") + "</small>" : "") + "</span>" +
-        "</div>";
-      var info = btn.querySelector(".tile__info");
-      info.addEventListener("click", function (e) { e.stopPropagation(); openDetails(p); });
-      info.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); openDetails(p); } });
-      btn.addEventListener("click", function () { addProduct(p, btn); });
-      return btn;
+      var addLbl = out ? (POS.t(p.name) + " — " + POS.s("pd.outStock"))
+        : (POS.s("pd.add") + ": " + POS.t(p.name) + ", " + POS.money(p.priceCents) + (inCart ? " (" + inCart + ")" : ""));
+      var tile = document.createElement("div");
+      tile.className = "tile" + (out ? " is-out" : "");
+      tile.style.setProperty("--tile-color", color);
+      tile.innerHTML =
+        '<button class="tile__add" type="button"' + (out ? ' aria-disabled="true"' : "") + ' aria-label="' + addLbl + '">' +
+          '<span class="tile__media">' + ic(p.icon || (cat && cat.icon) || "tag", { size: 40, stroke: 1.6 }) +
+            (inCart ? '<span class="tile__badge" aria-hidden="true">' + inCart + "</span>" : "") +
+            (out ? '<span class="tile__out">' + POS.s("pd.outStock") + "</span>" : "") +
+          "</span>" +
+          '<span class="tile__body"><span class="tile__name">' + POS.t(p.name) + "</span>" +
+            '<span class="tile__price">' + POS.money(p.priceCents) + (p.weighable ? ' <small>' + POS.s("cat.weighable") + "</small>" : "") + "</span>" +
+          "</span>" +
+        "</button>" +
+        '<button class="tile__info" type="button" aria-label="' + POS.s("cat.details") + ": " + POS.t(p.name) + '">' + ic("info", { size: 18 }) + "</button>";
+      var add = tile.querySelector(".tile__add");
+      add.addEventListener("click", function () { addProduct(p, add); });
+      tile.querySelector(".tile__info").addEventListener("click", function (e) { e.stopPropagation(); openDetails(p); });
+      return tile;
     }
 
     function searchProducts() {
@@ -322,7 +322,6 @@
       var t = cart.state.docType || "receipt";
       var key = "doc." + (t === "simplified" ? "simplified" : t === "invoiceReceipt" ? "invoiceReceipt" : "receipt");
       $("#docBtn").innerHTML = "<span>" + POS.s(key) + "</span>" + ic("chevron-down", { size: 18 });
-      $("#btnCustomer2").innerHTML = ic("users", { size: 18 }) + "<span>" + POS.s("act.searchClients") + "</span>";
       var prefix = DOC_PREFIX[key] || "TL";
       $("#docMeta").innerHTML = ic("check-circle", { size: 16 }) + " <b>" + prefix + " " + cart.state.saleNo + "</b>";
     }
@@ -388,7 +387,7 @@
       host.innerHTML =
         '<div class="summary__rows">' +
           (t.discountCents > 0 ? sumRow(POS.s("tot.discount"), "−" + POS.money(t.discountCents), "summary__disc") : "") +
-          (t.itemCount ? '<button class="summary__toggle" id="taxToggle" type="button">' + ic("chevron-down", { size: 16 }) + " " + POS.s("tot.tax") + " " + POS.s("pd.priceVat").toLowerCase() + "</button>" +
+          (t.itemCount ? '<button class="summary__toggle" id="taxToggle" type="button">' + ic("chevron-down", { size: 16 }) + " " + POS.s("tot.taxBreakdown") + "</button>" +
             '<div class="summary__taxes">' + taxRows + "</div>" : "") +
         "</div>" +
         '<div class="summary__total"><span class="lbl">' + POS.s("cart.totalDue") + '</span><span class="amount">' + POS.money(t.totalCents) + "</span></div>" +
@@ -405,7 +404,7 @@
         var tg = $("#taxToggle");
         tg.addEventListener("click", function () { host.classList.toggle("show-tax"); });
         $("#btnCancel").addEventListener("click", confirmClear);
-        $("#btnSuspend").addEventListener("click", function () { POS.toast(POS.s("act.parkedSales") + " · demo", { duration: 1600 }); });
+        $("#btnSuspend").addEventListener("click", function () { if (cart.park()) POS.toast(POS.s("park.parked"), { variant: "success", duration: 1800 }); });
       }
       $("#btnMore").addEventListener("click", openMoreMenu);
       $("#btnPay").addEventListener("click", pay);
@@ -415,7 +414,7 @@
     /* ---------- Menus / modais ---------- */
     function openMoreMenu() {
       var items = [
-        { icon: "rotate-ccw", label: "act.parkedSales" },
+        { icon: "rotate-ccw", label: "act.parkedSales", action: openParked },
         { icon: "register", label: "act.movements" },
         { icon: "file", label: "act.documents" },
         { icon: "percent", label: "act.addDisc", action: function () { if (cart.lines.length) openDiscount(selectedLine || cart.lines[cart.lines.length - 1].key); else POS.toast(POS.s("cart.empty.title"), { duration: 1400 }); } },
@@ -430,6 +429,30 @@
         wrap.appendChild(b);
       });
       var close = POS.openModal(wrap, { label: POS.s("cart.more") });
+    }
+
+    function openParked() {
+      var list = cart.parkedList();
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      if (!list.length) {
+        wrap.innerHTML = "<h3>" + POS.s("park.title") + "</h3><div class='sheet__sub'>" + POS.s("park.empty") + "</div>";
+        POS.openModal(wrap, { label: POS.s("park.title") }); return;
+      }
+      wrap.innerHTML = "<h3>" + POS.s("park.title") + "</h3><div class='clist' id='plist'></div>";
+      var host = wrap.querySelector("#plist");
+      list.slice().reverse().forEach(function (s) {
+        var total = s.lines.reduce(function (a, l) { return a + cart.lineTotal(l); }, 0);
+        var count = s.lines.reduce(function (n, l) { return n + (l.weighable ? 1 : l.qty); }, 0);
+        var cust = POS.customers.find(function (c) { return c.id === s.customerId; }) || POS.customers[0];
+        var time = new Date(s.ts).toLocaleTimeString(POS.lang === "pt" ? "pt-PT" : "en-IE", { hour: "2-digit", minute: "2-digit" });
+        var b = document.createElement("button"); b.type = "button"; b.className = "clist__item";
+        b.innerHTML = '<span class="customer__ava">' + ic("pause", { size: 18 }) + "</span>" +
+          '<span style="flex:1"><b>' + POS.t(cust.name) + "</b><span>" + count + " " + POS.s(count === 1 ? "tot.item" : "tot.items") + " · " + time + "</span></span>" +
+          '<span class="line__price">' + POS.money(total) + "</span>";
+        b.addEventListener("click", function () { cart.recover(s.id); close(); POS.toast(POS.s("park.recover"), { variant: "success", duration: 1600 }); });
+        host.appendChild(b);
+      });
+      var close = POS.openModal(wrap, { label: POS.s("park.title") });
     }
 
     function openLineMenu(l) {
@@ -458,40 +481,17 @@
       wrap.querySelector('[data-k="yes"]').addEventListener("click", function () { close(); cart.clear(); POS.toast(POS.s("cart.cleared"), { variant: "danger" }); });
     }
 
-    /* keypad genérico */
+    /* quantidade / peso via keypad partilhado (POS.keypad, com validação) */
     function openQty(l) {
       var p = POS.getProduct(l.productId);
-      keypad({ title: POS.t(p.name), sub: l.weighable ? POS.s("kp.weightFor") : POS.s("kp.qtyFor"), decimal: l.weighable, initial: l.qty,
+      POS.keypad({ title: POS.t(p.name), sub: l.weighable ? POS.s("kp.weightFor") : POS.s("kp.qtyFor"),
+        decimal: l.weighable, initial: l.qty, maxInt: l.weighable ? 3 : 4, maxDec: 3, suffix: l.weighable ? "kg" : "",
         onConfirm: function (v) { if (v > 0) cart.setQty(l.key, v); else cart.remove(l.key); } });
     }
     function openWeight(p) {
-      keypad({ title: POS.t(p.name), sub: POS.s("kp.weightFor") + " · " + POS.money(p.priceCents) + "/kg", decimal: true, initial: 0,
+      POS.keypad({ title: POS.t(p.name), sub: POS.s("kp.weightFor") + " · " + POS.money(p.priceCents) + "/kg",
+        decimal: true, initial: 0, maxInt: 3, maxDec: 3, suffix: "kg",
         onConfirm: function (v) { if (v > 0) { var k = cart.add(p.id, { qty: v }); selectedLine = k; } } });
-    }
-    function keypad(o) {
-      var wrap = document.createElement("div"); wrap.className = "sheet";
-      var buf = o.initial ? String(o.initial) : "";
-      wrap.innerHTML = "<h3>" + o.title + "</h3><div class='sheet__sub'>" + o.sub + "</div>" +
-        '<div class="sheet__display" id="kpDisp"></div><div class="keypad" id="kpPad"></div>' +
-        '<div class="sheet__foot"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
-        '<button class="btn btn--primary" data-k="ok">' + POS.s("act.confirm") + "</button></div>";
-      var disp = wrap.querySelector("#kpDisp"), pad = wrap.querySelector("#kpPad");
-      function draw() { disp.textContent = buf === "" ? "0" : buf; }
-      ["1","2","3","4","5","6","7","8","9", o.decimal ? "." : "00", "0", "⌫"].forEach(function (k) {
-        var b = document.createElement("button"); b.type = "button";
-        if (k === "⌫") { b.className = "key-del"; b.innerHTML = ic("x", { size: 22 }); } else b.textContent = k;
-        b.addEventListener("click", function () {
-          if (k === "⌫") buf = buf.slice(0, -1);
-          else if (k === ".") { if (buf.indexOf(".") < 0) buf = (buf || "0") + "."; }
-          else buf += k;
-          draw();
-        });
-        pad.appendChild(b);
-      });
-      draw();
-      var close = POS.openModal(wrap, { label: o.title });
-      wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
-      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () { var v = parseFloat(buf || "0"); close(); o.onConfirm(o.decimal ? v : Math.round(v)); });
     }
 
     function openDiscount(lineKey) {
@@ -508,7 +508,11 @@
       ["1","2","3","4","5","6","7","8","9","0","00","⌫"].forEach(function (k) {
         var b = document.createElement("button"); b.type = "button";
         if (k === "⌫") { b.className = "key-del"; b.innerHTML = ic("x", { size: 22 }); } else b.textContent = k;
-        b.addEventListener("click", function () { if (k === "⌫") buf = buf.slice(0, -1); else buf += k; draw(); });
+        b.addEventListener("click", function () {
+          if (k === "⌫") buf = buf.slice(0, -1);
+          else { var next = buf + k; if (mode === "pct" && parseFloat(next) > 100) next = "100"; if (next.length <= 6) buf = next; }
+          draw();
+        });
         wrap.querySelector("#dPad").appendChild(b);
       });
       wrap.querySelectorAll("#dMode button").forEach(function (b) {
@@ -517,21 +521,45 @@
       draw();
       var close = POS.openModal(wrap, { label: POS.s("cart.discountLine") });
       wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
-      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () { var v = parseFloat(buf || "0"); close(); if (v > 0) cart.setLineDiscount(l.key, { type: mode, value: mode === "abs" ? Math.round(v * 100) : v }); });
+      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () { var v = parseFloat(buf || "0"); close(); if (v > 0) cart.setLineDiscount(l.key, { type: mode, value: mode === "abs" ? Math.round(v * 100) : Math.min(100, v) }); });
     }
 
     function openCustomer() {
       var wrap = document.createElement("div"); wrap.className = "sheet";
-      wrap.innerHTML = "<h3>" + POS.s("cart.customer") + "</h3><div class='clist' id='clist'></div>";
+      wrap.innerHTML = "<h3>" + POS.s("cart.customer") + "</h3>" +
+        '<div class="search" style="margin-bottom:var(--sp-3)"><span class="search__icon">' + ic("search", { size: 18 }) + "</span>" +
+          '<input id="custSearch" type="search" autocomplete="off" placeholder="' + POS.s("cust.search") + '" style="padding-left:42px"></div>' +
+        "<div class='clist' id='clist'></div>" +
+        '<div class="pd__foot" style="padding:var(--sp-3) 0 0;border:none">' +
+          '<input id="nifInput" inputmode="numeric" placeholder="' + POS.s("cust.nifPlaceholder") + '" style="flex:1;height:46px;border:1.5px solid var(--line);border-radius:var(--r-md);padding:0 12px">' +
+          '<button class="btn btn--primary" id="nifUse" type="button">' + POS.s("cust.invoiceNif") + "</button></div>";
       var list = wrap.querySelector("#clist");
-      POS.customers.forEach(function (c) {
-        var b = document.createElement("button"); b.type = "button"; b.className = "clist__item";
-        b.setAttribute("aria-pressed", String(c.id === cart.state.customerId));
-        b.innerHTML = '<span class="customer__ava">' + ic("user", { size: 18 }) + "</span><span><b>" + POS.t(c.name) + "</b><span>" + (c.nif ? "NIF " + c.nif : POS.s("cart.customer")) + "</span></span>";
-        b.addEventListener("click", function () { cart.setCustomer(c.id); close(); });
-        list.appendChild(b);
-      });
+      function paint(q) {
+        list.innerHTML = "";
+        var rows = POS.customers.filter(function (c) {
+          if (!q) return true; q = q.toLowerCase();
+          return POS.t(c.name).toLowerCase().indexOf(q) >= 0 || (c.nif || "").indexOf(q) >= 0;
+        });
+        if (!rows.length) { list.innerHTML = '<p class="muted" style="padding:12px">' + POS.s("cust.noResults") + "</p>"; return; }
+        rows.forEach(function (c) {
+          var b = document.createElement("button"); b.type = "button"; b.className = "clist__item";
+          b.setAttribute("aria-pressed", String(c.id === cart.state.customerId));
+          b.innerHTML = '<span class="customer__ava">' + ic("user", { size: 18 }) + "</span><span><b>" + POS.t(c.name) + "</b><span>" + (c.nif ? "NIF " + c.nif : POS.s("cart.customer")) + "</span></span>";
+          b.addEventListener("click", function () { cart.setCustomer(c.id); close(); });
+          list.appendChild(b);
+        });
+      }
+      paint("");
       var close = POS.openModal(wrap, { label: POS.s("cart.customer") });
+      wrap.querySelector("#custSearch").addEventListener("input", function (e) { paint(e.target.value.trim()); });
+      wrap.querySelector("#nifUse").addEventListener("click", function () {
+        var nif = wrap.querySelector("#nifInput").value.trim().replace(/\s/g, "");
+        if (!/^\d{9}$/.test(nif)) { POS.toast(POS.s("cust.nifPlaceholder"), { variant: "danger", duration: 1600 }); return; }
+        var adhoc = POS.customers.find(function (c) { return c.id === "adhoc"; });
+        if (!adhoc) { adhoc = { id: "adhoc", name: { pt: "Cliente c/ NIF", en: "Customer w/ VAT" } }; POS.customers.push(adhoc); }
+        adhoc.nif = nif;
+        cart.setCustomer("adhoc"); close();
+      });
     }
 
     function openDocMenu() {
@@ -576,7 +604,6 @@
     $("#searchClear").addEventListener("click", function () { query = ""; $("#search").value = ""; $("#searchWrap").classList.remove("has-value"); $("#search").focus(); renderCatalog(); });
     $("#kbdToggle").addEventListener("click", function () { var b = $("#kbdToggle"); var on = b.getAttribute("aria-pressed") === "true"; b.setAttribute("aria-pressed", String(!on)); $("#search").focus(); });
     $("#btnCustomer").addEventListener("click", openCustomer);
-    $("#btnCustomer2").addEventListener("click", openCustomer);
     $("#docBtn").addEventListener("click", openDocMenu);
     [["#tbBell","Notificações"],["#tbMsg","Mensagens"],["#tbLock","Bloquear terminal"]].forEach(function (x) {
       $(x[0]).addEventListener("click", function () { POS.toast(x[1] + " · demo", { duration: 1400 }); });

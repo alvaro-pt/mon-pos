@@ -86,8 +86,8 @@ assets/
     data.js           FONTE DE VERDADE: produtos, categorias+subfamílias, IVA, mesas, clientes. Namespace global POS.
     i18n.js           Strings PT/EN. Toda a UI tem chave PT e EN.
     icons.js          Set de ícones SVG inline (estilo Lucide). POS.icon('nome', {size}). SEM emojis na UI.
-    ui.js             dev-nav, toggle idioma, toasts, formatação de moeda, helpers de modal/foco.
-    cart.js           Estado da venda atual (linhas, totais, IVA, tipo de doc) + persistência em sessionStorage.
+    ui.js             dev-nav, idioma, toasts, POS.money, POS.keypad (keypad reutilizável c/ validação), modais (foco + inert).
+    cart.js           Estado da venda (linhas, totais, IVA, tipo de doc) + suspender/recuperar (park) + persistência.
 ```
 
 > **Tema visual: Grafite & Índigo.** Chrome escuro (topbar/rail) em grafite (`--shell-*`); acento de marca índigo-violeta (`--brand-*`); confirmar/pagar verde (`--pay-*`). Tokens em `base.css` — não mudar a paleta por hardcode.
@@ -125,7 +125,7 @@ Regra de ouro: **derivar, não duplicar.** Totais, IVA e troco calculam-se a par
 Ordem de construção (cada um navegável e demo-ready antes do seguinte):
 
 1. **Ecrã de venda** (`sale.html`) — ✅ v2: navegação por família (breadcrumb), tiles cor+ícone, dialog de detalhes (stock/IVA/variantes), talão com tipo de doc, keypad, descontos por linha, cliente, ações.
-2. **Pagamento** (`payment.html`) — ✅ base: método (dinheiro/cartão/MB WAY), valor recebido, **troco**, recibo c/ ATCUD/QR simulado. A enriquecer: divisão de pagamento.
+2. **Pagamento** (`payment.html`) — ✅ v2: i18n completo (re-traduz), `payment.css` dedicado, método (dinheiro/cartão/MB WAY) com estados simulados, valor recebido via keypad, quick-cash com notas EUR reais, **troco**, sucesso com troco, recibo c/ ATCUD/QR. Fonte única: `cart.totals()`. A enriquecer: divisão de pagamento.
 3. **Talão/recibo** — pré-visualização do documento fiscal (com NIF, IVA discriminado, ATCUD/QR simulado).
 4. **Mesas** (`tables.html`) — mapa de mesas, abrir/transferir/dividir conta (ativa a vertente restauração).
 5. **Fecho de caixa** (`register-close.html`) — abertura/fecho de turno, contagem de dinheiro, resumo Z.

@@ -105,6 +105,40 @@ window.POS = window.POS || {};
     "cart.clearConfirm": { pt: "Limpar toda a venda?",  en: "Clear the whole sale?" },
     "cart.clearBody":    { pt: "Remove todos os artigos do talão. Não há como anular.", en: "Removes all items from the receipt. This can't be undone." },
     "cart.totalDue":     { pt: "Total a pagar",         en: "Total due" },
+    "tot.taxBreakdown":  { pt: "IVA discriminado",      en: "VAT breakdown" },
+    "act.back":          { pt: "Voltar",                en: "Back" },
+
+    // Cliente / NIF
+    "cust.search":       { pt: "Procurar cliente ou NIF…", en: "Search customer or VAT no.…" },
+    "cust.invoiceNif":   { pt: "Faturar com NIF",       en: "Invoice with VAT no." },
+    "cust.nifPlaceholder": { pt: "Introduzir NIF",      en: "Enter VAT number" },
+    "cust.use":          { pt: "Usar",                  en: "Use" },
+    "cust.noResults":    { pt: "Sem clientes",          en: "No customers" },
+
+    // Vendas suspensas
+    "park.title":        { pt: "Vendas suspensas",      en: "Parked sales" },
+    "park.empty":        { pt: "Não há vendas suspensas", en: "No parked sales" },
+    "park.parked":       { pt: "Venda suspensa",        en: "Sale parked" },
+    "park.recover":      { pt: "Recuperar",             en: "Recover" },
+
+    // Pagamento
+    "pay.title":        { pt: "Pagamento",          en: "Payment" },
+    "pay.method.cash":  { pt: "Dinheiro",           en: "Cash" },
+    "pay.method.card":  { pt: "Cartão",             en: "Card" },
+    "pay.method.mbway": { pt: "MB WAY",             en: "MB WAY" },
+    "pay.received":     { pt: "Valor recebido",     en: "Amount received" },
+    "pay.change":       { pt: "Troco",              en: "Change" },
+    "pay.exact":        { pt: "Valor exato",        en: "Exact" },
+    "pay.enterAmount":  { pt: "Inserir valor",      en: "Enter amount" },
+    "pay.summary":      { pt: "Resumo da venda",    en: "Sale summary" },
+    "pay.complete":     { pt: "Finalizar pagamento", en: "Complete payment" },
+    "pay.done":         { pt: "Pagamento concluído", en: "Payment complete" },
+    "pay.insufficient": { pt: "Valor recebido insuficiente", en: "Insufficient amount" },
+    "pay.cardWaiting":  { pt: "A aguardar terminal…", en: "Waiting for terminal…" },
+    "pay.mbwayWaiting": { pt: "A aguardar confirmação MB WAY…", en: "Waiting for MB WAY…" },
+    "pay.approved":     { pt: "Aprovado",           en: "Approved" },
+    "pay.cert":         { pt: "Processado por programa certificado", en: "Processed by certified software" },
+    "pay.newSale":      { pt: "Nova venda",         en: "New sale" },
   };
 
   // Estado de idioma (persistente)

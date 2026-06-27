@@ -129,6 +129,44 @@ window.POS = window.POS || {};
 
     setCustomer: function (id) { state.customerId = id; emit(); },
     setDocType: function (t) { state.docType = t; emit(); },
+
+    /* ---- snapshot / load ---- */
+    snapshot: function () {
+      return {
+        lines: JSON.parse(JSON.stringify(state.lines)),
+        customerId: state.customerId, docType: state.docType, saleNo: state.saleNo,
+        ts: Date.now(),
+      };
+    },
+    load: function (snap) {
+      if (!snap) return;
+      state.lines = JSON.parse(JSON.stringify(snap.lines || []));
+      state.customerId = snap.customerId || "final";
+      state.docType = snap.docType || "receipt";
+      state.lines.forEach(function (l) { if (l.key >= seq) seq = l.key + 1; });
+      emit();
+    },
+
+    /* ---- suspender / recuperar (parked sales) ---- */
+    park: function () {
+      if (!state.lines.length) return null;
+      var snap = POS.cart.snapshot(); snap.id = "pk" + snap.ts;
+      var list = readParked(); list.push(snap); writeParked(list);
+      state.lines = []; emit();
+      return snap;
+    },
+    parkedList: function () { return readParked(); },
+    recover: function (id) {
+      var list = readParked();
+      var i = list.findIndex(function (s) { return s.id === id; });
+      if (i < 0) return;
+      var snap = list[i];
+      if (state.lines.length) { // não perder a venda atual
+        var cur = POS.cart.snapshot(); cur.id = "pk" + Date.now(); list.push(cur);
+      }
+      list.splice(i, 1); writeParked(list);
+      POS.cart.load(snap);
+    },
     customer: function () { return POS.customers.find(function (c) { return c.id === state.customerId; }) || POS.customers[0]; },
 
     /* ---- totais derivados (tax-inclusive) ---- */
@@ -164,6 +202,8 @@ window.POS = window.POS || {};
   };
 
   function find(key) { return state.lines.find(function (l) { return l.key === key; }); }
+  function readParked() { try { return JSON.parse(sessionStorage.getItem("pos_parked") || "[]"); } catch (e) { return []; } }
+  function writeParked(list) { try { sessionStorage.setItem("pos_parked", JSON.stringify(list)); } catch (e) {} }
 
   POS.onCartChange = function (fn) { if (typeof fn === "function") subs.push(fn); };
 
