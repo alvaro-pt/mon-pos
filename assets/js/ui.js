@@ -151,28 +151,32 @@ window.POS = window.POS || {};
   /* ---------- Keypad numérico reutilizável ---------- */
   POS.keypad = function (o) {
     o = o || {};
-    var maxInt = o.maxInt || 4, maxDec = o.maxDec || 3;
+    var maxInt = o.maxInt || 6, maxDec = o.maxDec || 2;
     var buf = (o.initial != null && o.initial !== 0) ? String(o.initial) : "";
     var wrap = document.createElement("div"); wrap.className = "sheet";
     wrap.innerHTML =
       "<h3>" + (o.title || "") + "</h3>" + (o.sub ? "<div class='sheet__sub'>" + o.sub + "</div>" : "") +
-      '<div class="sheet__display" id="kpDisp"></div><div class="keypad" id="kpPad"></div>' +
+      '<div class="kp-display"><span class="sheet__display" id="kpDisp"></span>' +
+        '<button class="kp-clear" type="button" data-k="clear">' + POS.s("kp.clear") + "</button></div>" +
+      '<div class="keypad" id="kpPad"></div>' +
       '<div class="sheet__foot"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
       '<button class="btn btn--primary" data-k="ok">' + (o.confirmLabel || POS.s("act.confirm")) + "</button></div>";
     var disp = wrap.querySelector("#kpDisp"), pad = wrap.querySelector("#kpPad");
-    function draw() { disp.textContent = (buf === "" ? "0" : buf) + (o.suffix ? " " + o.suffix : ""); }
+    var dec = POS.lang === "pt" ? "," : ".";
+    function draw() { disp.textContent = (buf === "" ? "0" : buf).replace(".", dec) + (o.suffix ? " " + o.suffix : ""); }
     function canAdd(next) {
       var parts = next.split("."); if (parts[0].replace("-", "").length > maxInt) return false;
       if (parts[1] != null && parts[1].length > maxDec) return false;
       return true;
     }
-    ["1","2","3","4","5","6","7","8","9", o.decimal ? "." : "00", "0", "del"].forEach(function (k) {
+    ["1","2","3","4","5","6","7","8","9", o.decimal ? "dot" : "00", "0", "back"].forEach(function (k) {
       var b = document.createElement("button"); b.type = "button";
-      if (k === "del") { b.className = "key-del"; b.setAttribute("aria-label", "Apagar"); b.innerHTML = POS.icon("x", { size: 22 }); }
+      if (k === "back") { b.className = "key-back"; b.setAttribute("aria-label", POS.s("kp.back")); b.innerHTML = POS.icon("backspace", { size: 24 }); }
+      else if (k === "dot") b.textContent = dec;
       else b.textContent = k;
       b.addEventListener("click", function () {
-        if (k === "del") buf = buf.slice(0, -1);
-        else if (k === ".") { if (buf.indexOf(".") < 0) buf = (buf || "0") + "."; }
+        if (k === "back") buf = buf.slice(0, -1);
+        else if (k === "dot") { if (buf.indexOf(".") < 0) buf = (buf || "0") + "."; }
         else { var next = buf + k; if (next === "00") return; if (canAdd(next)) buf = next; }
         draw();
       });
@@ -180,12 +184,86 @@ window.POS = window.POS || {};
     });
     draw();
     var close = POS.openModal(wrap, { label: o.title });
+    wrap.querySelector('[data-k="clear"]').addEventListener("click", function () { buf = ""; draw(); });
     wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
     wrap.querySelector('[data-k="ok"]').addEventListener("click", function () {
       var v = parseFloat(buf || "0"); close(); o.onConfirm(o.decimal ? v : Math.round(v));
     });
     return close;
   };
+
+  /* ---------- Teclado QWERTY on-screen (touch) ---------- */
+  POS.osk = (function () {
+    var host = null, target = null, shift = false;
+    var ROWS = [
+      "1 2 3 4 5 6 7 8 9 0".split(" "),
+      "q w e r t y u i o p".split(" "),
+      "a s d f g h j k l ç".split(" "),
+      "z x c v b n m , . -".split(" "),
+    ];
+    function isText(el) { return el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA") && el.type !== "checkbox" && el.type !== "radio"; }
+    document.addEventListener("focusin", function (e) { if (isText(e.target)) { target = e.target; if (host) refreshCaps(); } });
+
+    function build() {
+      host = document.createElement("div");
+      host.className = "osk";
+      host.setAttribute("role", "group");
+      host.setAttribute("aria-label", "Teclado");
+      var rowsHtml = ROWS.map(function (row, i) {
+        var keys = row.map(function (k) { return '<button class="osk__key" type="button" data-k="' + k + '">' + k + "</button>"; }).join("");
+        if (i === 1) keys = '<button class="osk__key osk__bksp" type="button" data-act="back" aria-label="' + POS.s("kp.back") + '"></button>' + keys;
+        if (i === 3) keys = '<button class="osk__key osk__shift" type="button" data-act="shift" aria-pressed="false">⇧</button>' + keys + '<button class="osk__key osk__shift" type="button" data-act="shift2" aria-hidden="true">⇧</button>';
+        return '<div class="osk__row">' + keys + "</div>";
+      }).join("");
+      host.innerHTML = rowsHtml +
+        '<div class="osk__row osk__row--space">' +
+          '<button class="osk__key" type="button" data-k="@">@</button>' +
+          '<button class="osk__key osk__space" type="button" data-k=" ">' + POS.s("osk.space") + "</button>" +
+          '<button class="osk__key" type="button" data-k=".">.</button>' +
+          '<button class="osk__key osk__done" type="button" data-act="close">' + POS.s("osk.done") + "</button>" +
+        "</div>";
+      // mousedown: não perder foco do input
+      host.addEventListener("mousedown", function (e) {
+        var b = e.target.closest("button"); if (!b) return; e.preventDefault();
+        var act = b.dataset.act;
+        if (act === "back") return backspace();
+        if (act === "close") return POS.osk.close();
+        if (act === "shift" || act === "shift2") { shift = !shift; refreshCaps(); return; }
+        if (b.dataset.k != null) { insert(shift ? b.dataset.k.toUpperCase() : b.dataset.k); if (shift) { shift = false; refreshCaps(); } }
+      });
+      host.querySelector(".osk__bksp").innerHTML = POS.icon("backspace", { size: 24 });
+      document.body.appendChild(host);
+    }
+    function refreshCaps() {
+      if (!host) return;
+      host.querySelectorAll(".osk__key[data-k]").forEach(function (b) {
+        var k = b.dataset.k; if (k.length === 1 && k >= "a" && k <= "z" || k === "ç") b.textContent = shift ? k.toUpperCase() : k;
+      });
+      host.querySelectorAll('[data-act="shift"]').forEach(function (b) { b.setAttribute("aria-pressed", String(shift)); });
+      host.classList.toggle("is-shift", shift);
+    }
+    function insert(ch) {
+      var el = target; if (!el) return;
+      var s = el.selectionStart, e = el.selectionEnd;
+      if (s == null) { el.value += ch; }
+      else { el.value = el.value.slice(0, s) + ch + el.value.slice(e); var p = s + ch.length; try { el.setSelectionRange(p, p); } catch (x) {} }
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    function backspace() {
+      var el = target; if (!el) return;
+      var s = el.selectionStart, e = el.selectionEnd;
+      if (s == null) { el.value = el.value.slice(0, -1); }
+      else if (s !== e) { el.value = el.value.slice(0, s) + el.value.slice(e); try { el.setSelectionRange(s, s); } catch (x) {} }
+      else if (s > 0) { el.value = el.value.slice(0, s - 1) + el.value.slice(s); try { el.setSelectionRange(s - 1, s - 1); } catch (x) {} }
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    return {
+      open: function () { if (!host) build(); host.classList.add("is-open"); document.body.classList.add("osk-open"); },
+      close: function () { if (host) host.classList.remove("is-open"); document.body.classList.remove("osk-open"); },
+      toggle: function () { if (host && host.classList.contains("is-open")) this.close(); else this.open(); },
+      isOpen: function () { return !!host && host.classList.contains("is-open"); },
+    };
+  })();
 
   function trapFocus(e, container) {
     var nodes = container.querySelectorAll(

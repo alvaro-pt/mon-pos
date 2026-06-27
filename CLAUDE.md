@@ -86,7 +86,7 @@ assets/
     data.js           FONTE DE VERDADE: produtos, categorias+subfamílias, IVA, mesas, clientes. Namespace global POS.
     i18n.js           Strings PT/EN. Toda a UI tem chave PT e EN.
     icons.js          Set de ícones SVG inline (estilo Lucide). POS.icon('nome', {size}). SEM emojis na UI.
-    ui.js             dev-nav, idioma, toasts, POS.money, POS.keypad (keypad reutilizável c/ validação), modais (foco + inert).
+    ui.js             dev-nav, idioma, toasts, POS.money, POS.keypad (numérico: vírgula/Limpar/Retroceder), POS.osk (teclado QWERTY on-screen), modais (foco + inert).
     cart.js           Estado da venda (linhas, totais, IVA, tipo de doc) + suspender/recuperar (park) + persistência.
 ```
 
@@ -128,7 +128,7 @@ Ordem de construção (cada um navegável e demo-ready antes do seguinte):
 2. **Pagamento** (`payment.html`) — ✅ v2: i18n completo (re-traduz), `payment.css` dedicado, método (dinheiro/cartão/MB WAY) com estados simulados, valor recebido via keypad, quick-cash com notas EUR reais, **troco**, sucesso com troco, recibo c/ ATCUD/QR. Fonte única: `cart.totals()`. A enriquecer: divisão de pagamento.
 3. **Talão/recibo** — pré-visualização do documento fiscal (com NIF, IVA discriminado, ATCUD/QR simulado).
 4. **Mesas** (`tables.html`) — mapa de mesas, abrir/transferir/dividir conta (ativa a vertente restauração).
-5. **Fecho de caixa** (`register-close.html`) — abertura/fecho de turno, contagem de dinheiro, resumo Z.
+5. **Fecho de caixa** — ✅ base via modal "Movimentos de caixa" no ecrã de venda (abertura/fecho/entrada/saída + consultar, persistido em `pos_cash`). Falta ecrã dedicado/resumo Z. Cliente: modal com pesquisa + formulário expansível (nome/NIF/morada/CP/localidade/país/telefone), com teclado on-screen.
 6. **Devoluções / nota de crédito** — selecionar venda, devolver linhas, emitir NC.
 
 Fluxo nuclear da demo: `index → sale → payment → recibo` (e regresso a `sale` para nova venda).
