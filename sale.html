@@ -269,9 +269,8 @@
     function addProduct(p, tileEl) {
       if (p.stock <= 0) { POS.toast(POS.s("pd.outStock"), { variant: "danger", duration: 1600 }); return; }
       if (p.weighable) { openWeight(p, tileEl); return; }
+      flyToCart(tileEl);                 // clonar ANTES do add (o add re-renderiza a grelha)
       var key = cart.add(p.id); selectedLine = key;
-      if (tileEl && tileEl.animate) tileEl.animate([{ transform: "scale(.94)" }, { transform: "scale(1)" }], { duration: 160, easing: "cubic-bezier(.2,.7,.3,1)" });
-      flyToCart(tileEl);
     }
 
     /* ---------- Dialog de detalhes ---------- */
@@ -579,7 +578,7 @@
     function openWeight(p, srcEl) {
       POS.keypad({ title: POS.t(p.name), sub: POS.s("kp.weightFor") + " · " + POS.money(p.priceCents) + "/kg",
         decimal: true, initial: 0, maxInt: 3, maxDec: 3, suffix: "kg",
-        onConfirm: function (v) { if (v > 0) { var k = cart.add(p.id, { qty: v }); selectedLine = k; flyToCart(srcEl); } } });
+        onConfirm: function (v) { if (v > 0) { flyToCart(srcEl); var k = cart.add(p.id, { qty: v }); selectedLine = k; } } });
     }
 
     function openDiscount(lineKey) {
@@ -725,16 +724,42 @@
       b: [["rail", 1], ["cart", 4], ["cat", 5]],
       c: [["rail", 1], ["cat", 4], ["ops", 2], ["cart", 3]],
     };
-    function openAppearance() {
-      var wrap = document.createElement("div"); wrap.className = "sheet";
-      wrap.innerHTML = "<h3>" + POS.s("nav.settings") + "</h3>" +
+    var SET_TABS = [
+      { id: "appearance", icon: "palette", label: "set.appearance" },
+      { id: "terminal", icon: "register", label: "set.terminal" },
+      { id: "about", icon: "info", label: "set.about" },
+    ];
+    function openAppearance(activeTab) {
+      activeTab = activeTab || "appearance";
+      var wrap = document.createElement("div"); wrap.className = "settings";
+      wrap.innerHTML = '<div class="set-head"><h3>' + POS.s("nav.settings") + "</h3></div>" +
+        '<div class="set-tabs" id="setTabs" role="tablist"></div>' +
+        '<div class="set-body" id="setBody"></div>';
+      var tabsEl = wrap.querySelector("#setTabs"), body = wrap.querySelector("#setBody");
+      SET_TABS.forEach(function (t) {
+        var b = document.createElement("button"); b.type = "button"; b.className = "set-tab"; b.dataset.tab = t.id;
+        b.setAttribute("role", "tab"); b.setAttribute("aria-selected", String(t.id === activeTab));
+        b.innerHTML = ic(t.icon, { size: 18 }) + "<span>" + POS.s(t.label) + "</span>";
+        b.addEventListener("click", function () { activeTab = t.id; tabsEl.querySelectorAll(".set-tab").forEach(function (x) { x.setAttribute("aria-selected", String(x === b)); }); renderTab(); });
+        tabsEl.appendChild(b);
+      });
+      function renderTab() {
+        if (activeTab === "appearance") return renderAppearanceTab(body);
+        if (activeTab === "terminal") return renderTerminalTab(body);
+        return renderAboutTab(body);
+      }
+      renderTab();
+      POS.openDrawer(wrap, { label: POS.s("nav.settings"), dimmed: false, className: "drawer--wide" });
+    }
+
+    function renderAppearanceTab(body) {
+      body.innerHTML =
         '<div class="set-sec"><h4>' + POS.s("set.theme") + '</h4><div class="theme-grid" id="themeGrid"></div></div>' +
-        '<div class="set-sec"><h4>' + POS.s("set.layout") + '</h4><div class="layout-grid" id="layoutGrid"></div></div>' +
+        '<div class="set-sec"><h4>' + POS.s("set.disposition") + '</h4><div class="layout-grid" id="layoutGrid"></div></div>' +
         '<div class="set-sec"><h4>' + POS.s("set.language") + '</h4><div class="seg" id="langSeg">' +
           '<button type="button" data-l="pt" aria-pressed="' + (POS.lang === "pt") + '">Português</button>' +
           '<button type="button" data-l="en" aria-pressed="' + (POS.lang === "en") + '">English</button></div></div>';
-      // Tema
-      var grid = wrap.querySelector("#themeGrid");
+      var grid = body.querySelector("#themeGrid");
       function paintThemes() {
         grid.querySelectorAll(".theme-card").forEach(function (b) {
           var t = b.dataset.t; b.setAttribute("aria-pressed", String(POS.theme === t));
@@ -748,8 +773,7 @@
         grid.appendChild(b);
       });
       paintThemes();
-      // Layout
-      var lg = wrap.querySelector("#layoutGrid");
+      var lg = body.querySelector("#layoutGrid");
       function paintLayouts() { lg.querySelectorAll(".layout-card").forEach(function (b) { b.setAttribute("aria-pressed", String(POS.layout === b.dataset.l)); }); }
       POS.LAYOUTS.forEach(function (l) {
         var b = document.createElement("button"); b.type = "button"; b.className = "layout-card"; b.dataset.l = l;
@@ -759,11 +783,21 @@
         lg.appendChild(b);
       });
       paintLayouts();
-      // Idioma
-      wrap.querySelectorAll("#langSeg button").forEach(function (b) {
-        b.addEventListener("click", function () { POS.setLang(b.dataset.l); wrap.querySelectorAll("#langSeg button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); }); });
+      body.querySelectorAll("#langSeg button").forEach(function (b) {
+        b.addEventListener("click", function () { POS.setLang(b.dataset.l); body.querySelectorAll("#langSeg button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); }); });
       });
-      POS.openDrawer(wrap, { label: POS.s("nav.settings"), dimmed: false });
+    }
+    function renderTerminalTab(body) {
+      function row(k, v) { return '<div class="pd__cell"><div class="k">' + POS.s(k) + '</div><div class="v">' + v + "</div></div>"; }
+      body.innerHTML = '<div class="set-sec"><div class="pd__grid">' +
+        row("set.store", "Mercearia Avenida") + row("set.terminalNo", "#1") +
+        row("set.operator", "Ana Sousa") + row("cart.soldBy", "Ana S.") + "</div></div>";
+    }
+    function renderAboutTab(body) {
+      body.innerHTML = '<div class="set-sec"><div class="pd__grid">' +
+        '<div class="pd__cell"><div class="k">' + POS.s("set.version") + '</div><div class="v">Protótipo 0.4</div></div>' +
+        '<div class="pd__cell"><div class="k">Moloni POS</div><div class="v">Visma</div></div></div>' +
+        '<p class="muted" style="margin-top:var(--sp-4);font-size:var(--fs-sm)">' + POS.s("pay.cert") + "</p></div>";
     }
 
     /* ---------- Pagar ---------- */
@@ -851,7 +885,7 @@
     [["#tbBell","Notificações"],["#tbMsg","Mensagens"],["#tbLock","Bloquear terminal"]].forEach(function (x) {
       $(x[0]).addEventListener("click", function () { POS.toast(x[1] + " · demo", { duration: 1400 }); });
     });
-    $("#tbTheme").addEventListener("click", openAppearance);
+    $("#tbTheme").addEventListener("click", function () { openAppearance(); });
 
     function renderCart() { renderDoc(); renderCustomer(); renderLines(); renderSummary(); }
     function renderAll() { applyStatic(); paintStaticIcons(); renderRail(); renderCatalog(); renderCart(); renderOps(); }

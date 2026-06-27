@@ -365,8 +365,18 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .seg button { flex:1; height:48px; border-radius:var(--r-md); border:1.5px solid var(--line); background:var(--surface); font-weight:700; color:var(--ink-700); }
 .seg button[aria-pressed="true"] { background:var(--brand-50); border-color:var(--brand-400); color:var(--brand-700); }
 
-/* aspeto (tema + idioma) */
+/* Definições (painel com tabs) */
+.set-head { padding:var(--sp-5) var(--sp-5) 0; }
+.set-head h3 { font-size:var(--fs-xl); padding-right:44px; }
+.set-tabs { display:flex; gap:var(--sp-1); padding:var(--sp-4) var(--sp-5) 0; border-bottom:1px solid var(--line); }
+.set-tab { display:flex; align-items:center; gap:8px; padding:10px 14px; border-radius:var(--r-sm) var(--r-sm) 0 0; color:var(--ink-500); font-weight:700; font-size:var(--fs-base);
+  border-bottom:2px solid transparent; margin-bottom:-1px; transition:color var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
+.set-tab .ic-svg { color:currentColor; }
+.set-tab:hover { color:var(--ink-900); background:var(--surface-2); }
+.set-tab[aria-selected="true"] { color:var(--brand-700); border-bottom-color:var(--brand-600); }
+.set-body { padding:var(--sp-5); }
 .set-sec { margin-top:var(--sp-4); }
+.set-sec:first-child { margin-top:0; }
 .set-sec h4 { font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.04em; color:var(--ink-500); margin-bottom:var(--sp-2); }
 .theme-grid { display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-2); }
 .theme-card { display:flex; flex-direction:column; gap:8px; padding:10px; border:1.5px solid var(--line); border-radius:var(--r-md); background:var(--surface);
