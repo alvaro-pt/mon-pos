@@ -45,6 +45,11 @@
   --warn-600:#c2810a; --warn-500:#e0980f; --warn-50:#fdf3e0;
   --info-600:#4a45d6; --info-50:#eef0fe;
 
+  /* Tintas intermédias derivadas (re-resolvem por tema a partir da escala 900/700/500/300) */
+  --ink-800:color-mix(in srgb, var(--ink-900) 65%, var(--ink-700));
+  --ink-600:color-mix(in srgb, var(--ink-700) 55%, var(--ink-500));
+  --ink-400:color-mix(in srgb, var(--ink-500) 55%, var(--ink-300));
+
   /* Tipografia */
   --font:"Red Hat Display", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   --fs-xs:12px; --fs-sm:13px; --fs-base:15px; --fs-md:17px; --fs-lg:20px;

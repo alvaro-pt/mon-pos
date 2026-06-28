@@ -12,7 +12,9 @@
   <main class="app">
     <!-- Topbar -->
     <header class="topbar">
-      <div class="topbar__logo" aria-hidden="true">m</div>
+      <div class="topbar__logo">
+        <svg viewBox="0 0 500 500" fill="currentColor" role="img" aria-label="moloni ON"><path d="M493.6 394.7v94.34H159.58C74.62 489.04 5.5 419.92 5.5 334.96V95.46h94.34v239.49c0 32.95 26.79 59.75 59.75 59.75H493.6Z"/><path d="M493.6 155.08v333.95h-94.34V155.08c0-32.95-26.79-59.75-59.75-59.75H99.96V1h239.55c84.97 0 154.08 69.12 154.08 154.08Z"/><path d="M194.85 190.34H304.2v109.35H194.85z"/></svg>
+      </div>
       <span class="topbar__store">Mercearia Avenida</span>
       <div class="topbar__meta">
         <span class="topbar__chip"><span data-s="header.terminal">Terminal</span> <b>#1</b></span>
@@ -141,19 +143,19 @@
     function renderRail() {
       var r = $("#rail"); r.innerHTML = "";
       RAIL.forEach(function (it) {
-        var a = document.createElement("a");
-        a.className = "rail__item"; a.href = "#"; a.dataset.key = it.key;
+        var a = document.createElement("button"); a.type = "button";
+        a.className = "rail__item"; a.dataset.key = it.key;
         if (it.key === currentSection) a.setAttribute("aria-current", "page");
         a.innerHTML = ic(it.icon, { size: 24 }) + "<span>" + POS.s(it.label) + "</span>" +
           (it.key === "register" ? '<span class="rail__badge" aria-hidden="true">' + ic("x", { size: 11, stroke: 3 }) + "</span>" : "");
-        a.addEventListener("click", function (e) { e.preventDefault(); goSection(it.key); });
+        a.addEventListener("click", function () { goSection(it.key); });
         r.appendChild(a);
       });
       var sp = document.createElement("span"); sp.className = "rail__spacer"; r.appendChild(sp);
-      var set = document.createElement("a");
-      set.className = "rail__item"; set.href = "#";
+      var set = document.createElement("button"); set.type = "button";
+      set.className = "rail__item";
       set.innerHTML = ic("settings", { size: 24 }) + "<span>" + POS.s("nav.settings") + "</span>";
-      set.addEventListener("click", function (e) { e.preventDefault(); openAppearance(); });
+      set.addEventListener("click", function () { openAppearance(); });
       r.appendChild(set);
     }
     function updateRailActive() {
@@ -188,6 +190,7 @@
           cashCard("open", "cash.open", "register") + cashCard("close", "cash.close", "lock") +
           cashCard("in", "cash.in", "arrow-right") + cashCard("out", "cash.out", "corner-up-left") +
           cashCard("summary", "cash.summary", "info") + cashCard("detailed", "cash.detailed", "file") + "</div>" +
+        (open ? '<button class="btn btn--block" data-cash="nosale" type="button" style="margin-top:var(--sp-3)">' + ic("inbox", { size: 18 }) + " " + POS.s("cash.nosale") + "</button>" : "") +
         '<p class="muted" style="margin-top:var(--sp-4);font-size:var(--fs-sm)">' + POS.s("ph.caixaZ") + "</p></div>";
       body.querySelectorAll("[data-cash]").forEach(function (b) { b.addEventListener("click", function () { cashAction(b.dataset.cash); }); });
     }
@@ -355,7 +358,7 @@
       tile.className = "tile" + (out ? " is-out" : "");
       tile.style.setProperty("--tile-color", color);
       tile.innerHTML =
-        '<button class="tile__add" type="button"' + (out ? ' aria-disabled="true"' : "") + ' aria-label="' + addLbl + '">' +
+        '<button class="tile__add" type="button"' + (out ? ' disabled aria-label="' : ' aria-label="') + addLbl + '">' +
           '<span class="tile__media">' + ic(p.icon || (cat && cat.icon) || "tag", { size: 40, stroke: 1.6 }) +
             (inCart ? '<span class="tile__badge" aria-hidden="true">' + inCart + "</span>" : "") +
             (out ? '<span class="tile__out">' + POS.s("pd.outStock") + "</span>" : "") +
@@ -652,6 +655,7 @@
     function cashAction(kind) {
       if (kind === "open" || kind === "in" || kind === "out") return cashForm(kind);
       if (kind === "close") return cashClose();
+      if (kind === "nosale") return noSale();
       if (kind === "summary") return cashSummary();
       if (kind === "detailed") return cashDetailed();
     }
@@ -674,7 +678,8 @@
           cashCard("open", "cash.open", "register") + cashCard("close", "cash.close", "lock") +
           cashCard("in", "cash.in", "arrow-right") + cashCard("out", "cash.out", "corner-up-left") +
           cashCard("summary", "cash.summary", "info") + cashCard("detailed", "cash.detailed", "file") +
-        "</div>";
+        "</div>" +
+        (open ? '<button class="btn btn--block" data-cash="nosale" type="button" style="margin-top:var(--sp-3)">' + ic("inbox", { size: 18 }) + " " + POS.s("cash.nosale") + "</button>" : "");
       var close = POS.openModal(wrap, { label: POS.s("cash.title") });
       wrap.querySelectorAll("[data-cash]").forEach(function (b) {
         b.addEventListener("click", function () { close(); cashAction(b.dataset.cash); });
@@ -684,8 +689,8 @@
       return '<button class="cash-card" type="button" data-cash="' + kind + '">' + ic(icon || "register", { size: 26, stroke: 1.6 }) + "<span>" + POS.s(labelKey) + "</span></button>";
     }
 
-    var CASH_LABELS = { open: "cash.open", close: "cash.close", in: "cash.in", out: "cash.out" };
-    function cashSign(type) { return type === "out" ? "−" : type === "close" ? "" : "+"; }
+    var CASH_LABELS = { open: "cash.open", close: "cash.close", in: "cash.in", out: "cash.out", nosale: "cash.nosale", handover: "cash.handover" };
+    function cashSign(type) { return type === "out" ? "−" : (type === "close" || type === "nosale" || type === "handover") ? "" : "+"; }
     function cashTime(ts, withDate) {
       var loc = POS.lang === "pt" ? "pt-PT" : "en-IE";
       var o = withDate ? { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" } : { hour: "2-digit", minute: "2-digit" };
@@ -693,17 +698,43 @@
     }
 
     /* Abertura / entrada / saída (open | in | out) — com confirmação de valor invulgar */
+    function lastFund() {   // último fundo de abertura usado (sugestão)
+      var opens = POS.cash.movements().filter(function (m) { return m.type === "open"; });
+      return opens.length ? opens[opens.length - 1].amount : 0;
+    }
+    // no-sale: abrir gaveta sem venda (troco/conferência) — fica registado, não altera saldo
+    function noSale() {
+      if (!POS.cash.isOpen()) { POS.toast(POS.s("cash.notOpen"), { variant: "danger", duration: 1600 }); return; }
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      wrap.innerHTML = "<h3>" + POS.s("cash.nosale") + "</h3><div class='sheet__sub'>" + POS.s("cash.nosaleHint") + "</div>" +
+        '<label class="ff"><span>' + POS.s("cash.nosaleReason") + '</span>' +
+          '<textarea id="nsNote" class="ff__in" rows="2" style="height:auto;padding:10px 12px"></textarea></label>' +
+        '<div class="sheet__foot"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
+        '<button class="btn btn--primary" data-k="ok">' + POS.s("cash.nosale") + "</button></div>";
+      var close = POS.openModal(wrap, { label: POS.s("cash.nosale"), onClose: function () { POS.osk.close(); } });
+      wrap.querySelector("#nsNote").addEventListener("focus", function () { POS.osk.open(); });
+      wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
+      var done = false;
+      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () {
+        if (done) return; done = true; this.disabled = true;
+        POS.cash.movement("nosale", 0, wrap.querySelector("#nsNote").value.trim());
+        close(); afterCashChange();
+        POS.toast(POS.s("cash.drawerOpened"), { variant: "success", duration: 1600 });
+      });
+    }
     function cashForm(kind) {
       if (kind === "open" && POS.cash.isOpen()) { POS.toast(POS.s("cash.alreadyOpen"), { variant: "danger", duration: 1600 }); return; }
       if (kind !== "open" && !POS.cash.isOpen()) { POS.toast(POS.s("cash.notOpen"), { variant: "danger", duration: 1600 }); return; }
       var titleKey = kind === "open" ? "cash.open" : "cash." + kind;
       var hintKey = kind === "open" ? "cash.fundHint" : "cash." + kind + "Hint";
       var valLabelKey = kind === "open" ? "cash.fund" : "cash.value";
-      var valueCents = 0;
+      // abertura: sugere o último fundo usado (confirmável a 1 toque)
+      var valueCents = kind === "open" ? lastFund() : 0;
       var wrap = document.createElement("div"); wrap.className = "sheet";
       wrap.innerHTML = "<h3>" + POS.s(titleKey) + "</h3><div class='sheet__sub'>" + POS.s(hintKey) + "</div>" +
         '<label class="ff"><span>' + POS.s(valLabelKey) + '</span>' +
-          '<button class="ff__in cash-valbtn" id="cashVal" type="button">' + POS.money(0) + '</button></label>' +
+          '<button class="ff__in cash-valbtn' + (valueCents > 0 ? " is-set" : "") + '" id="cashVal" type="button">' + POS.money(valueCents) + "</button>" +
+          (kind === "open" ? '<small class="ff__hint">' + POS.s("cash.fundHint") + "</small>" : "") + "</label>" +
         '<label class="ff" style="margin-top:var(--sp-3)"><span>' + POS.s("cash.notes") + '</span>' +
           '<textarea id="cashNote" class="ff__in" rows="2" style="height:auto;padding:10px 12px"></textarea></label>' +
         '<div class="sheet__foot"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
@@ -711,14 +742,21 @@
       var close = POS.openModal(wrap, { label: POS.s(titleKey), onClose: function () { POS.osk.close(); } });
       var valBtn = wrap.querySelector("#cashVal");
       valBtn.addEventListener("click", function () {
+        if (kind === "open") {   // abertura também pode ser contada por denominação
+          denomCounter({ onConfirm: function (totalCents) { valueCents = totalCents; valBtn.textContent = POS.money(valueCents); valBtn.classList.toggle("is-set", valueCents > 0); } });
+          return;
+        }
         POS.keypad({ title: POS.s(valLabelKey), decimal: true, initial: valueCents ? valueCents / 100 : 0, maxInt: 6, maxDec: 2, suffix: "€",
           onConfirm: function (v) { valueCents = Math.round(v * 100); valBtn.textContent = POS.money(valueCents); valBtn.classList.toggle("is-set", valueCents > 0); } });
       });
       wrap.querySelector("#cashNote").addEventListener("focus", function () { POS.osk.open(); });
       wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
+      var saving = false;
       wrap.querySelector('[data-k="ok"]').addEventListener("click", function () {
         if (kind !== "open" && valueCents <= 0) { POS.toast(POS.s("cash.value"), { variant: "danger", duration: 1400 }); return; }
+        var okBtn = this;
         function commit() {
+          if (saving) return; saving = true; okBtn.disabled = true;   // anti-duplo-toque (movimento de dinheiro)
           var note = wrap.querySelector("#cashNote").value.trim();
           if (kind === "open") POS.cash.open(valueCents, note); else POS.cash.movement(kind, valueCents, note);
           close(); afterCashChange();
@@ -738,10 +776,61 @@
       w.querySelector('[data-k="yes"]').addEventListener("click", function () { c(); onYes(); });
     }
 
+    /* Contador por denominação (notas/moedas) — soma automática, devolve total + repartição */
+    var DENOMS = [50000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
+    function denomCounter(o) {
+      o = o || {};
+      var counts = Object.assign({}, o.initial || {});
+      function total() { return DENOMS.reduce(function (n, c) { return n + c * (counts[c] || 0); }, 0); }
+      function rowHtml(c) {
+        var q = counts[c] || 0;
+        return '<div class="den-row" data-c="' + c + '">' +
+          '<span class="den-face">' + POS.money(c) + "</span>" +
+          '<div class="den-step"><button class="den-btn" data-act="dec" type="button" aria-label="−">' + ic("minus", { size: 18 }) + "</button>" +
+            '<button class="den-qty" type="button" aria-label="' + POS.s("denom.qtyFor") + " " + POS.money(c) + '">' + q + "</button>" +
+            '<button class="den-btn" data-act="inc" type="button" aria-label="+">' + ic("plus", { size: 18 }) + "</button></div>" +
+          '<span class="den-sub num">' + POS.money(c * q) + "</span></div>";
+      }
+      var notes = DENOMS.filter(function (c) { return c >= 500; }).map(rowHtml).join("");
+      var coins = DENOMS.filter(function (c) { return c < 500; }).map(rowHtml).join("");
+      var wrap = document.createElement("div"); wrap.className = "sheet denom";
+      wrap.innerHTML = "<h3>" + POS.s("denom.title") + "</h3>" +
+        '<div class="den-scroll">' +
+          '<div class="den-grouplbl">' + POS.s("denom.notes") + "</div><div class='den-grid'>" + notes + "</div>" +
+          '<div class="den-grouplbl">' + POS.s("denom.coins") + "</div><div class='den-grid'>" + coins + "</div></div>" +
+        '<div class="den-foot"><div class="den-total"><span>' + POS.s("denom.total") + '</span><b id="denTotal">' + POS.money(total()) + "</b></div>" +
+          '<div class="sheet__foot" style="margin:0"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
+          '<button class="btn" data-k="clear">' + POS.s("denom.clear") + "</button>" +
+          '<button class="btn btn--primary" data-k="ok">' + POS.s("act.confirm") + "</button></div></div>";
+      var close = POS.openModal(wrap, { label: POS.s("denom.title"), noClose: true });
+      function refresh(c) {
+        var row = wrap.querySelector('.den-row[data-c="' + c + '"]'); if (!row) return;
+        var q = counts[c] || 0;
+        row.querySelector(".den-qty").textContent = q;
+        row.querySelector(".den-sub").textContent = POS.money(c * q);
+        row.classList.toggle("is-set", q > 0);
+        wrap.querySelector("#denTotal").textContent = POS.money(total());
+      }
+      wrap.querySelectorAll(".den-row").forEach(function (row) {
+        var c = parseInt(row.dataset.c, 10);
+        row.querySelector('[data-act="dec"]').addEventListener("click", function () { counts[c] = Math.max(0, (counts[c] || 0) - 1); refresh(c); });
+        row.querySelector('[data-act="inc"]').addEventListener("click", function () { counts[c] = (counts[c] || 0) + 1; refresh(c); });
+        row.querySelector(".den-qty").addEventListener("click", function () {
+          POS.keypad({ title: POS.s("denom.qtyFor") + " " + POS.money(c), decimal: false, initial: counts[c] || 0, maxInt: 4,
+            onConfirm: function (v) { counts[c] = Math.max(0, Math.round(v)); refresh(c); } });
+        });
+        refresh(c);
+      });
+      wrap.querySelector('[data-k="cancel"]').addEventListener("click", function () { close(); });   // sai sem registar contagem
+      wrap.querySelector('[data-k="clear"]').addEventListener("click", function () { counts = {}; DENOMS.forEach(refresh); });
+      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () { close(); if (o.onConfirm) o.onConfirm(total(), Object.assign({}, counts)); });
+      wrap.querySelector('[data-k="ok"]').focus();   // foco no CTA, não num stepper
+    }
+
     /* Fecho CEGO: operador conta primeiro; esperado e divergência só se revelam na revisão */
     function cashClose() {
       if (!POS.cash.isOpen()) { POS.toast(POS.s("cash.notOpen"), { variant: "danger", duration: 1600 }); return; }
-      var counted = null, reported = 0;
+      var counted = null, reported = 0, countedBreakdown = null;
       var wrap = document.createElement("div"); wrap.className = "sheet";
       wrap.innerHTML = "<h3>" + POS.s("cash.close") + "</h3><div class='sheet__sub'>" + POS.s("cash.countedHint") + "</div>" +
         '<label class="ff"><span>' + POS.s("cash.countedCash") + '</span>' +
@@ -756,8 +845,10 @@
       var close = POS.openModal(wrap, { label: POS.s("cash.close"), noClose: true, onClose: function () { POS.osk.close(); } });
       var bC = wrap.querySelector("#ccCounted"), bK = wrap.querySelector("#ccCard"), review = wrap.querySelector('[data-k="review"]');
       bC.addEventListener("click", function () {
-        POS.keypad({ title: POS.s("cash.countedCash"), decimal: true, initial: counted != null ? counted / 100 : 0, maxInt: 7, maxDec: 2, suffix: "€",
-          onConfirm: function (v) { counted = Math.round(v * 100); bC.textContent = POS.money(counted); bC.classList.add("is-set"); review.disabled = false; } });
+        denomCounter({ initial: countedBreakdown, onConfirm: function (totalCents, counts) {
+          counted = totalCents; countedBreakdown = counts;
+          bC.textContent = POS.money(counted); bC.classList.add("is-set"); review.disabled = false;
+        } });
       });
       bK.addEventListener("click", function () {
         POS.keypad({ title: POS.s("cash.reportedCard"), decimal: true, initial: reported / 100, maxInt: 7, maxDec: 2, suffix: "€",
@@ -768,7 +859,7 @@
       review.addEventListener("click", function () {
         if (counted == null) return;
         POS.osk.close();
-        cashCloseReview(counted, reported, wrap.querySelector("#ccNote").value.trim(), close);
+        cashCloseReview(counted, reported, wrap.querySelector("#ccNote").value.trim(), close, countedBreakdown);
       });
     }
     function methodLabel(m) { var k = "pay.method." + m; var v = POS.s(k); return v === k ? m : v; }
@@ -826,24 +917,36 @@
     }
 
     // passo de revisão (mini-Z): resumo do turno + reconciliação, com confirmação irreversível
-    function cashCloseReview(counted, reported, note, closePrev) {
+    function cashCloseReview(counted, reported, note, closePrev, countedBreakdown) {
       var exp = POS.cash.expected();
       var z = POS.cash.zReport(); z.changeGiven = z.changeCents;
       var recon = { expectedCash: exp.cash, countedCash: counted, diffCash: counted - exp.cash,
         expectedCard: exp.card, reportedCard: reported, diffCard: reported - exp.card };
+      // divergência elevada (dinheiro ou cartão > 10€) exige justificação antes de fechar
+      var bigDiff = Math.abs(recon.diffCash) > 1000 || Math.abs(recon.diffCard) > 1000;
       var w = document.createElement("div"); w.className = "sheet z-review";
       w.innerHTML = "<h3>" + POS.s("cash.close") + "</h3><div class='sheet__sub'>" + POS.s("cash.reviewClose") + "</div>" +
         buildZDoc(z, recon) +
+        (bigDiff ? '<div class="cc-warn">' + ic("alert-circle", { size: 18 }) + " " + POS.s("cash.bigDiff") + "</div>" +
+          '<label class="ff"><span>' + POS.s("cash.notes") + '</span><textarea id="ccJustify" class="ff__in" rows="2" style="height:auto;padding:10px 12px">' + (note || "") + "</textarea></label>" : "") +
         '<div class="sheet__foot"><button class="btn" data-k="back">' + POS.s("act.cancel") + "</button>" +
         '<button class="btn" data-k="print">' + ic("printer", { size: 18 }) + " " + POS.s("z.print") + "</button>" +
-        '<button class="btn btn--danger-solid" data-k="confirm">' + POS.s("cash.confirmClose") + "</button></div>";
+        '<button class="btn btn--danger-solid" data-k="confirm"' + (bigDiff ? " disabled" : "") + ">" + POS.s("cash.confirmClose") + "</button></div>";
       var close = POS.openModal(w, { label: POS.s("cash.close"), noClose: true });
       w.querySelector('[data-k="back"]').addEventListener("click", function () { close(); });
       w.querySelector('[data-k="print"]').addEventListener("click", function () { doPrintZ(z, recon); });
+      var confirmBtn = w.querySelector('[data-k="confirm"]'), justify = w.querySelector("#ccJustify");
+      if (justify) {
+        justify.addEventListener("focus", function () { POS.osk.open(); });
+        justify.addEventListener("input", function () { confirmBtn.disabled = !justify.value.trim(); });
+      }
       var committing = false;
-      w.querySelector('[data-k="confirm"]').addEventListener("click", function () {
-        if (committing) return; committing = true; this.disabled = true;   // anti-duplo-toque (fecho é irreversível)
-        POS.cash.close({ countedCash: counted, reportedCard: reported, note: note });
+      confirmBtn.addEventListener("click", function () {
+        if (committing) return;
+        var finalNote = justify ? justify.value.trim() : note;
+        if (bigDiff && !finalNote) { POS.toast(POS.s("cash.bigDiff"), { variant: "danger", duration: 2000 }); return; }
+        committing = true; this.disabled = true; POS.osk.close();   // anti-duplo-toque (fecho é irreversível)
+        POS.cash.close({ countedCash: counted, reportedCard: reported, note: finalNote, countedBreakdown: countedBreakdown });
         close(); closePrev(); afterCashChange();
         POS.toast(POS.s("cash.closed"), { variant: "success", duration: 1800 });
       });
@@ -853,9 +956,9 @@
     function cashSummary() {
       var s = POS.cash.summary();
       var wrap = document.createElement("div"); wrap.className = "sheet";
-      function row(labelKey, val, strong) { return '<div class="cc-row' + (strong ? " is-strong" : "") + '"><span>' + POS.s(labelKey) + '</span><span class="num">' + POS.money(val) + "</span></div>"; }
+      function row(labelKey, val, strong, txt) { return '<div class="cc-row' + (strong ? " is-strong" : "") + '"><span>' + POS.s(labelKey) + '</span><span class="num">' + (txt != null ? txt : POS.money(val)) + "</span></div>"; }
       var body = s.open
-        ? '<div class="cc-table">' + row("cash.fundDay", s.fundo) + row("cash.salesCash", s.salesCash) + row("cash.movIn", s.ins) + row("cash.movOut", -s.outs) +
+        ? '<div class="cc-table">' + row("cash.fundDay", s.fundo) + row("cash.salesCash", s.salesCash) + row("cash.movIn", s.ins) + row("cash.movOut", 0, false, "−" + POS.money(s.outs)) +
             '<div class="cc-sep"></div>' + row("cash.expectedCash", s.expectedCash, true) +
             '<div class="cc-sep"></div>' + row("cash.expectedCard", s.salesCard) + '<div class="cc-row"><span>' + POS.s("cash.salesCount") + '</span><span class="num">' + s.salesCount + "</span></div></div>"
         : '<p class="muted" style="padding:16px;text-align:center">' + POS.s("cash.statusClosed") + "</p>";
@@ -877,7 +980,7 @@
           '<div class="cd-pager"><button class="cd-nav" id="cdPrev" type="button" aria-label="' + POS.s("cash.prevPage") + '">' + ic("chevron-left", { size: 20 }) + "</button>" +
           '<span class="cd-pginfo" id="cdInfo"></span>' +
           '<button class="cd-nav" id="cdNext" type="button" aria-label="' + POS.s("cash.nextPage") + '">' + ic("chevron-right", { size: 20 }) + "</button></div></div>";
-      POS.openDrawer(wrap, { label: POS.s("cash.detailed") });
+      POS.openDrawer(wrap, { label: POS.s("cash.detailed"), onClose: function () { POS.osk.close(); } });
       var listEl = wrap.querySelector("#cdList"), info = wrap.querySelector("#cdInfo");
       function filtered() {
         var q = st.q.trim().toLowerCase(); if (!q) return all;
@@ -1244,7 +1347,7 @@
       var term = POS.terminal();
       body.innerHTML = '<div class="set-sec"><div class="pd__grid">' +
           row("set.store", "Mercearia Avenida") + row("set.terminalNo", "#1") +
-          row("set.operator", term.operatorName) + row("cart.soldBy", "Ana S.") + "</div></div>" +
+          row("set.operator", term.operatorName) + row("cart.soldBy", term.operatorName) + "</div></div>" +
         '<div class="set-sec"><h4>' + POS.s("set.options") + "</h4>" +
           '<button class="set-toggle" id="toggleSummary" type="button" role="switch" aria-checked="' + (POS.showSummary() ? "true" : "false") + '">' +
             '<span class="set-toggle__text"><span class="set-toggle__lbl">' + POS.s("set.showSummary") + "</span>" +
@@ -1405,8 +1508,62 @@
       if (a === "fs") return toggleFullscreen();
       if (a === "logout") return confirmLogout();
       if (a === "profile") return POS.toast(POS.s("user.profile") + " · demo", { duration: 1500 });
-      if (a === "switch") return POS.toast(POS.s("user.switchOperator") + " · demo", { duration: 1500 });
+      if (a === "switch") return switchOperator();
       if (a === "moloni") return POS.toast(POS.s("user.backToMoloni") + " · demo", { duration: 1500 });
+    }
+    function initials(name) { return (name || "").trim().split(/\s+/).map(function (w) { return w[0] || ""; }).slice(0, 2).join("").toUpperCase() || "?"; }
+    function opRole(t) { var o = POS.operators.find(function (x) { return x.id === t.operatorId; }); return o ? POS.t(o.role) : POS.s("user.role"); }
+    function renderUser() {   // reflete o operador atual no topo (avatar + nome)
+      var t = POS.terminal();
+      var av = document.querySelector(".topbar__user .topbar__avatar"); if (av) av.textContent = initials(t.operatorName);
+      var nm = document.querySelector(".topbar__user > span:not(.topbar__avatar):not(.topbar__chev)"); if (nm) nm.textContent = t.operatorName;
+    }
+    // troca de operador SEM fechar a caixa; regista handover e carimba as próximas vendas
+    function switchOperator() {
+      var t = POS.terminal();
+      var sel = null, pin = "";
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      wrap.innerHTML = "<h3>" + POS.s("op.switchTitle") + "</h3><div class='sheet__sub'>" + POS.s("op.switchHint") + "</div>" +
+        '<div class="op-list" id="opList"></div>' +
+        '<label class="ff" id="opPinRow" hidden><span>' + POS.s("op.pin") + '</span>' +
+          '<button class="ff__in cash-valbtn" id="opPin" type="button">— — — —</button></label>' +
+        '<div class="sheet__foot"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
+        '<button class="btn btn--primary" data-k="ok" disabled>' + POS.s("op.switched") + "</button></div>";
+      var listEl = wrap.querySelector("#opList");
+      POS.operators.forEach(function (o) {
+        var cur = o.id === t.operatorId;
+        var b = document.createElement("button"); b.type = "button"; b.className = "op-row" + (cur ? " is-current" : "");
+        if (cur) b.disabled = true;
+        b.innerHTML = '<span class="op-ava">' + initials(o.name) + "</span>" +
+          '<span class="op-info"><b>' + o.name + "</b><small>" + POS.t(o.role) + (cur ? " · " + POS.s("op.current") : "") + "</small></span>";
+        b.addEventListener("click", function () {
+          sel = o; pin = "";
+          listEl.querySelectorAll(".op-row").forEach(function (x) { x.classList.remove("is-sel"); });
+          b.classList.add("is-sel");
+          wrap.querySelector("#opPinRow").hidden = false;
+          wrap.querySelector("#opPin").textContent = "— — — —";
+          wrap.querySelector('[data-k="ok"]').disabled = true;
+        });
+        listEl.appendChild(b);
+      });
+      var close = POS.openModal(wrap, { label: POS.s("op.switchTitle") });
+      wrap.querySelector("#opPin").addEventListener("click", function () {
+        var self = this;
+        POS.keypad({ title: POS.s("op.pin"), decimal: false, initial: 0, maxInt: 6, mask: true, onConfirm: function (v) {
+          pin = String(Math.round(v)); self.textContent = pin.replace(/./g, "• ");
+          wrap.querySelector('[data-k="ok"]').disabled = !(sel && pin.length >= 4);
+        } });
+      });
+      wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
+      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () {
+        if (!sel) return;
+        if (sel.pin && pin !== sel.pin) { POS.toast(POS.s("op.wrongPin"), { variant: "danger", duration: 1600 }); return; }
+        var from = POS.terminal().operatorName;
+        POS.setTerminal({ operatorId: sel.id, operatorName: sel.name });
+        if (POS.cash.isOpen()) POS.cash.movement("handover", 0, from + " → " + sel.name);
+        close(); renderUser(); afterCashChange();
+        POS.toast(POS.s("op.switched") + " · " + sel.name, { variant: "success", duration: 1800 });
+      });
     }
     function openUserMenu(anchor) {
       if (document.querySelector(".tb-menu")) return; // já aberto (toggle trata o fecho)
@@ -1414,7 +1571,7 @@
       function item(icon, label, act, warn) { return '<button class="tb-menu__item' + (warn ? " warn" : "") + '" role="menuitem" data-act="' + (act || "") + '">' + ic(icon, { size: 20 }) + "<span>" + POS.s(label) + "</span></button>"; }
       var menu = document.createElement("div"); menu.className = "tb-menu"; menu.setAttribute("role", "menu");
       menu.innerHTML =
-        '<div class="tb-menu__head"><span class="topbar__avatar">AS</span><div><b>Ana Sousa</b><small>' + POS.s("user.role") + "</small></div></div>" +
+        '<div class="tb-menu__head"><span class="topbar__avatar">' + initials(POS.terminal().operatorName) + '</span><div><b>' + POS.terminal().operatorName + "</b><small>" + opRole(POS.terminal()) + "</small></div></div>" +
         '<div class="tb-menu__sep"></div>' +
         item("user", "user.profile", "profile") + item("settings", "nav.settings", "settings") +
         '<div class="tb-menu__sep"></div>' +
@@ -1457,7 +1614,7 @@
     $("#tbUser").addEventListener("click", function () { openUserMenu($("#tbUser")); });
 
     function renderCart() { renderDoc(); renderCustomer(); renderLines(); renderSummary(); }
-    function renderAll() { applyStatic(); paintStaticIcons(); renderRail(); renderCatalog(); renderCart(); renderOps(); syncCashUI(); }
+    function renderAll() { applyStatic(); paintStaticIcons(); renderRail(); renderCatalog(); renderCart(); renderOps(); syncCashUI(); renderUser(); }
 
     POS.onCartChange(function () { renderLines(); renderSummary(); renderGrid(); renderOps(); });
     POS.onLayoutChange(function () { renderOps(); renderLines(); });

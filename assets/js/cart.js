@@ -442,11 +442,14 @@ window.POS = window.POS || {};
       d.movements.push({ id: uid(), type: "open", amount: Math.max(0, fundoCents | 0), note: note || "", ts: ts, operator: op(), terminalId: tid() });
       d.open = true; d.openTs = ts; writeCash(d); return true;
     },
-    // entradas/saídas (reforço/sangria) — exigem caixa aberta
+    // movimentos que exigem caixa aberta:
+    //  in/out (reforço/sangria) afetam o esperado; nosale (abrir gaveta) e handover
+    //  (troca de operador) ficam no rasto mas NÃO afetam o saldo (amount 0).
     movement: function (type, amountCents, note) {
-      if (type !== "in" && type !== "out") return false;
+      if (["in", "out", "nosale", "handover"].indexOf(type) < 0) return false;
       var d = readCash(); if (!d.open) return false;
-      d.movements.push({ id: uid(), type: type, amount: Math.max(0, amountCents | 0), note: note || "", ts: Date.now(), operator: op(), terminalId: tid() });
+      var amt = (type === "nosale" || type === "handover") ? 0 : Math.max(0, amountCents | 0);
+      d.movements.push({ id: uid(), type: type, amount: amt, note: note || "", ts: Date.now(), operator: op(), terminalId: tid() });
       writeCash(d); return true;
     },
     // fecho cego: recebe contado + reportado TPA, grava snapshot com divergências
@@ -458,7 +461,8 @@ window.POS = window.POS || {};
       var snap = {
         id: uid(), type: "close", amount: counted, note: o.note || "", ts: Date.now(), operator: op(), terminalId: tid(),
         openTs: d.openTs, expectedCash: exp.cash, countedCash: counted, diffCash: counted - exp.cash,
-        expectedCard: exp.card, reportedCard: reported, diffCard: reported - exp.card, z: z,
+        expectedCard: exp.card, reportedCard: reported, diffCard: reported - exp.card,
+        countedBreakdown: o.countedBreakdown || null, z: z,
       };
       d.movements.push(snap); d.open = false; d.openTs = null; writeCash(d); return snap;
     },

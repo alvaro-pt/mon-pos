@@ -104,6 +104,14 @@ window.POS = window.POS || {};
     { id: "c3", name: { pt: "Café Central, Lda", en: "Café Central, Lda" }, nif: "509871234" },
   ];
 
+  /* ---- Operadores do terminal (roster; PIN simulado p/ protótipo) ---- */
+  POS.operators = [
+    { id: "op1", name: "Ana Sousa",     role: { pt: "Operadora",  en: "Operator" },   pin: "1234" },
+    { id: "op2", name: "João Pereira",  role: { pt: "Operador",   en: "Operator" },   pin: "2345" },
+    { id: "op3", name: "Rita Marques",  role: { pt: "Supervisora", en: "Supervisor" }, pin: "3456" },
+    { id: "op4", name: "Carlos Dias",   role: { pt: "Gerente",    en: "Manager" },    pin: "9999" },
+  ];
+
   /* ---- Mesas (preparado p/ restauração) ---- */
   POS.tables = [
     { id: "m1", label: "1", zone: { pt: "Salão", en: "Hall" }, state: "free" },
