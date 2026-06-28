@@ -170,7 +170,8 @@ window.POS = window.POS || {};
       if (opts.onClose) opts.onClose();
     }
     function onKey(e) {
-      if (e.key === "Escape") { e.preventDefault(); close(); }
+      // noClose => diálogo persistente: sem Esc (e sem X, sem backdrop). Só Tab faz trap.
+      if (e.key === "Escape" && opts.noClose !== true) { e.preventDefault(); close(); }
       if (e.key === "Tab") trapFocus(e, modal);
     }
     // Botão de fechar (X) — padrão em todos os diálogos. NÃO fechamos por toque fora

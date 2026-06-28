@@ -45,7 +45,7 @@
 
       <!-- Painel cartão / MB WAY (máquina de estados) -->
       <div class="panel panel--term" id="termPanel" hidden>
-        <div class="terminal" id="terminal"></div>
+        <div class="terminal" id="terminal" aria-live="assertive"></div>
       </div>
 
       <!-- Lista de pagamentos (progressive disclosure: só após 1º parcial) -->
@@ -86,8 +86,23 @@
     var $ = function (s) { return document.querySelector(s); };
     var ic = POS.icon, cart = POS.cart;
 
-    // Fonte única: o carrinho. Sem itens => volta à venda.
-    if (!cart.totals().itemCount) { window.location.href = "sale.html"; return; }
+    // Sobreviver a refresh: se o carrinho está vazio mas há uma venda recém-concluída,
+    // re-renderiza o ecrã de sucesso/troco dessa venda em vez de saltar para a venda.
+    var LAST_SALE_TTL = 2 * 60 * 1000; // 2 min
+    if (!cart.totals().itemCount) {
+      var last = POS.lastSale();
+      if (last && last.ts && (Date.now() - last.ts) < LAST_SALE_TTL) {
+        document.documentElement.lang = POS.lang;
+        $("#title").textContent = POS.s("pay.title");
+        $("#h1").textContent = POS.s("pay.title");
+        POS.mountDevNav("sale");
+        if (POS.showSummary()) { showSummaryScreen({ sale: last }); return; }
+        if (last.changeCents > 0) { showChangeStep(last.changeCents, { restored: true }); return; }
+        // sem resumo e sem troco: nada a re-mostrar
+        POS.clearLastSale();
+      }
+      window.location.href = "sale.html"; return;
+    }
 
     /* ---------------- Estado de UI (não-persistente) ---------------- */
     var method = POS.lastMethod();              // método selecionado (default = último usado)
@@ -95,6 +110,7 @@
     var amountTouched = false;                    // operador já definiu valor manual/quick?
     var termState = "idle";                       // idle | waiting | declined | cancelled
     var splitMode = false;                        // dividido visível? (só após 1º parcial)
+    var committing = false;                        // guarda anti-duplo-toque: venda em curso de gravação
 
     function totals() { return cart.totals(); }
     function due() { return cart.dueCents(); }
@@ -221,6 +237,7 @@
           "</div>";
         host.querySelector("#retry").addEventListener("click", function () { termState = "idle"; renderTerminal(); refreshCTA(); });
         host.querySelector("#changeM").addEventListener("click", function () { termState = "idle"; setMethod("cash"); });
+        host.querySelector("#retry").focus();
       }
     }
     function startTerminal() {
@@ -310,9 +327,12 @@
 
     /* ---------------- Adicionar pagamento (cash) ---------------- */
     function confirmCash() {
-      if (!amountTouched || amountCents <= 0) return;
+      if (committing) return;
+      if (!amountTouched || amountCents <= 0) { refreshCTA(); return; } // validação falhou: repõe CTA
+      committing = true;
       cart.addPayment({ method: "cash", amountCents: amountCents });
       POS.setLastMethod("cash");
+      committing = false; // o pagamento foi registado; o commit final tem o seu próprio guard
       afterPaymentConfirmed();
     }
 
@@ -348,48 +368,112 @@
       btn.classList.toggle("has-reason", !!s.reason);
       btn.classList.toggle("is-busy", !!s.busy);
       btn.disabled = !s.action;
-      btn.onclick = s.action || null;
+      btn.onclick = s.action ? function () {
+        // anti-duplo-toque: desativa já; o re-render seguinte (refreshCTA) repõe o estado correto.
+        btn.disabled = true;
+        s.action();
+      } : null;
       // addPay extra (atalho explícito) só faz sentido no caminho simples não-split com valor que cobre tudo:
       $("#addPay").hidden = true;
     }
 
     /* ---------------- Concluir venda (commit SEMPRE) ---------------- */
     function completeSale() {
+      if (committing) return;
+      committing = true;
       if (POS.showSummary()) return showSummaryScreen();
       // resumo desligado
       var change = cart.changeCents();
       if (change > 0) return showChangeStep(change);
       cart.commitSale({ receiptDest: "none" });
       cleanup();
-      POS.toast(POS.s("pay.done") + " ✓", { variant: "success", duration: 1600 });
+      POS.toast(POS.s("pay.done"), { variant: "success", duration: 1600 });
       setTimeout(function () { window.location.href = "sale.html"; }, 700);
     }
 
     function cleanup() { try { sessionStorage.removeItem("pos_payment"); } catch (e) {} }
 
-    /* ---------------- Passo mínimo de troco (resumo desligado) ---------------- */
-    function showChangeStep(change) {
-      var ov = document.createElement("div"); ov.className = "pay-ov";
-      ov.innerHTML =
-        '<div class="changecard">' +
-          '<div class="changecard__lbl">' + POS.s("pay.changeDue") + "</div>" +
-          '<div class="changecard__val num">' + POS.money(change) + "</div>" +
-          '<button class="btn btn--pay btn--block changecard__ok" type="button" id="chgOk">' + POS.s("pay.complete") + "</button>" +
-        "</div>";
-      document.body.appendChild(ov);
-      var go = function () { cart.commitSale({ receiptDest: "none" }); cleanup(); window.location.href = "sale.html"; };
-      ov.querySelector("#chgOk").addEventListener("click", go);
-      ov.querySelector("#chgOk").focus();
+    /* ---------------- Passo mínimo de troco (resumo desligado) ----------------
+       opts.restored => a venda já está gravada (refresh): não voltar a gravar. */
+    function showChangeStep(change, opts) {
+      opts = opts || {};
+      var card = document.createElement("div"); card.className = "changecard";
+      card.innerHTML =
+        '<div class="changecard__lbl">' + POS.s("pay.changeDue") + "</div>" +
+        '<div class="changecard__val num">' + POS.money(change) + "</div>" +
+        '<button class="btn btn--pay btn--block changecard__ok" type="button" id="chgOk">' + POS.s("pay.complete") + "</button>";
+
+      // Overlay persistente: sem X, sem fecho por backdrop/Esc. Trap de foco + inert no fundo.
+      var close = POS.openModal(card, { noClose: true, label: POS.s("pay.success") });
+
+      var okBtn = card.querySelector("#chgOk");
+      var done = false;
+      var go = function () {
+        if (done) return; done = true; okBtn.disabled = true; // anti-duplo-toque
+        if (!opts.restored) { cart.commitSale({ receiptDest: "none" }); }
+        cleanup(); POS.clearLastSale();
+        close();
+        window.location.href = "sale.html";
+      };
+      okBtn.addEventListener("click", go);
+      // Enter liga ao CTA primário (mas não rouba o Enter a outros controlos focados)
+      card.addEventListener("keydown", function (e) {
+        if (e.key !== "Enter") return;
+        var a = document.activeElement;
+        if (a && a !== okBtn && (a.tagName === "BUTTON" || a.tagName === "SUMMARY")) return;
+        e.preventDefault(); go();
+      });
+      okBtn.focus();
     }
 
-    /* ---------------- Ecrã de sucesso + destino (resumo ligado) ---------------- */
-    function showSummaryScreen() {
-      var t = totals();
+    /* ---------------- Vista normalizada da venda (live ou restaurada) ----------------
+       Reúne os dados do ecrã de sucesso a partir do carrinho (live) ou de uma venda
+       já gravada (refresh). Assim o mesmo render serve os dois casos. */
+    function saleView(sale) {
+      if (sale) {
+        var custName = "";
+        var cust = POS.customers.find(function (x) { return x.id === sale.customerId; });
+        if (cust) custName = POS.t(cust.name);
+        return {
+          restored: true,
+          docType: sale.docType,
+          seriesId: sale.seriesId,
+          nif: sale.nif,
+          custId: sale.customerId,
+          custName: custName,
+          change: sale.changeCents || 0,
+          payments: sale.payments || [],
+          totals: sale.totals,
+          lines: sale.lines || [],
+          receiptDest: sale.receiptDest || "none",
+        };
+      }
       var c = cart.customer();
-      var change = cart.changeCents();
-      var pays = cart.payments();
-      var seriesNo = POS.terminal().seriesId + " · " + POS.s("doc." + (cart.state.docType === "invoiceReceipt" ? "invoiceReceipt" : cart.state.docType));
-      var custLine = c.nif ? "NIF " + c.nif + (c.id !== "final" ? " · " + POS.t(c.name) : "") : POS.t(c.name);
+      return {
+        restored: false,
+        docType: cart.state.docType,
+        seriesId: POS.terminal().seriesId,
+        nif: c.nif || null,
+        custId: c.id,
+        custName: POS.t(c.name),
+        change: cart.changeCents(),
+        payments: cart.payments(),
+        totals: totals(),
+        lines: cart.lines,
+        receiptDest: "none",
+      };
+    }
+
+    /* ---------------- Ecrã de sucesso + destino (resumo ligado) ----------------
+       opts.sale => venda já gravada (refresh): re-render sem voltar a gravar. */
+    function showSummaryScreen(opts) {
+      opts = opts || {};
+      var view = saleView(opts.sale);
+      var t = view.totals;
+      var change = view.change;
+      var pays = view.payments;
+      var seriesNo = view.seriesId + " · " + POS.s("doc." + (view.docType === "invoiceReceipt" ? "invoiceReceipt" : view.docType));
+      var custLine = view.nif ? "NIF " + view.nif + (view.custId !== "final" ? " · " + view.custName : "") : view.custName;
 
       var DEST = [
         { id: "none",     icon: "no-paper",  label: "pay.dest.none" },
@@ -398,7 +482,7 @@
         { id: "sale",     icon: "file-text", label: "pay.dest.sale" },
         { id: "exchange", icon: "ticket",    label: "pay.dest.exchange" },
       ];
-      var chosenDest = "none";
+      var chosenDest = view.receiptDest;
 
       function sec(id, title, inner, open) {
         return '<details class="sumsec"' + (open ? " open" : "") + '><summary class="sumsec__sum">' +
@@ -407,9 +491,9 @@
       }
       function kv(l, v, cls) { return '<div class="kv' + (cls ? " " + cls : "") + '"><span>' + l + '</span><span class="num">' + v + "</span></div>"; }
 
-      var itemsHtml = cart.lines.map(function (l) {
+      var itemsHtml = view.lines.map(function (l) {
         var p = POS.getProduct(l.productId);
-        var name = l.nameOverride || POS.t(p.name);
+        var name = l.nameOverride || (p ? POS.t(p.name) : l.productId);
         var qty = l.weighable ? POS.weight(l.qty) : l.qty + "×";
         return kv(qty + " " + name, POS.money(cart.lineTotal(l)));
       }).join("");
@@ -420,28 +504,44 @@
         t.taxBreakdown.map(function (g) { return kv(POS.s("tot.tax") + " " + g.rate + "%", POS.money(g.tax)); }).join("") +
         kv(POS.s("pay.totalValue"), POS.money(t.totalCents), "kv--total");
 
-      var ov = document.createElement("div"); ov.className = "pay-ov pay-ov--summary";
-      ov.innerHTML =
-        '<div class="summary-screen" role="dialog" aria-modal="true" aria-label="' + POS.s("pay.success") + '">' +
-          '<div class="summary-head">' +
-            '<div class="summary-badge">' + ic("check", { size: 38, stroke: 2.6 }) + "</div>" +
-            "<h2>" + POS.s("pay.success") + "</h2>" +
-            '<div class="summary-meta">' + seriesNo + " · " + custLine + "</div>" +
-          "</div>" +
-          (change > 0 ? '<div class="summary-change"><span class="summary-change__lbl">' + POS.s("pay.changeDue") + '</span><span class="summary-change__val num">' + POS.money(change) + "</span></div>" : "") +
-          '<div class="summary-secs">' +
-            sec("items", POS.s("pay.sec.items"), itemsHtml, false) +
-            sec("taxes", POS.s("pay.sec.taxes"), taxesHtml, false) +
-            sec("payment", POS.s("pay.sec.payment"), payHtml, true) +
-            sec("summary", POS.s("pay.sec.summary"), sumHtml, false) +
-          "</div>" +
-          '<div class="summary-dest"><div class="summary-dest__title">' + POS.s("pay.dest.title") + "</div>" +
-            '<div class="dest-grid" id="destGrid"></div></div>' +
-          '<button class="btn btn--pay btn--block summary-new" type="button" id="newSale">' + POS.s("pay.newSale") + "</button>" +
-        "</div>";
-      document.body.appendChild(ov);
+      var screen = document.createElement("div"); screen.className = "summary-screen";
+      screen.innerHTML =
+        '<div class="summary-head">' +
+          '<div class="summary-badge">' + ic("check", { size: 38, stroke: 2.6 }) + "</div>" +
+          "<h2>" + POS.s("pay.success") + "</h2>" +
+          '<div class="summary-meta">' + seriesNo + " · " + custLine + "</div>" +
+        "</div>" +
+        (change > 0 ? '<div class="summary-change"><span class="summary-change__lbl">' + POS.s("pay.changeDue") + '</span><span class="summary-change__val num">' + POS.money(change) + "</span></div>" : "") +
+        '<div class="summary-secs">' +
+          sec("items", POS.s("pay.sec.items"), itemsHtml, false) +
+          sec("taxes", POS.s("pay.sec.taxes"), taxesHtml, false) +
+          sec("payment", POS.s("pay.sec.payment"), payHtml, true) +
+          sec("summary", POS.s("pay.sec.summary"), sumHtml, false) +
+        "</div>" +
+        '<div class="summary-dest"><div class="summary-dest__title">' + POS.s("pay.dest.title") + "</div>" +
+          '<div class="dest-grid" id="destGrid"></div></div>' +
+        '<button class="btn btn--pay btn--block summary-new" type="button" id="newSale">' + POS.s("pay.newSale") + "</button>";
 
-      var grid = ov.querySelector("#destGrid");
+      // commit AGORA (imutável) — antes de montar o overlay. Em restore já está gravada.
+      var sale = view.restored ? opts.sale : cart.commitSale({ receiptDest: chosenDest });
+      cleanup();
+
+      // Overlay persistente: sem X, sem fecho por backdrop/Esc. Trap de foco + inert no fundo.
+      var close = POS.openModal(screen, { noClose: true, className: "modal--summary", label: POS.s("pay.success") });
+
+      var grid = screen.querySelector("#destGrid");
+      function persistDest() {
+        try {
+          var list = POS.sales();
+          var rec = list.find(function (s) { return s.id === sale.id; });
+          if (rec) {
+            rec.receiptDest = chosenDest;
+            sessionStorage.setItem("pos_sales", JSON.stringify(list));
+            // manter pos_last_sale coerente caso haja refresh antes de Nova venda
+            var ls = POS.lastSale(); if (ls && ls.id === sale.id) { ls.receiptDest = chosenDest; sessionStorage.setItem("pos_last_sale", JSON.stringify(ls)); }
+          }
+        } catch (e) {}
+      }
       DEST.forEach(function (d) {
         var b = document.createElement("button"); b.type = "button"; b.className = "dest"; b.dataset.d = d.id;
         b.setAttribute("aria-pressed", String(d.id === chosenDest));
@@ -449,25 +549,31 @@
         b.addEventListener("click", function () {
           chosenDest = d.id;
           grid.querySelectorAll(".dest").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+          persistDest();
           if (d.id === "email") POS.toast(POS.s("pay.dest.sent"), { variant: "success", duration: 1600 });
           else if (d.id === "print") POS.toast(POS.s("pay.dest.printing"), { duration: 1600 });
         });
         grid.appendChild(b);
       });
 
-      // commit AGORA (imutável). receiptDest = escolha atual; se mudar antes de Nova venda, atualizamos.
-      var sale = cart.commitSale({ receiptDest: chosenDest });
-      cleanup();
-      ov.querySelector("#newSale").addEventListener("click", function () {
-        // persistir o destino final escolhido no registo já gravado
-        try {
-          var list = POS.sales();
-          var rec = list.find(function (s) { return s.id === sale.id; });
-          if (rec) { rec.receiptDest = chosenDest; sessionStorage.setItem("pos_sales", JSON.stringify(list)); }
-        } catch (e) {}
+      var newBtn = screen.querySelector("#newSale");
+      var done = false;
+      var go = function () {
+        if (done) return; done = true; newBtn.disabled = true; // anti-duplo-toque
+        persistDest();
+        POS.clearLastSale();
+        close();
         window.location.href = "sale.html";
+      };
+      newBtn.addEventListener("click", go);
+      // Enter liga ao CTA primário (Nova venda), sem roubar o Enter a outros controlos focados
+      screen.addEventListener("keydown", function (e) {
+        if (e.key !== "Enter") return;
+        var a = document.activeElement;
+        if (a && a !== newBtn && (a.tagName === "BUTTON" || a.tagName === "SUMMARY")) return;
+        e.preventDefault(); go();
       });
-      ov.querySelector("#newSale").focus();
+      newBtn.focus();
     }
 
     /* ---------------- Render geral ---------------- */

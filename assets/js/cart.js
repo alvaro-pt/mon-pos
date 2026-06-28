@@ -207,6 +207,8 @@ window.POS = window.POS || {};
         receiptDest: opts.receiptDest || "none",
       };
       var list = readSales(); list.push(sale); writeSales(list);
+      // Persistir o resultado ANTES de limpar — sobrevive a refresh do ecrã de sucesso/troco.
+      try { sessionStorage.setItem("pos_last_sale", JSON.stringify(sale)); } catch (e) {}
       POS.cart.clear();
       return sale;
     },
@@ -305,15 +307,20 @@ window.POS = window.POS || {};
   function readParked() { try { return JSON.parse(sessionStorage.getItem("pos_parked") || "[]"); } catch (e) { return []; } }
   function writeParked(list) { try { sessionStorage.setItem("pos_parked", JSON.stringify(list)); } catch (e) {} }
 
-  /* ---- vendas emitidas (imutáveis) ---- */
-  function readSales() { try { return JSON.parse(sessionStorage.getItem("pos_sales") || "[]"); } catch (e) { return []; } }
-  function writeSales(list) { try { sessionStorage.setItem("pos_sales", JSON.stringify(list)); } catch (e) {} }
+  /* ---- vendas emitidas (imutáveis) — PERSISTENTES (localStorage): o turno de caixa
+         transcende a sessão do browser; o esperado do fecho depende delas ---- */
+  function readSales() { try { return JSON.parse(localStorage.getItem("pos_sales") || "[]"); } catch (e) { return []; } }
+  function writeSales(list) { try { localStorage.setItem("pos_sales", JSON.stringify(list)); } catch (e) {} }
   function nextSaleNo() {
-    var n = 1; try { n = parseInt(sessionStorage.getItem("pos_sale_seq") || "0", 10) + 1; } catch (e) {}
-    try { sessionStorage.setItem("pos_sale_seq", String(n)); } catch (e) {}
+    var n = 1; try { n = parseInt(localStorage.getItem("pos_sale_seq") || "0", 10) + 1; } catch (e) {}
+    try { localStorage.setItem("pos_sale_seq", String(n)); } catch (e) {}
     return n;
   }
   POS.sales = function () { return readSales(); };
+
+  /* ---- última venda concluída (para sobreviver a refresh no ecrã de sucesso/troco) ---- */
+  POS.lastSale = function () { try { return JSON.parse(sessionStorage.getItem("pos_last_sale") || "null"); } catch (e) { return null; } };
+  POS.clearLastSale = function () { try { sessionStorage.removeItem("pos_last_sale"); } catch (e) {} };
 
   /* ---- Terminal / operador (default criado à 1ª leitura) ---- */
   var DEFAULT_TERMINAL = { terminalId: "T1", operatorId: "op1", operatorName: "Ana Sousa", seriesId: "FS 2026" };
@@ -338,6 +345,99 @@ window.POS = window.POS || {};
   /* ---- Último método de pagamento usado neste terminal ---- */
   POS.lastMethod = function () { try { return sessionStorage.getItem("pos_last_method") || "cash"; } catch (e) { return "cash"; } };
   POS.setLastMethod = function (m) { try { sessionStorage.setItem("pos_last_method", m); } catch (e) {} };
+
+  /* =======================================================================
+     ESTADO DA CAIXA (cash register state machine) — fonte única
+     - Persistente entre sessões (localStorage), por terminal: pos_cash_<id>
+     - Estados: fechado (default) / aberto. Sem auto-fecho ao recarregar.
+     - Movimentos: open | in | out | close. "Turno" = desde o último open (openTs).
+     - Esperado em DINHEIRO = fundo + vendas-em-numerário-líquidas + entradas − saídas.
+       (cartão/MBWay NÃO afetam o numerário; vão para o esperado em cartão / TPA.)
+     ======================================================================= */
+  function tid() { return POS.terminal().terminalId; }
+  function op() { return POS.terminal().operatorName; }
+  function cashKey() { return "pos_cash_" + tid(); }
+  function uid() { return "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function readCash() {
+    try { var raw = localStorage.getItem(cashKey()); if (raw) { var d = JSON.parse(raw); d.movements = d.movements || []; return d; } } catch (e) {}
+    return { open: false, openTs: null, movements: [] };
+  }
+  function writeCash(d) { try { localStorage.setItem(cashKey(), JSON.stringify(d)); } catch (e) {} }
+  // numerário que ficou na gaveta nesta venda = recebido em dinheiro − troco
+  function saleCash(s) {
+    var got = (s.payments || []).reduce(function (n, p) { return n + (p.method === "cash" ? p.amountCents : 0); }, 0);
+    return got - (s.changeCents || 0);
+  }
+  function saleCard(s) {
+    return (s.payments || []).reduce(function (n, p) { return n + (p.method !== "cash" ? p.amountCents : 0); }, 0);
+  }
+  // vendas do turno atual (deste terminal, desde a abertura)
+  function shiftSales(d) {
+    if (!d.openTs) return [];
+    var t = tid();
+    return readSales().filter(function (s) { return s.ts >= d.openTs && s.terminalId === t; });
+  }
+  function sumMov(d, type) {
+    if (!d.openTs) return 0;
+    return d.movements.reduce(function (n, m) { return n + (m.type === type && m.ts >= d.openTs ? m.amount : 0); }, 0);
+  }
+  function fundo(d) {
+    if (!d.openTs) return 0;
+    var o = d.movements.filter(function (m) { return m.type === "open" && m.ts >= d.openTs; }).pop();
+    return o ? o.amount : 0;
+  }
+  function expectedCash(d) {
+    if (!d.open || !d.openTs) return 0;
+    var cashSales = shiftSales(d).reduce(function (n, s) { return n + saleCash(s); }, 0);
+    return fundo(d) + cashSales + sumMov(d, "in") - sumMov(d, "out");
+  }
+  function expectedCard(d) {
+    if (!d.open || !d.openTs) return 0;
+    return shiftSales(d).reduce(function (n, s) { return n + saleCard(s); }, 0);
+  }
+
+  POS.cash = {
+    read: readCash,
+    isOpen: function () { return !!readCash().open; },
+    movements: function () { return readCash().movements.slice(); },
+    balance: function (d) { return expectedCash(d || readCash()); },   // saldo de numerário do turno
+    expected: function (d) { d = d || readCash(); return { cash: expectedCash(d), card: expectedCard(d) }; },
+    summary: function (d) {
+      d = d || readCash();
+      var cashSales = shiftSales(d).reduce(function (n, s) { return n + saleCash(s); }, 0);
+      return {
+        open: !!d.open, openTs: d.openTs,
+        fundo: fundo(d), salesCash: cashSales, salesCard: expectedCard(d),
+        ins: sumMov(d, "in"), outs: sumMov(d, "out"),
+        expectedCash: expectedCash(d), salesCount: shiftSales(d).length,
+      };
+    },
+    open: function (fundoCents, note) {
+      var d = readCash(); if (d.open) return false;
+      var ts = Date.now();
+      d.movements.push({ id: uid(), type: "open", amount: Math.max(0, fundoCents | 0), note: note || "", ts: ts, operator: op(), terminalId: tid() });
+      d.open = true; d.openTs = ts; writeCash(d); return true;
+    },
+    // entradas/saídas (reforço/sangria) — exigem caixa aberta
+    movement: function (type, amountCents, note) {
+      if (type !== "in" && type !== "out") return false;
+      var d = readCash(); if (!d.open) return false;
+      d.movements.push({ id: uid(), type: type, amount: Math.max(0, amountCents | 0), note: note || "", ts: Date.now(), operator: op(), terminalId: tid() });
+      writeCash(d); return true;
+    },
+    // fecho cego: recebe contado + reportado TPA, grava snapshot com divergências
+    close: function (o) {
+      o = o || {}; var d = readCash(); if (!d.open) return null;
+      var exp = { cash: expectedCash(d), card: expectedCard(d) };
+      var counted = Math.max(0, o.countedCash | 0), reported = Math.max(0, o.reportedCard | 0);
+      var snap = {
+        id: uid(), type: "close", amount: counted, note: o.note || "", ts: Date.now(), operator: op(), terminalId: tid(),
+        openTs: d.openTs, expectedCash: exp.cash, countedCash: counted, diffCash: counted - exp.cash,
+        expectedCard: exp.card, reportedCard: reported, diffCard: reported - exp.card,
+      };
+      d.movements.push(snap); d.open = false; d.openTs = null; writeCash(d); return snap;
+    },
+  };
 
   POS.onCartChange = function (fn) { if (typeof fn === "function") subs.push(fn); };
 

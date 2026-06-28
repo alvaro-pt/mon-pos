@@ -137,13 +137,16 @@
       { key: "docs", href: "docs.html", icon: "file", label: "nav.docs" },
       { key: "tables", href: "tables.html", icon: "utensils", label: "nav.tables" },
     ];
+    var currentSection = "sale";
     function renderRail() {
       var r = $("#rail"); r.innerHTML = "";
       RAIL.forEach(function (it) {
         var a = document.createElement("a");
-        a.className = "rail__item"; a.href = it.href;
-        if (it.active) a.setAttribute("aria-current", "page");
-        a.innerHTML = ic(it.icon, { size: 24 }) + "<span>" + POS.s(it.label) + "</span>";
+        a.className = "rail__item"; a.href = "#"; a.dataset.key = it.key;
+        if (it.key === currentSection) a.setAttribute("aria-current", "page");
+        a.innerHTML = ic(it.icon, { size: 24 }) + "<span>" + POS.s(it.label) + "</span>" +
+          (it.key === "register" ? '<span class="rail__badge" aria-hidden="true">' + ic("x", { size: 11, stroke: 3 }) + "</span>" : "");
+        a.addEventListener("click", function (e) { e.preventDefault(); goSection(it.key); });
         r.appendChild(a);
       });
       var sp = document.createElement("span"); sp.className = "rail__spacer"; r.appendChild(sp);
@@ -152,6 +155,55 @@
       set.innerHTML = ic("settings", { size: 24 }) + "<span>" + POS.s("nav.settings") + "</span>";
       set.addEventListener("click", function (e) { e.preventDefault(); openAppearance(); });
       r.appendChild(set);
+    }
+    function updateRailActive() {
+      document.querySelectorAll("#rail .rail__item[data-key]").forEach(function (a) {
+        if (a.dataset.key === currentSection) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+      });
+    }
+    function goSection(key) {
+      currentSection = key;
+      if (key === "sale") hideScreen(); else openSectionScreen(key);
+      updateRailActive();
+    }
+    function openSectionScreen(key) {
+      var titleKey = key === "register" ? "nav.register" : key === "docs" ? "nav.docs" : "nav.tables";
+      var wrap = document.createElement("div"); wrap.className = "settings";
+      wrap.innerHTML = '<div class="set-head"><h3>' + POS.s(titleKey) + "</h3>" +
+        '<button class="set-close" id="scClose" type="button" aria-label="' + POS.s("act.close") + '">' + ic("x", { size: 22 }) + "</button></div>" +
+        '<div class="set-body" id="scBody"></div>';
+      wrap.querySelector("#scClose").addEventListener("click", function () { goSection("sale"); });
+      var body = wrap.querySelector("#scBody");
+      if (key === "register") buildCaixaPlaceholder(body);
+      else if (key === "docs") buildDocsPlaceholder(body);
+      else body.innerHTML = '<div class="set-sec"><p class="muted">' + POS.s("ph.soon") + "</p></div>";
+      showScreen(wrap, POS.s(titleKey), function () { openSectionScreen(key); });
+    }
+    function buildCaixaPlaceholder(body) {
+      var open = POS.cash.isOpen();
+      body.innerHTML = '<div class="set-sec">' +
+        '<div class="cash-status ' + (open ? "is-open" : "") + '"><span>' + POS.s(open ? "cash.statusOpen" : "cash.statusClosed") +
+          '</span>' + (open ? '<span class="num">' + POS.s("cash.balance") + ": <b>" + POS.money(POS.cash.balance()) + "</b></span>" : "") + "</div>" +
+        '<div class="cash-grid cash-grid--6" style="margin-top:var(--sp-3)">' +
+          cashCard("open", "cash.open", "register") + cashCard("close", "cash.close", "lock") +
+          cashCard("in", "cash.in", "arrow-right") + cashCard("out", "cash.out", "corner-up-left") +
+          cashCard("summary", "cash.summary", "info") + cashCard("detailed", "cash.detailed", "file") + "</div>" +
+        '<p class="muted" style="margin-top:var(--sp-4);font-size:var(--fs-sm)">' + POS.s("ph.caixaZ") + "</p></div>";
+      body.querySelectorAll("[data-cash]").forEach(function (b) { b.addEventListener("click", function () { cashAction(b.dataset.cash); }); });
+    }
+    function buildDocsPlaceholder(body) {
+      var DT = { simplified: "doc.simplified", receipt: "doc.receipt", invoiceReceipt: "doc.invoiceReceipt" };
+      var rows = POS.documents.map(function (dd) {
+        var cust = POS.customers.find(function (c) { return c.id === dd.customerId; }) || POS.customers[0];
+        var time = new Date(dd.ts).toLocaleString(POS.lang === "pt" ? "pt-PT" : "en-IE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+        return '<button class="clist__item" type="button" data-no="' + dd.no + '"><span class="customer__ava">' + ic("file", { size: 18 }) + "</span>" +
+          '<span style="flex:1"><b>' + dd.no + (dd.certified ? ' <span style="color:var(--pay-600)">' + ic("check-circle", { size: 14 }) + "</span>" : "") +
+          "</b><span>" + POS.s(DT[dd.type]) + " · " + POS.t(cust.name) + " · " + time + "</span></span>" +
+          '<span class="line__price">' + POS.money(dd.totalCents) + "</span></button>";
+      }).join("");
+      body.innerHTML = '<div class="set-sec"><div class="clist" style="max-height:none">' + rows + "</div>" +
+        '<p class="muted" style="margin-top:var(--sp-4);font-size:var(--fs-sm)">' + POS.s("ph.docsFilter") + "</p></div>";
+      body.querySelectorAll(".clist__item").forEach(function (b) { b.addEventListener("click", function () { POS.toast(b.dataset.no + " · demo", { duration: 1400 }); }); });
     }
 
     /* ---------- Breadcrumb ---------- */
@@ -170,6 +222,20 @@
       if (!nav.cat) { // raiz
         c.appendChild(asHere(POS.s("cat.categories")));
         return;
+      }
+      var hasFavs = POS.productsByCategory("favorites").length > 0;
+      // dentro de Favoritos: Categorias (link) › Favoritos (aqui)
+      if (nav.cat === "favorites") {
+        c.appendChild(root); c.appendChild(sep());
+        c.appendChild(asHere(POS.t(POS.getCategory("favorites").name)));
+        return;
+      }
+      // link de Favoritos SEMPRE antes de Categorias (se existirem favoritos)
+      if (hasFavs) {
+        var favB = document.createElement("button"); favB.className = "crumb__btn"; favB.type = "button";
+        favB.innerHTML = ic("star", { size: 16 }) + "<span>" + POS.t(POS.getCategory("favorites").name) + "</span>";
+        favB.addEventListener("click", function () { nav = { cat: "favorites", sub: null }; renderCatalog(); });
+        c.appendChild(favB); c.appendChild(sep());
       }
       c.appendChild(root);
       c.appendChild(sep());
@@ -197,8 +263,13 @@
       var grid = $("#grid"); grid.innerHTML = ""; grid.className = "grid";
 
       if (query) { return renderProducts(searchProducts()); }
-      if (!nav.cat) {  // raiz: famílias
-        POS.categories.forEach(function (cat) { grid.appendChild(familyTile(cat)); });
+      if (!nav.cat) {  // raiz: FAMÍLIAS numa faixa horizontal no topo (colapsável) + FAVORITOS como grelha principal
+        grid.appendChild(buildFamStrip());
+        var favs = POS.productsByCategory("favorites");
+        if (favs.length) {
+          grid.appendChild(gridSec(POS.t(POS.getCategory("favorites").name)));
+          favs.forEach(function (p) { grid.appendChild(productTile(p)); });
+        }
         return;
       }
       if (nav.cat === "favorites") return renderProducts(POS.productsByCategory("favorites"));
@@ -209,6 +280,7 @@
       renderProducts(nav.sub ? POS.productsBySubcategory(nav.sub) : POS.productsByCategory(nav.cat));
     }
 
+    function gridSec(text) { var h = document.createElement("h2"); h.className = "grid-sec"; h.textContent = text; return h; }
     function renderProducts(list) {
       var grid = $("#grid");
       if (!list.length) {
@@ -217,6 +289,41 @@
         return;
       }
       list.forEach(function (p) { grid.appendChild(productTile(p)); });
+    }
+
+    var FAM_OPEN_KEY = "pos_fam_open";
+    function famStripOpen() { return sessionStorage.getItem(FAM_OPEN_KEY) !== "0"; }   // aberta por defeito
+    function buildFamStrip() {
+      var open = famStripOpen();
+      var wrap = document.createElement("div");
+      wrap.className = "famstrip"; wrap.dataset.open = open ? "1" : "0";
+      wrap.innerHTML =
+        '<div class="famstrip__head">' +
+          '<span class="famstrip__label">' + ic("folder", { size: 18 }) + "<span>" + POS.s("cat.families") + "</span></span>" +
+          '<button class="famstrip__toggle" type="button" aria-expanded="' + (open ? "true" : "false") +
+            '" aria-label="' + POS.s(open ? "cat.familiesHide" : "cat.familiesShow") + '">' + ic("chevron-down", { size: 20 }) + "</button>" +
+        "</div>" +
+        '<div class="famstrip__rail"></div>';
+      var railEl = wrap.querySelector(".famstrip__rail");
+      POS.categories.filter(function (c) { return c.id !== "favorites"; }).forEach(function (cat) { railEl.appendChild(famChip(cat)); });
+      wrap.querySelector(".famstrip__toggle").addEventListener("click", function () {
+        var now = wrap.dataset.open === "1" ? "0" : "1";
+        wrap.dataset.open = now; sessionStorage.setItem(FAM_OPEN_KEY, now);
+        this.setAttribute("aria-expanded", now === "1" ? "true" : "false");
+        this.setAttribute("aria-label", POS.s(now === "1" ? "cat.familiesHide" : "cat.familiesShow"));
+      });
+      return wrap;
+    }
+    function famChip(cat) {
+      var count = POS.productsByCategory(cat.id).length;
+      var b = document.createElement("button"); b.className = "famchip"; b.type = "button";
+      b.style.setProperty("--fam-color", cat.color || "var(--brand-600)");
+      b.innerHTML =
+        '<span class="famchip__disc">' + ic(cat.icon || "folder", { size: 22 }) + "</span>" +
+        '<span class="famchip__txt"><span class="famchip__name">' + POS.t(cat.name) + "</span>" +
+          '<span class="famchip__count">' + count + " " + POS.s(count === 1 ? "tot.item" : "tot.items") + "</span></span>";
+      b.addEventListener("click", function () { nav = { cat: cat.id, sub: null }; renderCatalog(); });
+      return b;
     }
 
     function familyTile(catOrSub, isSub) {
@@ -272,7 +379,52 @@
       });
     }
 
+    // porteiro do POS: vender exige caixa aberta. Não é um muro à entrada — bloqueia só a venda,
+    // com saída a 1 toque (banner persistente no catálogo + toast com ação).
+    function requireOpenCash() {
+      if (POS.cash.isOpen()) return true;
+      POS.toast(POS.s("cash.blockedSale"), { variant: "danger", duration: 2600, action: { label: POS.s("cash.openCta"), onClick: function () { cashAction("open"); } } });
+      var banner = $(".cat-lock"); if (banner) pulseSwipe(banner);
+      return false;
+    }
+    // reflete o estado da caixa em toda a UI (rail, banner do catálogo, botão Pagar)
+    function syncCashUI() {
+      var open = POS.cash.isOpen();
+      var rail = document.querySelector('#rail .rail__item[data-key="register"]');
+      if (rail) { rail.classList.toggle("is-closed", !open); rail.setAttribute("aria-label", POS.s(open ? "cash.railOpen" : "cash.railClosed")); }
+      var cat = $(".catalog");
+      if (cat) cat.classList.toggle("is-locked", !open);
+      toggleLockBanner(!open);
+    }
+    function toggleLockBanner(on) {
+      var cat = $(".catalog"); if (!cat) return;
+      var banner = cat.querySelector(".cat-lock");
+      if (!on) { if (banner) banner.remove(); return; }
+      if (banner) return;
+      banner = document.createElement("div"); banner.className = "cat-lock"; banner.setAttribute("role", "status");
+      banner.innerHTML = '<span class="cat-lock__ic">' + ic("lock", { size: 20 }) + "</span>" +
+        '<span class="cat-lock__txt"><b>' + POS.s("cash.lockedTitle") + "</b><small>" + POS.s("cash.lockedBody") + "</small></span>" +
+        '<button class="cat-lock__cta" type="button">' + POS.s("cash.openCta") + "</button>";
+      banner.querySelector(".cat-lock__cta").addEventListener("click", function () { cashAction("open"); });
+      var crumb = cat.querySelector("#crumb");
+      if (crumb && crumb.nextSibling) cat.insertBefore(banner, crumb.nextSibling); else cat.appendChild(banner);
+    }
+    // ao abrir o terminal: se a caixa estiver fechada, convida a abrir (dispensável, 1x por sessão)
+    function cashStartupPrompt() {
+      if (POS.cash.isOpen()) return;
+      try { if (sessionStorage.getItem("pos_cash_prompted") === "1") return; sessionStorage.setItem("pos_cash_prompted", "1"); } catch (e) {}
+      var w = document.createElement("div"); w.className = "sheet";
+      w.innerHTML = "<h3>" + POS.s("cash.promptTitle") + "</h3><div class='sheet__sub'>" + POS.s("cash.promptBody") + "</div>" +
+        '<div class="sheet__foot"><button class="btn" data-k="later">' + POS.s("cash.later") + "</button>" +
+        '<button class="btn btn--primary" data-k="open">' + POS.s("cash.openCta") + "</button></div>";
+      var close = POS.openModal(w, { label: POS.s("cash.promptTitle") });
+      w.querySelector('[data-k="later"]').addEventListener("click", close);
+      var ob = w.querySelector('[data-k="open"]');
+      ob.addEventListener("click", function () { close(); cashAction("open"); });
+      ob.focus();
+    }
     function addProduct(p, tileEl) {
+      if (!requireOpenCash()) return;
       if (p.stock <= 0) { POS.toast(POS.s("pd.outStock"), { variant: "danger", duration: 1600 }); return; }
       if (p.weighable) { openWeight(p, tileEl); return; }
       flyToCart(tileEl);                 // clonar ANTES do add (o add re-renderiza a grelha)
@@ -414,7 +566,7 @@
           '<button class="btn btn--sm btn--danger" id="btnCancel" type="button"' + (t.itemCount ? "" : " disabled") + ">" + POS.s("act.cancel") + "</button>" +
           '<button class="btn btn--sm" id="btnSuspend" type="button"' + (t.itemCount ? "" : " disabled") + ">" + POS.s("act.suspend") + "</button>" +
         "</div>" +
-        '<button class="pay" id="btnPay" type="button"' + (t.itemCount ? "" : " disabled") + ">" +
+        '<button class="pay" id="btnPay" type="button"' + (t.itemCount && POS.cash.isOpen() ? "" : " disabled") + ">" +
           '<span class="pay__left">' + POS.s("act.pay") + ' <span class="pay__count">' + t.itemCount + " " + itemsWord + "</span></span>" +
           '<span class="pay__amount">' + POS.money(t.totalCents) + "</span></button>";
 
@@ -467,7 +619,7 @@
         b.innerHTML = '<span class="customer__ava">' + ic("pause", { size: 18 }) + "</span>" +
           '<span style="flex:1"><b>' + POS.t(cust.name) + "</b><span>" + count + " " + POS.s(count === 1 ? "tot.item" : "tot.items") + " · " + time + "</span></span>" +
           '<span class="line__price">' + POS.money(total) + "</span>";
-        b.addEventListener("click", function () { cart.recover(s.id); close(); POS.toast(POS.s("park.recover"), { variant: "success", duration: 1600 }); });
+        b.addEventListener("click", function () { if (!requireOpenCash()) { close(); return; } cart.recover(s.id); close(); POS.toast(POS.s("park.recover"), { variant: "success", duration: 1600 }); });
         host.appendChild(b);
       });
       var close = POS.openDrawer(wrap, { label: POS.s("park.title") });
@@ -493,44 +645,64 @@
     }
 
     /* ---------- Movimentos de caixa ---------- */
-    function cashRead() { try { return JSON.parse(sessionStorage.getItem("pos_cash") || '{"open":false,"movements":[]}'); } catch (e) { return { open: false, movements: [] }; } }
-    function cashWrite(d) { try { sessionStorage.setItem("pos_cash", JSON.stringify(d)); } catch (e) {} }
-    function cashBalance(d) {
-      return d.movements.reduce(function (s, m) { return s + (m.type === "out" ? -m.amount : (m.type === "in" || m.type === "open") ? m.amount : 0); }, 0);
+    // fonte única: estado da caixa vive em POS.cash (cart.js, localStorage por terminal)
+    function cashRead() { return POS.cash.read(); }
+    function cashBalance(d) { return POS.cash.balance(d); }
+    // dispatcher dos 6 movimentos/consultas
+    function cashAction(kind) {
+      if (kind === "open" || kind === "in" || kind === "out") return cashForm(kind);
+      if (kind === "close") return cashClose();
+      if (kind === "summary") return cashSummary();
+      if (kind === "detailed") return cashDetailed();
+    }
+    // após qualquer mudança de estado: refrescar ecrã aberto, rail, banner e botão Pagar
+    function afterCashChange() {
+      if (reopenScreen && !$("#screen").hidden) reopenScreen();
+      syncCashUI();
+      renderSummary();
     }
 
     function openCashMovements() {
-      var d = cashRead();
+      var open = POS.cash.isOpen();
       var wrap = document.createElement("div"); wrap.className = "sheet";
       wrap.innerHTML = "<h3>" + POS.s("cash.title") + "</h3>" +
-        '<div class="cash-status ' + (d.open ? "is-open" : "") + '">' +
-          "<span>" + POS.s(d.open ? "cash.statusOpen" : "cash.statusClosed") + "</span>" +
-          (d.open ? '<span class="num">' + POS.s("cash.balance") + ": <b>" + POS.money(cashBalance(d)) + "</b></span>" : "") +
+        '<div class="cash-status ' + (open ? "is-open" : "") + '">' +
+          "<span>" + POS.s(open ? "cash.statusOpen" : "cash.statusClosed") + "</span>" +
+          (open ? '<span class="num">' + POS.s("cash.balance") + ": <b>" + POS.money(POS.cash.balance()) + "</b></span>" : "") +
         "</div>" +
-        '<div class="cash-grid">' +
-          cashCard("open", "cash.open") + cashCard("close", "cash.close") +
-          cashCard("in", "cash.in") + cashCard("out", "cash.out") +
-        "</div>" +
-        '<button class="btn btn--primary btn--block" id="cashConsult" type="button" style="margin-top:var(--sp-3)">' + ic("file", { size: 18 }) + " " + POS.s("cash.consult") + "</button>";
+        '<div class="cash-grid cash-grid--6">' +
+          cashCard("open", "cash.open", "register") + cashCard("close", "cash.close", "lock") +
+          cashCard("in", "cash.in", "arrow-right") + cashCard("out", "cash.out", "corner-up-left") +
+          cashCard("summary", "cash.summary", "info") + cashCard("detailed", "cash.detailed", "file") +
+        "</div>";
       var close = POS.openModal(wrap, { label: POS.s("cash.title") });
       wrap.querySelectorAll("[data-cash]").forEach(function (b) {
-        b.addEventListener("click", function () { close(); cashForm(b.dataset.cash); });
+        b.addEventListener("click", function () { close(); cashAction(b.dataset.cash); });
       });
-      wrap.querySelector("#cashConsult").addEventListener("click", function () { close(); cashConsult(); });
     }
-    function cashCard(kind, labelKey) {
-      return '<button class="cash-card" type="button" data-cash="' + kind + '">' + ic("register", { size: 28, stroke: 1.6 }) + "<span>" + POS.s(labelKey) + "</span></button>";
+    function cashCard(kind, labelKey, icon) {
+      return '<button class="cash-card" type="button" data-cash="' + kind + '">' + ic(icon || "register", { size: 26, stroke: 1.6 }) + "<span>" + POS.s(labelKey) + "</span></button>";
     }
 
+    var CASH_LABELS = { open: "cash.open", close: "cash.close", in: "cash.in", out: "cash.out" };
+    function cashSign(type) { return type === "out" ? "−" : type === "close" ? "" : "+"; }
+    function cashTime(ts, withDate) {
+      var loc = POS.lang === "pt" ? "pt-PT" : "en-IE";
+      var o = withDate ? { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" } : { hour: "2-digit", minute: "2-digit" };
+      return new Date(ts).toLocaleString(loc, o);
+    }
+
+    /* Abertura / entrada / saída (open | in | out) — com confirmação de valor invulgar */
     function cashForm(kind) {
-      var d = cashRead();
-      if (kind === "open" && d.open) { POS.toast(POS.s("cash.alreadyOpen"), { variant: "danger", duration: 1600 }); return; }
-      if (kind !== "open" && !d.open) { POS.toast(POS.s("cash.notOpen"), { variant: "danger", duration: 1600 }); return; }
-      var titleKey = "cash." + kind, hintKey = "cash." + kind + "Hint";
+      if (kind === "open" && POS.cash.isOpen()) { POS.toast(POS.s("cash.alreadyOpen"), { variant: "danger", duration: 1600 }); return; }
+      if (kind !== "open" && !POS.cash.isOpen()) { POS.toast(POS.s("cash.notOpen"), { variant: "danger", duration: 1600 }); return; }
+      var titleKey = kind === "open" ? "cash.open" : "cash." + kind;
+      var hintKey = kind === "open" ? "cash.fundHint" : "cash." + kind + "Hint";
+      var valLabelKey = kind === "open" ? "cash.fund" : "cash.value";
       var valueCents = 0;
       var wrap = document.createElement("div"); wrap.className = "sheet";
       wrap.innerHTML = "<h3>" + POS.s(titleKey) + "</h3><div class='sheet__sub'>" + POS.s(hintKey) + "</div>" +
-        '<label class="ff"><span>' + POS.s("cash.value") + '</span>' +
+        '<label class="ff"><span>' + POS.s(valLabelKey) + '</span>' +
           '<button class="ff__in cash-valbtn" id="cashVal" type="button">' + POS.money(0) + '</button></label>' +
         '<label class="ff" style="margin-top:var(--sp-3)"><span>' + POS.s("cash.notes") + '</span>' +
           '<textarea id="cashNote" class="ff__in" rows="2" style="height:auto;padding:10px 12px"></textarea></label>' +
@@ -539,37 +711,170 @@
       var close = POS.openModal(wrap, { label: POS.s(titleKey), onClose: function () { POS.osk.close(); } });
       var valBtn = wrap.querySelector("#cashVal");
       valBtn.addEventListener("click", function () {
-        POS.keypad({ title: POS.s("cash.value"), decimal: true, initial: valueCents ? valueCents / 100 : 0, maxInt: 6, maxDec: 2, suffix: "€",
-          onConfirm: function (v) { valueCents = Math.round(v * 100); valBtn.textContent = POS.money(valueCents); } });
+        POS.keypad({ title: POS.s(valLabelKey), decimal: true, initial: valueCents ? valueCents / 100 : 0, maxInt: 6, maxDec: 2, suffix: "€",
+          onConfirm: function (v) { valueCents = Math.round(v * 100); valBtn.textContent = POS.money(valueCents); valBtn.classList.toggle("is-set", valueCents > 0); } });
       });
       wrap.querySelector("#cashNote").addEventListener("focus", function () { POS.osk.open(); });
       wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
       wrap.querySelector('[data-k="ok"]').addEventListener("click", function () {
-        var d2 = cashRead();
-        d2.movements.push({ type: kind, amount: valueCents, note: wrap.querySelector("#cashNote").value.trim(), ts: Date.now() });
-        if (kind === "open") d2.open = true;
-        if (kind === "close") d2.open = false;
-        cashWrite(d2); close();
-        POS.toast(POS.s(kind === "open" ? "cash.opened" : kind === "close" ? "cash.closed" : "cash.saved"), { variant: "success", duration: 1600 });
+        if (kind !== "open" && valueCents <= 0) { POS.toast(POS.s("cash.value"), { variant: "danger", duration: 1400 }); return; }
+        function commit() {
+          var note = wrap.querySelector("#cashNote").value.trim();
+          if (kind === "open") POS.cash.open(valueCents, note); else POS.cash.movement(kind, valueCents, note);
+          close(); afterCashChange();
+          POS.toast(POS.s(kind === "open" ? "cash.opened" : "cash.saved"), { variant: "success", duration: 1600 });
+        }
+        if (valueCents > 200000) { confirmBigValue(valueCents, commit); return; }   // > 2000€ → confirma
+        commit();
+      });
+    }
+    function confirmBigValue(cents, onYes) {
+      var w = document.createElement("div"); w.className = "sheet";
+      w.innerHTML = '<h3>' + POS.money(cents) + "</h3><div class='sheet__sub'>" + POS.s("cash.bigValue") + "</div>" +
+        '<div class="sheet__foot"><button class="btn" data-k="no">' + POS.s("act.cancel") + "</button>" +
+        '<button class="btn btn--primary" data-k="yes">' + POS.s("act.confirm") + "</button></div>";
+      var c = POS.openModal(w, { label: POS.s("cash.bigValue") });
+      w.querySelector('[data-k="no"]').addEventListener("click", c);
+      w.querySelector('[data-k="yes"]').addEventListener("click", function () { c(); onYes(); });
+    }
+
+    /* Fecho CEGO: operador conta primeiro; esperado e divergência só se revelam na revisão */
+    function cashClose() {
+      if (!POS.cash.isOpen()) { POS.toast(POS.s("cash.notOpen"), { variant: "danger", duration: 1600 }); return; }
+      var counted = null, reported = 0;
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      wrap.innerHTML = "<h3>" + POS.s("cash.close") + "</h3><div class='sheet__sub'>" + POS.s("cash.countedHint") + "</div>" +
+        '<label class="ff"><span>' + POS.s("cash.countedCash") + '</span>' +
+          '<button class="ff__in cash-valbtn" id="ccCounted" type="button">—</button></label>' +
+        '<label class="ff" style="margin-top:var(--sp-3)"><span>' + POS.s("cash.reportedCard") + '</span>' +
+          '<button class="ff__in cash-valbtn is-set" id="ccCard" type="button">' + POS.money(0) + '</button>' +
+          '<small class="ff__hint">' + POS.s("cash.reportedHint") + "</small></label>" +
+        '<label class="ff" style="margin-top:var(--sp-3)"><span>' + POS.s("cash.notes") + '</span>' +
+          '<textarea id="ccNote" class="ff__in" rows="2" style="height:auto;padding:10px 12px"></textarea></label>' +
+        '<div class="sheet__foot"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
+        '<button class="btn btn--primary" data-k="review" disabled>' + POS.s("cash.confirmClose") + "</button></div>";
+      var close = POS.openModal(wrap, { label: POS.s("cash.close"), noClose: true, onClose: function () { POS.osk.close(); } });
+      var bC = wrap.querySelector("#ccCounted"), bK = wrap.querySelector("#ccCard"), review = wrap.querySelector('[data-k="review"]');
+      bC.addEventListener("click", function () {
+        POS.keypad({ title: POS.s("cash.countedCash"), decimal: true, initial: counted != null ? counted / 100 : 0, maxInt: 7, maxDec: 2, suffix: "€",
+          onConfirm: function (v) { counted = Math.round(v * 100); bC.textContent = POS.money(counted); bC.classList.add("is-set"); review.disabled = false; } });
+      });
+      bK.addEventListener("click", function () {
+        POS.keypad({ title: POS.s("cash.reportedCard"), decimal: true, initial: reported / 100, maxInt: 7, maxDec: 2, suffix: "€",
+          onConfirm: function (v) { reported = Math.round(v * 100); bK.textContent = POS.money(reported); } });
+      });
+      wrap.querySelector("#ccNote").addEventListener("focus", function () { POS.osk.open(); });
+      wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
+      review.addEventListener("click", function () {
+        if (counted == null) return;
+        POS.osk.close();
+        cashCloseReview(counted, reported, wrap.querySelector("#ccNote").value.trim(), close);
+      });
+    }
+    // passo de revisão: revela esperado vs contado + divergências, com confirmação irreversível
+    function cashCloseReview(counted, reported, note, closePrev) {
+      var exp = POS.cash.expected();
+      var diffCash = counted - exp.cash, diffCard = reported - exp.card;
+      function diffRow(labelKey, diff) {
+        var cls = diff === 0 ? "is-exact" : diff < 0 ? "is-short" : "is-over";
+        var tag = diff === 0 ? POS.s("cash.exact") : (diff < 0 ? POS.s("cash.short") : POS.s("cash.over")) + " " + POS.money(Math.abs(diff));
+        return '<div class="cc-row ' + cls + '"><span>' + POS.s(labelKey) + '</span><span class="cc-diff">' + tag + "</span></div>";
+      }
+      function expRow(labelKey, val) { return '<div class="cc-row"><span>' + POS.s(labelKey) + '</span><span class="num">' + POS.money(val) + "</span></div>"; }
+      var w = document.createElement("div"); w.className = "sheet";
+      w.innerHTML = "<h3>" + POS.s("cash.close") + "</h3><div class='sheet__sub'>" + POS.s("cash.reviewClose") + "</div>" +
+        '<div class="cc-table">' +
+          expRow("cash.expectedCash", exp.cash) +
+          expRow("cash.countedCash", counted) +
+          diffRow("cash.diffCash", diffCash) +
+          '<div class="cc-sep"></div>' +
+          expRow("cash.expectedCard", exp.card) +
+          expRow("cash.reportedCard", reported) +
+          diffRow("cash.diffCard", diffCard) +
+        "</div>" +
+        '<div class="sheet__foot"><button class="btn" data-k="back">' + POS.s("act.cancel") + "</button>" +
+        '<button class="btn btn--danger-solid" data-k="confirm">' + POS.s("cash.confirmClose") + "</button></div>";
+      var close = POS.openModal(w, { label: POS.s("cash.close"), noClose: true });
+      w.querySelector('[data-k="back"]').addEventListener("click", function () { close(); });
+      var committing = false;
+      w.querySelector('[data-k="confirm"]').addEventListener("click", function () {
+        if (committing) return; committing = true; this.disabled = true;   // anti-duplo-toque (fecho é irreversível)
+        POS.cash.close({ countedCash: counted, reportedCard: reported, note: note });
+        close(); closePrev(); afterCashChange();
+        POS.toast(POS.s("cash.closed"), { variant: "success", duration: 1800 });
       });
     }
 
-    function cashConsult() {
-      var d = cashRead();
+    /* Consultar — Resumo: estado do turno num relance */
+    function cashSummary() {
+      var s = POS.cash.summary();
       var wrap = document.createElement("div"); wrap.className = "sheet";
-      var labels = { open: "cash.open", close: "cash.close", in: "cash.in", out: "cash.out" };
-      var rows = d.movements.slice().reverse().map(function (m) {
-        var sign = m.type === "out" ? "−" : m.type === "close" ? "" : "+";
-        var t = new Date(m.ts).toLocaleTimeString(POS.lang === "pt" ? "pt-PT" : "en-IE", { hour: "2-digit", minute: "2-digit" });
-        return '<div class="line" style="grid-template-columns:1fr auto">' +
-          '<div class="line__info"><div class="line__name">' + POS.s(labels[m.type]) + "</div><div class='line__sub'><small>" + t + (m.note ? " · " + m.note : "") + "</small></div></div>" +
-          '<span class="line__price">' + sign + POS.money(m.amount) + "</span></div>";
-      }).join("");
-      wrap.innerHTML = "<h3>" + POS.s("cash.title") + "</h3>" +
-        '<div class="cash-status ' + (d.open ? "is-open" : "") + '"><span>' + POS.s(d.open ? "cash.statusOpen" : "cash.statusClosed") +
-          '</span><span class="num">' + POS.s("cash.balance") + ": <b>" + POS.money(cashBalance(d)) + "</b></span></div>" +
-        '<div class="lines" style="max-height:46vh;padding:0">' + (rows || '<p class="muted" style="padding:16px;text-align:center">' + POS.s("cash.noMov") + "</p>") + "</div>";
-      POS.openModal(wrap, { label: POS.s("cash.title") });
+      function row(labelKey, val, strong) { return '<div class="cc-row' + (strong ? " is-strong" : "") + '"><span>' + POS.s(labelKey) + '</span><span class="num">' + POS.money(val) + "</span></div>"; }
+      var body = s.open
+        ? '<div class="cc-table">' + row("cash.fundDay", s.fundo) + row("cash.salesCash", s.salesCash) + row("cash.movIn", s.ins) + row("cash.movOut", -s.outs) +
+            '<div class="cc-sep"></div>' + row("cash.expectedCash", s.expectedCash, true) +
+            '<div class="cc-sep"></div>' + row("cash.expectedCard", s.salesCard) + '<div class="cc-row"><span>' + POS.s("cash.salesCount") + '</span><span class="num">' + s.salesCount + "</span></div></div>"
+        : '<p class="muted" style="padding:16px;text-align:center">' + POS.s("cash.statusClosed") + "</p>";
+      wrap.innerHTML = "<h3>" + POS.s("cash.summary") + "</h3>" +
+        '<div class="cash-status ' + (s.open ? "is-open" : "") + '"><span>' + POS.s(s.open ? "cash.statusOpen" : "cash.statusClosed") + "</span></div>" + body;
+      POS.openModal(wrap, { label: POS.s("cash.summary") });
+    }
+
+    /* Consultar — Detalhado: lista completa, recentes em cima, paginada + pesquisa (drawer) */
+    function cashDetailed() {
+      var all = POS.cash.movements().slice().reverse();
+      var st = { q: "", size: 25, page: 1 };
+      var wrap = document.createElement("div"); wrap.className = "sheet cash-detail";
+      wrap.innerHTML = "<h3>" + POS.s("cash.detailed") + "</h3>" +
+        '<div class="cd-search"><input id="cdSearch" type="search" autocomplete="off" placeholder="' + POS.s("cash.search") + '" aria-label="' + POS.s("cash.search") + '" /></div>' +
+        '<div class="cd-list" id="cdList"></div>' +
+        '<div class="cd-foot"><div class="seg cd-size" role="group" aria-label="' + POS.s("cash.perPage") + '">' +
+          [10, 25, 50].map(function (n) { return '<button type="button" data-size="' + n + '"' + (n === 25 ? ' aria-pressed="true"' : "") + ">" + n + "</button>"; }).join("") + "</div>" +
+          '<div class="cd-pager"><button class="cd-nav" id="cdPrev" type="button" aria-label="' + POS.s("cash.prevPage") + '">' + ic("chevron-left", { size: 20 }) + "</button>" +
+          '<span class="cd-pginfo" id="cdInfo"></span>' +
+          '<button class="cd-nav" id="cdNext" type="button" aria-label="' + POS.s("cash.nextPage") + '">' + ic("chevron-right", { size: 20 }) + "</button></div></div>";
+      POS.openDrawer(wrap, { label: POS.s("cash.detailed") });
+      var listEl = wrap.querySelector("#cdList"), info = wrap.querySelector("#cdInfo");
+      function filtered() {
+        var q = st.q.trim().toLowerCase(); if (!q) return all;
+        return all.filter(function (m) {
+          var hay = (POS.s(CASH_LABELS[m.type]) + " " + (m.note || "") + " " + (m.operator || "") + " " + POS.money(m.amount)).toLowerCase();
+          return hay.indexOf(q) >= 0;
+        });
+      }
+      function render() {
+        var list = filtered();
+        var pages = Math.max(1, Math.ceil(list.length / st.size));
+        if (st.page > pages) st.page = pages;
+        var slice = list.slice((st.page - 1) * st.size, st.page * st.size);
+        if (!list.length) {
+          listEl.innerHTML = '<p class="muted" style="padding:24px;text-align:center">' + POS.s(st.q ? "cash.noSearch" : "cash.noMov") + "</p>";
+        } else {
+          listEl.innerHTML = slice.map(function (m) {
+            var extra = m.type === "close" && m.diffCash !== 0
+              ? ' · ' + (m.diffCash < 0 ? POS.s("cash.short") : POS.s("cash.over")) + " " + POS.money(Math.abs(m.diffCash)) : "";
+            return '<div class="cd-item"><div class="cd-main"><div class="cd-type">' + POS.s(CASH_LABELS[m.type]) + "</div>" +
+              '<div class="cd-meta">' + cashTime(m.ts, true) + " · " + (m.operator || "—") + (m.note ? " · " + m.note : "") + extra + "</div></div>" +
+              '<span class="cd-amt ' + (m.type === "out" ? "is-neg" : "") + '">' + cashSign(m.type) + POS.money(m.amount) + "</span></div>";
+          }).join("");
+        }
+        info.textContent = POS.s("cash.page") + " " + st.page + " " + POS.s("cash.of") + " " + pages;
+        wrap.querySelector("#cdPrev").disabled = st.page <= 1;
+        wrap.querySelector("#cdNext").disabled = st.page >= pages;
+      }
+      var si = wrap.querySelector("#cdSearch");
+      si.addEventListener("focus", function () { POS.osk.open(); });
+      si.addEventListener("input", function () { st.q = si.value; st.page = 1; render(); });
+      wrap.querySelectorAll(".cd-size button").forEach(function (b) {
+        b.addEventListener("click", function () {
+          st.size = parseInt(b.dataset.size, 10); st.page = 1;
+          wrap.querySelectorAll(".cd-size button").forEach(function (x) { x.removeAttribute("aria-pressed"); });
+          b.setAttribute("aria-pressed", "true"); render();
+        });
+      });
+      wrap.querySelector("#cdPrev").addEventListener("click", function () { if (st.page > 1) { st.page--; render(); } });
+      wrap.querySelector("#cdNext").addEventListener("click", function () { st.page++; render(); });
+      render();
     }
 
     function openLineMenu(l) {
@@ -796,19 +1101,30 @@
       { id: "about", icon: "info", label: "set.about" },
     ];
     var reopenScreen = null;   // re-render do ecrã atual (ex. ao mudar idioma)
+    function behind(on) { document.querySelectorAll(".catalog,.ops,.cart").forEach(function (el) { if (on) el.setAttribute("inert", ""); else el.removeAttribute("inert"); }); }
+    // swipe reutilizável: re-dispara a animação de entrada em qualquer elemento central
+    function pulseSwipe(el) {
+      if (!el) return;
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion:reduce)").matches) return;
+      el.classList.remove("swipe-in"); void el.offsetWidth; el.classList.add("swipe-in");
+      el.addEventListener("animationend", function () { el.classList.remove("swipe-in"); }, { once: true });
+    }
     function showScreen(node, label, reopen) {
       var s = $("#screen"); s.classList.remove("is-leaving"); s.innerHTML = ""; s.appendChild(node); s.setAttribute("aria-label", label || "");
-      s.hidden = false; $(".app").classList.add("screen-on");
+      s.hidden = false; behind(true);   // cobre por z-index; NÃO mexe no .app (sem flick na topbar/rail)
       reopenScreen = reopen || null;
       var f = s.querySelector("button,input,[tabindex]"); if (f) f.focus();
     }
     function hideScreen() {
       var s = $("#screen"); if (s.hidden) return;
       reopenScreen = null;
-      function done() { s.classList.remove("is-leaving"); s.hidden = true; s.innerHTML = ""; $(".app").classList.remove("screen-on"); }
+      var fin = false;
+      function done() { if (fin) return; fin = true; s.classList.remove("is-leaving"); s.hidden = true; s.innerHTML = ""; behind(false); currentSection = "sale"; updateRailActive();
+        pulseSwipe($(".catalog")); pulseSwipe($(".cart")); }   // voltar às Vendas também faz swipe
       if (window.matchMedia && window.matchMedia("(prefers-reduced-motion:reduce)").matches) return done();
       s.classList.add("is-leaving");
       s.addEventListener("animationend", done, { once: true });
+      setTimeout(done, 280);   // fallback se o animationend não disparar
     }
     document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("#screen").hidden && !document.querySelector(".modal-backdrop,.drawer-backdrop")) hideScreen(); });
 
@@ -901,6 +1217,7 @@
     /* ---------- Pagar ---------- */
     function pay() {
       var t = cart.totals(); if (!t.itemCount) return;
+      if (!requireOpenCash()) return;   // defesa em profundidade (caixa fechada bloqueia pagamento)
       try { sessionStorage.setItem("pos_payment", JSON.stringify({ totalCents: t.totalCents, taxCents: t.taxCents, subtotalCents: t.subtotalCents, itemCount: t.itemCount, customerId: cart.state.customerId })); } catch (e) {}
       window.location.href = "payment.html";
     }
@@ -1089,7 +1406,7 @@
     $("#tbUser").addEventListener("click", function () { openUserMenu($("#tbUser")); });
 
     function renderCart() { renderDoc(); renderCustomer(); renderLines(); renderSummary(); }
-    function renderAll() { applyStatic(); paintStaticIcons(); renderRail(); renderCatalog(); renderCart(); renderOps(); }
+    function renderAll() { applyStatic(); paintStaticIcons(); renderRail(); renderCatalog(); renderCart(); renderOps(); syncCashUI(); }
 
     POS.onCartChange(function () { renderLines(); renderSummary(); renderGrid(); renderOps(); });
     POS.onLayoutChange(function () { renderOps(); renderLines(); });
@@ -1100,6 +1417,7 @@
     renderAll();
     tick(); setInterval(tick, 1000 * 20);
     $("#search").focus();
+    cashStartupPrompt();   // convida a abrir a caixa se estiver fechada (dispensável)
   })();
   </script>
 </body>
