@@ -395,6 +395,29 @@ window.POS = window.POS || {};
     if (!d.open || !d.openTs) return 0;
     return shiftSales(d).reduce(function (n, s) { return n + saleCard(s); }, 0);
   }
+  // Relatório Z do turno: agrega vendas, total por método, IVA discriminado e divergências previstas
+  function shiftZ(d) {
+    d = d || readCash();
+    var sales = shiftSales(d), byMethod = {}, taxMap = {}, gross = 0, change = 0;
+    sales.forEach(function (s) {
+      gross += (s.totals && s.totals.totalCents) || 0;
+      change += s.changeCents || 0;
+      (s.payments || []).forEach(function (p) { byMethod[p.method] = (byMethod[p.method] || 0) + p.amountCents; });
+      ((s.totals && s.totals.taxBreakdown) || []).forEach(function (g) {
+        var k = String(g.rate);
+        if (!taxMap[k]) taxMap[k] = { rate: g.rate, base: 0, tax: 0, gross: 0 };
+        taxMap[k].base += g.base; taxMap[k].tax += g.tax; taxMap[k].gross += g.gross;
+      });
+    });
+    var tax = Object.keys(taxMap).map(function (k) { return taxMap[k]; }).sort(function (a, b) { return b.rate - a.rate; });
+    return {
+      terminalId: tid(), operator: op(), openTs: d.openTs, closeTs: Date.now(),
+      salesCount: sales.length, grossCents: gross, changeCents: change,
+      byMethod: byMethod, tax: tax,
+      fundo: fundo(d), ins: sumMov(d, "in"), outs: sumMov(d, "out"),
+      expectedCash: expectedCash(d), expectedCard: expectedCard(d),
+    };
+  }
 
   POS.cash = {
     read: readCash,
@@ -402,6 +425,7 @@ window.POS = window.POS || {};
     movements: function () { return readCash().movements.slice(); },
     balance: function (d) { return expectedCash(d || readCash()); },   // saldo de numerário do turno
     expected: function (d) { d = d || readCash(); return { cash: expectedCash(d), card: expectedCard(d) }; },
+    zReport: function (d) { return shiftZ(d || readCash()); },   // resumo Z do turno (mini-Z)
     summary: function (d) {
       d = d || readCash();
       var cashSales = shiftSales(d).reduce(function (n, s) { return n + saleCash(s); }, 0);
@@ -429,11 +453,12 @@ window.POS = window.POS || {};
     close: function (o) {
       o = o || {}; var d = readCash(); if (!d.open) return null;
       var exp = { cash: expectedCash(d), card: expectedCard(d) };
+      var z = shiftZ(d);   // congela o Z do turno ANTES de fechar (depois openTs fica null)
       var counted = Math.max(0, o.countedCash | 0), reported = Math.max(0, o.reportedCard | 0);
       var snap = {
         id: uid(), type: "close", amount: counted, note: o.note || "", ts: Date.now(), operator: op(), terminalId: tid(),
         openTs: d.openTs, expectedCash: exp.cash, countedCash: counted, diffCash: counted - exp.cash,
-        expectedCard: exp.card, reportedCard: reported, diffCard: reported - exp.card,
+        expectedCard: exp.card, reportedCard: reported, diffCard: reported - exp.card, z: z,
       };
       d.movements.push(snap); d.open = false; d.openTs = null; writeCash(d); return snap;
     },

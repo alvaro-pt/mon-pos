@@ -771,31 +771,75 @@
         cashCloseReview(counted, reported, wrap.querySelector("#ccNote").value.trim(), close);
       });
     }
-    // passo de revisão: revela esperado vs contado + divergências, com confirmação irreversível
-    function cashCloseReview(counted, reported, note, closePrev) {
-      var exp = POS.cash.expected();
-      var diffCash = counted - exp.cash, diffCard = reported - exp.card;
-      function diffRow(labelKey, diff) {
+    function methodLabel(m) { var k = "pay.method." + m; var v = POS.s(k); return v === k ? m : v; }
+    // documento Z (recibo) — reutilizado na revisão do fecho, na pré-visualização e na reimpressão
+    function buildZDoc(z, recon) {
+      function row(label, val, cls) { return '<div class="z-row' + (cls ? " " + cls : "") + '"><span>' + label + '</span><span class="z-num">' + val + "</span></div>"; }
+      function diffRow(label, diff) {
         var cls = diff === 0 ? "is-exact" : diff < 0 ? "is-short" : "is-over";
         var tag = diff === 0 ? POS.s("cash.exact") : (diff < 0 ? POS.s("cash.short") : POS.s("cash.over")) + " " + POS.money(Math.abs(diff));
-        return '<div class="cc-row ' + cls + '"><span>' + POS.s(labelKey) + '</span><span class="cc-diff">' + tag + "</span></div>";
+        return '<div class="z-row ' + cls + '"><span>' + label + '</span><span class="z-num">' + tag + "</span></div>";
       }
-      function expRow(labelKey, val) { return '<div class="cc-row"><span>' + POS.s(labelKey) + '</span><span class="num">' + POS.money(val) + "</span></div>"; }
-      var w = document.createElement("div"); w.className = "sheet";
-      w.innerHTML = "<h3>" + POS.s("cash.close") + "</h3><div class='sheet__sub'>" + POS.s("cash.reviewClose") + "</div>" +
-        '<div class="cc-table">' +
-          expRow("cash.expectedCash", exp.cash) +
-          expRow("cash.countedCash", counted) +
-          diffRow("cash.diffCash", diffCash) +
+      var methods = Object.keys(z.byMethod || {}).map(function (m) { return row(methodLabel(m), POS.money(z.byMethod[m])); }).join("") ||
+        '<div class="z-row z-muted"><span>—</span><span></span></div>';
+      var vat = (z.tax || []).map(function (g) {
+        return '<div class="z-vat"><span>' + g.rate + "%</span><span>" + POS.money(g.base) + "</span><span>" + POS.money(g.tax) + "</span></div>";
+      }).join("") || '<div class="z-vat z-muted"><span>—</span><span></span><span></span></div>';
+      return '<div class="z-doc">' +
+        '<div class="z-doc__head"><div class="z-doc__title">' + POS.s("z.title") + "</div>" +
+          '<div class="z-doc__sub">' + POS.s("z.subtitle") + " · " + POS.s("z.terminal") + " " + z.terminalId + "</div></div>" +
+        '<div class="z-doc__meta">' + POS.s("cash.operator") + ": " + (z.operator || "—") +
+          " · " + POS.s("z.opening") + " " + (z.openTs ? cashTime(z.openTs) : "—") +
+          " · " + POS.s("z.closing") + " " + cashTime(z.closeTs || Date.now()) + "</div>" +
+        '<div class="z-sec">' + row(POS.s("z.sales"), z.salesCount, "z-row--big") + row(POS.s("z.gross"), POS.money(z.grossCents)) + "</div>" +
+        '<div class="z-label">' + POS.s("z.byMethod") + "</div><div class='z-sec'>" + methods +
+          (z.changeGiven || z.changeCents ? row(POS.s("z.changeGiven"), "−" + POS.money(z.changeCents || 0)) : "") + "</div>" +
+        '<div class="z-label">' + POS.s("z.movements") + "</div><div class='z-sec'>" +
+          row(POS.s("cash.fundDay"), POS.money(z.fundo)) + row(POS.s("cash.movIn"), POS.money(z.ins)) + row(POS.s("cash.movOut"), "−" + POS.money(z.outs)) + "</div>" +
+        '<div class="z-label">' + POS.s("z.vat") + '</div><div class="z-vat z-vat--head"><span>' + POS.s("z.vatRate") + "</span><span>" + POS.s("z.vatBase") + "</span><span>" + POS.s("z.vatAmount") + "</span></div>" +
+          '<div class="z-sec">' + vat + "</div>" +
+        (recon ? '<div class="z-label">' + POS.s("z.reconcile") + "</div><div class='z-sec'>" +
+          row(POS.s("cash.expectedCash"), POS.money(recon.expectedCash)) + row(POS.s("cash.countedCash"), POS.money(recon.countedCash)) + diffRow(POS.s("cash.diffCash"), recon.diffCash) +
           '<div class="cc-sep"></div>' +
-          expRow("cash.expectedCard", exp.card) +
-          expRow("cash.reportedCard", reported) +
-          diffRow("cash.diffCard", diffCard) +
-        "</div>" +
+          row(POS.s("cash.expectedCard"), POS.money(recon.expectedCard)) + row(POS.s("cash.reportedCard"), POS.money(recon.reportedCard)) + diffRow(POS.s("cash.diffCard"), recon.diffCard) + "</div>" : "") +
+        '<div class="z-doc__foot">' + POS.s("z.certified") + "</div></div>";
+    }
+    function reconFrom(snap) {
+      return { expectedCash: snap.expectedCash, countedCash: snap.countedCash, diffCash: snap.diffCash,
+        expectedCard: snap.expectedCard, reportedCard: snap.reportedCard, diffCard: snap.diffCard };
+    }
+    function openZPreview(z, recon) {
+      var wrap = document.createElement("div"); wrap.className = "sheet z-preview";
+      wrap.innerHTML = buildZDoc(z, recon) +
+        '<div class="sheet__foot"><button class="btn btn--primary btn--block" data-k="print">' + ic("printer", { size: 18 }) + " " + POS.s("z.print") + "</button></div>";
+      var close = POS.openModal(wrap, { label: POS.s("z.title") });
+      wrap.querySelector('[data-k="print"]').addEventListener("click", function () { doPrintZ(z, recon); });
+    }
+    function doPrintZ(z, recon) {
+      var host = $(".z-print"); if (host) host.remove();
+      host = document.createElement("div"); host.className = "z-print"; host.innerHTML = buildZDoc(z, recon);
+      document.body.appendChild(host);
+      function cleanup() { if (host && host.parentNode) host.remove(); window.removeEventListener("afterprint", cleanup); }
+      window.addEventListener("afterprint", cleanup);
+      try { window.print(); } catch (e) {}
+      setTimeout(cleanup, 1000);   // fallback (alguns browsers não disparam afterprint)
+    }
+
+    // passo de revisão (mini-Z): resumo do turno + reconciliação, com confirmação irreversível
+    function cashCloseReview(counted, reported, note, closePrev) {
+      var exp = POS.cash.expected();
+      var z = POS.cash.zReport(); z.changeGiven = z.changeCents;
+      var recon = { expectedCash: exp.cash, countedCash: counted, diffCash: counted - exp.cash,
+        expectedCard: exp.card, reportedCard: reported, diffCard: reported - exp.card };
+      var w = document.createElement("div"); w.className = "sheet z-review";
+      w.innerHTML = "<h3>" + POS.s("cash.close") + "</h3><div class='sheet__sub'>" + POS.s("cash.reviewClose") + "</div>" +
+        buildZDoc(z, recon) +
         '<div class="sheet__foot"><button class="btn" data-k="back">' + POS.s("act.cancel") + "</button>" +
+        '<button class="btn" data-k="print">' + ic("printer", { size: 18 }) + " " + POS.s("z.print") + "</button>" +
         '<button class="btn btn--danger-solid" data-k="confirm">' + POS.s("cash.confirmClose") + "</button></div>";
       var close = POS.openModal(w, { label: POS.s("cash.close"), noClose: true });
       w.querySelector('[data-k="back"]').addEventListener("click", function () { close(); });
+      w.querySelector('[data-k="print"]').addEventListener("click", function () { doPrintZ(z, recon); });
       var committing = false;
       w.querySelector('[data-k="confirm"]').addEventListener("click", function () {
         if (committing) return; committing = true; this.disabled = true;   // anti-duplo-toque (fecho é irreversível)
@@ -853,10 +897,17 @@
           listEl.innerHTML = slice.map(function (m) {
             var extra = m.type === "close" && m.diffCash !== 0
               ? ' · ' + (m.diffCash < 0 ? POS.s("cash.short") : POS.s("cash.over")) + " " + POS.money(Math.abs(m.diffCash)) : "";
+            var zBtn = m.type === "close" && m.z ? '<button class="cd-z" type="button" data-zid="' + m.id + '">' + ic("file-text", { size: 16 }) + " " + POS.s("z.viewZ") + "</button>" : "";
             return '<div class="cd-item"><div class="cd-main"><div class="cd-type">' + POS.s(CASH_LABELS[m.type]) + "</div>" +
-              '<div class="cd-meta">' + cashTime(m.ts, true) + " · " + (m.operator || "—") + (m.note ? " · " + m.note : "") + extra + "</div></div>" +
+              '<div class="cd-meta">' + cashTime(m.ts, true) + " · " + (m.operator || "—") + (m.note ? " · " + m.note : "") + extra + "</div>" + zBtn + "</div>" +
               '<span class="cd-amt ' + (m.type === "out" ? "is-neg" : "") + '">' + cashSign(m.type) + POS.money(m.amount) + "</span></div>";
           }).join("");
+          listEl.querySelectorAll(".cd-z").forEach(function (b) {
+            b.addEventListener("click", function () {
+              var m = all.find(function (x) { return x.id === b.dataset.zid; });
+              if (m && m.z) openZPreview(m.z, reconFrom(m));
+            });
+          });
         }
         info.textContent = POS.s("cash.page") + " " + st.page + " " + POS.s("cash.of") + " " + pages;
         wrap.querySelector("#cdPrev").disabled = st.page <= 1;
