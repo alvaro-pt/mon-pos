@@ -68,10 +68,6 @@
           <span class="pay__reason" id="finishReason"></span>
         </button>
       </div>
-      <div class="cert">
-        <div class="qr" aria-hidden="true"></div>
-        ATCUD: AJ4F-1 · <span id="certTxt"></span>
-      </div>
     </aside>
   </main>
 
@@ -79,6 +75,7 @@
   <script src="assets/js/i18n.js"></script>
   <script src="assets/js/icons.js"></script>
   <script src="assets/js/cart.js"></script>
+  <script src="assets/js/doc.js"></script>
   <script src="assets/js/ui.js"></script>
   <script>
   (function () {
@@ -122,7 +119,6 @@
       $("#h1").textContent = POS.s("pay.title");
       $("#lblReceived").textContent = POS.s("pay.received");
       $("#rTitle").textContent = POS.s("pay.summary");
-      $("#certTxt").textContent = POS.s("pay.cert");
       $("#payListTitle").textContent = POS.s("pay.payments");
       $("#back").innerHTML = ic("chevron-left", { size: 20 }) + "<span>" + POS.s("act.back") + "</span>";
       $("#docChip").textContent = POS.s("doc." + (cart.state.docType === "invoiceReceipt" ? "invoiceReceipt" : cart.state.docType));
@@ -386,12 +382,15 @@
       var change = cart.changeCents();
       if (change > 0) return showChangeStep(change);
       cart.commitSale({ receiptDest: "none" });
+      autoPrintReceipt();
       cleanup();
       POS.toast(POS.s("pay.done"), { variant: "success", duration: 1600 });
       setTimeout(function () { window.location.href = "sale.html"; }, 700);
     }
 
     function cleanup() { try { sessionStorage.removeItem("pos_payment"); } catch (e) {} }
+    // imprime o talão automaticamente no fim da venda, conforme a definição do terminal (simulado: toast)
+    function autoPrintReceipt() { if (POS.autoPrint()) POS.toast(POS.s("doc.printed"), { duration: 1400 }); }
 
     /* ---------------- Passo mínimo de troco (resumo desligado) ----------------
        opts.restored => a venda já está gravada (refresh): não voltar a gravar. */
@@ -410,7 +409,7 @@
       var done = false;
       var go = function () {
         if (done) return; done = true; okBtn.disabled = true; // anti-duplo-toque
-        if (!opts.restored) { cart.commitSale({ receiptDest: "none" }); }
+        if (!opts.restored) { cart.commitSale({ receiptDest: "none" }); autoPrintReceipt(); }
         cleanup(); POS.clearLastSale();
         close();
         window.location.href = "sale.html";

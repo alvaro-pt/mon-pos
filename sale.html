@@ -12,11 +12,8 @@
   <main class="app">
     <!-- Topbar -->
     <header class="topbar">
-      <div class="topbar__brand">
-        <span class="topbar__logo">
-          <svg viewBox="0 0 500 500" fill="currentColor" role="img" aria-label="moloni POS"><path d="M493.6 394.7v94.34H159.58C74.62 489.04 5.5 419.92 5.5 334.96V95.46h94.34v239.49c0 32.95 26.79 59.75 59.75 59.75H493.6Z"/><path d="M493.6 155.08v333.95h-94.34V155.08c0-32.95-26.79-59.75-59.75-59.75H99.96V1h239.55c84.97 0 154.08 69.12 154.08 154.08Z"/><path d="M194.85 190.34H304.2v109.35H194.85z"/></svg>
-        </span>
-        <span class="topbar__pos">POS</span>
+      <div class="topbar__logo">
+        <svg viewBox="0 0 500 500" fill="currentColor" role="img" aria-label="moloni ON"><path d="M493.6 394.7v94.34H159.58C74.62 489.04 5.5 419.92 5.5 334.96V95.46h94.34v239.49c0 32.95 26.79 59.75 59.75 59.75H493.6Z"/><path d="M493.6 155.08v333.95h-94.34V155.08c0-32.95-26.79-59.75-59.75-59.75H99.96V1h239.55c84.97 0 154.08 69.12 154.08 154.08Z"/><path d="M194.85 190.34H304.2v109.35H194.85z"/></svg>
       </div>
       <span class="topbar__store">Mercearia Avenida</span>
       <div class="topbar__meta">
@@ -92,6 +89,7 @@
   <script src="assets/js/i18n.js"></script>
   <script src="assets/js/icons.js"></script>
   <script src="assets/js/cart.js"></script>
+  <script src="assets/js/doc.js"></script>
   <script src="assets/js/ui.js"></script>
   <script>
   (function () {
@@ -639,15 +637,101 @@
       POS.documents.slice().forEach(function (d) {
         var cust = POS.customers.find(function (c) { return c.id === d.customerId; }) || POS.customers[0];
         var time = new Date(d.ts).toLocaleString(POS.lang === "pt" ? "pt-PT" : "en-IE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-        var b = document.createElement("button"); b.type = "button"; b.className = "clist__item";
-        b.innerHTML = '<span class="customer__ava">' + ic("file", { size: 18 }) + "</span>" +
-          '<span style="flex:1"><b>' + d.no + (d.certified ? ' <span style="color:var(--pay-600)">' + ic("check-circle", { size: 14 }) + "</span>" : "") +
-            "</b><span>" + POS.s(DT[d.type]) + " · " + POS.t(cust.name) + " · " + time + "</span></span>" +
-          '<span class="line__price">' + POS.money(d.totalCents) + "</span>";
-        b.addEventListener("click", function () { POS.toast(d.no + " · demo", { duration: 1500 }); });
+        var total = POS.docTotals(d.lines).totalCents;
+        var sub = POS.s(DT[d.type]) + " · " + POS.t(cust.name) + (d.nif ? " · " + d.nif : "") + " · " + time;
+        var b = document.createElement("button"); b.type = "button"; b.className = "clist__item doc-item";
+        b.innerHTML = '<span class="doc-code" style="--code-c:' + POS.docCodeColor(d.type) + '">' + POS.docCode(d.type) + "</span>" +
+          '<span class="doc-item__main"><span class="doc-item__no">' + POS.docLabel(d) + "</span>" +
+            '<span class="doc-item__sub">' + sub + "</span></span>" +
+          '<span class="doc-item__total num">' + POS.money(total) + "</span>";
+        b.addEventListener("click", function () { openDocPreview(d); });
         host.appendChild(b);
       });
       POS.openDrawer(wrap, { label: POS.s("act.documents") });
+    }
+
+    var TAX_NAME = { 23: "tax.normal", 13: "tax.intermedia", 6: "tax.reduzida", 0: "tax.isento" };
+    // preview do documento em blocos colapsáveis (Clientes/Artigos/Impostos/Pagamentos/Resumo) — no drawer
+    function openDocPreview(d) {
+      var cust = POS.customers.find(function (c) { return c.id === d.customerId; }) || POS.customers[0];
+      var tot = POS.docTotals(d.lines || []);
+      var typeLabel = POS.s("doc." + (d.docType || d.type || "simplified"));
+      function acc(id, titleKey, bodyHtml, open) {
+        return '<section class="acc' + (open ? " is-open" : "") + '" data-acc="' + id + '">' +
+          '<button class="acc__hd" type="button" aria-expanded="' + (open ? "true" : "false") + '">' +
+            ic("chevron-down", { size: 20 }) + "<span>" + POS.s(titleKey) + "</span></button>" +
+          '<div class="acc__bd">' + bodyHtml + "</div></section>";
+      }
+      // Clientes
+      var clientHtml = '<div class="kv"><span>' + POS.s("doc.client") + '</span><span>' + POS.t(cust.name) + "</span></div>" +
+        '<div class="kv"><span>' + POS.s("doc.nif") + '</span><span>' + (d.nif || cust.nif || "—") + "</span></div>";
+      // Artigos — 4 colunas (Designação/Qt/PVP/Total); IVA e Desc na sub-linha (cabe no drawer)
+      var artRows = (d.lines || []).map(function (l) {
+        var p = POS.getProduct(l.productId); var rate = p ? POS.getTax(p.tax).rate : 0;
+        var gross = Math.round((l.weighable ? l.weight : l.qty) * l.unitPriceCents);
+        if (l.discount) gross -= l.discount.type === "pct" ? Math.round(gross * Math.min(100, l.discount.value) / 100) : Math.min(gross, Math.round(l.discount.value));
+        var meta = POS.s("doc.vatLetter") + " " + rate + "%" + (l.discount ? " · " + POS.s("doc.disc") + " " + (l.discount.type === "pct" ? l.discount.value + "%" : POS.money(l.discount.value)) : "");
+        return '<tr><td><div class="doc-dname">' + (p ? POS.t(p.name) : "—") + '</div><div class="doc-dmeta">' + meta + "</div></td>" +
+          '<td class="r">' + (l.weighable ? l.weight : l.qty) + '</td><td class="r">' + POS.money(l.unitPriceCents) + '</td><td class="r">' + POS.money(gross) + "</td></tr>";
+      }).join("");
+      var artHtml = '<table class="doc-tbl"><thead><tr><th>' + POS.s("doc.designation") + '</th><th class="r">' + POS.s("doc.qty") +
+        '</th><th class="r">' + POS.s("doc.pvpUnit") + '</th><th class="r">' + POS.s("doc.lineTotal") + "</th></tr></thead><tbody>" + artRows + "</tbody></table>";
+      // Impostos
+      var taxRows = tot.taxBreakdown.map(function (g) {
+        return "<tr><td>" + POS.s(TAX_NAME[g.rate] || "tax.normal") + " (" + g.rate + '%)</td><td class="r">' + POS.money(g.base) + '</td><td class="r">' + POS.money(g.tax) + "</td></tr>";
+      }).join("");
+      var taxHtml = '<table class="doc-tbl"><thead><tr><th>' + POS.s("doc.vatLetter") + '</th><th class="r">' + POS.s("doc.taxBase") +
+        '</th><th class="r">' + POS.s("doc.taxAmount") + "</th></tr></thead><tbody>" + taxRows + "</tbody></table>";
+      // Pagamentos
+      var payHtml = (d.payments || [{ method: "cash", amountCents: tot.totalCents }]).map(function (p) {
+        return '<div class="kv"><span>' + (POS.s("pay.method." + p.method) === "pay.method." + p.method ? p.method : POS.s("pay.method." + p.method)) + '</span><span class="num">' + POS.money(p.amountCents) + "</span></div>";
+      }).join("") + (d.changeCents ? '<div class="kv"><span>' + POS.s("doc.change") + '</span><span class="num">' + POS.money(d.changeCents) + "</span></div>" : "");
+      // Resumo
+      var net = tot.taxBreakdown.reduce(function (n, g) { return n + g.base; }, 0);
+      var sumHtml = '<div class="kv"><span>' + POS.s("doc.netTotal") + '</span><span class="num">' + POS.money(net) + "</span></div>" +
+        tot.taxBreakdown.map(function (g) { return '<div class="kv"><span>' + POS.s(TAX_NAME[g.rate] || "tax.normal") + '</span><span class="num">' + POS.money(g.tax) + "</span></div>"; }).join("") +
+        '<div class="kv kv--total"><span>' + POS.s("doc.grandTotal") + '</span><span class="num">' + POS.money(tot.totalCents) + "</span></div>";
+
+      var wrap = document.createElement("div"); wrap.className = "docsum";
+      wrap.innerHTML =
+        '<div class="docsum__head"><h3>' + POS.s("doc.summaryOf") + " " + POS.docLabel(d) + "</h3>" +
+          '<div class="docsum__sub">' + POS.s("doc.contributor") + ": " + POS.t(cust.name) + "</div></div>" +
+        '<div class="docsum__body"></div>' +
+        '<div class="docsum__foot">' +
+          '<button class="btn btn--primary docsum__primary" data-a="talao">' + ic("printer", { size: 18 }) + " " + POS.s("doc.saleReceipt") + "</button>" +
+          '<div class="docsum__sec">' +
+            '<button class="btn docsum__secbtn" data-a="pdf">' + ic("printer", { size: 20 }) + "<span>" + POS.s("doc.printPdf") + "</span></button>" +
+            '<button class="btn docsum__secbtn" data-a="email">' + ic("mail", { size: 20 }) + "<span>" + POS.s("doc.email") + "</span></button>" +
+            '<button class="btn docsum__secbtn" data-a="gift">' + ic("ticket", { size: 20 }) + "<span>" + POS.s("doc.giftReceipt") + "</span></button>" +
+          "</div>" +
+        "</div>";
+      // monta os blocos na ordem pedida
+      var body = wrap.querySelector(".docsum__body");
+      body.innerHTML = acc("clients", "doc.clientsBlock", clientHtml, true) +
+        acc("items", "doc.items", artHtml, true) +
+        acc("taxes", "doc.taxes", taxHtml, false) +
+        acc("pay", "doc.payment", payHtml, false) +
+        acc("summary", "doc.summaryBlock", sumHtml, true);
+      body.querySelectorAll(".acc__hd").forEach(function (h) {
+        h.addEventListener("click", function () { var sec = h.parentNode; var on = sec.classList.toggle("is-open"); h.setAttribute("aria-expanded", on ? "true" : "false"); });
+      });
+      POS.openDrawer(wrap, { label: POS.s("doc.preview"), onClose: function () { POS.osk.close(); } });
+      wrap.querySelector('[data-a="pdf"]').addEventListener("click", function () { POS.printDoc(d, { format: "a4" }); });
+      wrap.querySelector('[data-a="gift"]').addEventListener("click", function () { POS.printDoc(d, { format: "oferta" }); POS.toast(POS.s("doc.giftPrinted"), { duration: 1500 }); });
+      wrap.querySelector('[data-a="talao"]').addEventListener("click", function () { POS.printDoc(d, { format: "talao" }); POS.toast(POS.s("doc.printed"), { variant: "success", duration: 1500 }); });
+      wrap.querySelector('[data-a="email"]').addEventListener("click", function () { emailDoc(d); });
+    }
+    function emailDoc(d) {
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      wrap.innerHTML = "<h3>" + POS.s("doc.email") + "</h3>" +
+        '<label class="ff"><span>' + POS.s("doc.emailPrompt") + '</span><input id="emField" class="ff__in" type="email" autocomplete="off" /></label>' +
+        '<div class="sheet__foot"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
+        '<button class="btn btn--primary" data-k="ok">' + POS.s("doc.email") + "</button></div>";
+      var close = POS.openModal(wrap, { label: POS.s("doc.email"), onClose: function () { POS.osk.close(); } });
+      var f = wrap.querySelector("#emField");
+      f.addEventListener("focus", function () { POS.osk.open(); });
+      wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
+      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () { close(); POS.toast(POS.s("doc.emailSent") + (f.value ? " · " + f.value : ""), { variant: "success", duration: 1800 }); });
     }
 
     /* ---------- Movimentos de caixa ---------- */
@@ -737,21 +821,20 @@
       wrap.innerHTML = "<h3>" + POS.s(titleKey) + "</h3><div class='sheet__sub'>" + POS.s(hintKey) + "</div>" +
         '<label class="ff"><span>' + POS.s(valLabelKey) + '</span>' +
           '<button class="ff__in cash-valbtn' + (valueCents > 0 ? " is-set" : "") + '" id="cashVal" type="button">' + POS.money(valueCents) + "</button>" +
-          (kind === "open" ? '<small class="ff__hint">' + POS.s("cash.fundHint") + "</small>" : "") + "</label>" +
+          (kind === "open" ? '<button class="ff-denom" id="cashDenom" type="button">' + ic("columns", { size: 15 }) + " " + POS.s("denom.expand") + "</button>" : "") + "</label>" +
         '<label class="ff" style="margin-top:var(--sp-3)"><span>' + POS.s("cash.notes") + '</span>' +
           '<textarea id="cashNote" class="ff__in" rows="2" style="height:auto;padding:10px 12px"></textarea></label>' +
         '<div class="sheet__foot"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
         '<button class="btn btn--primary" data-k="ok">' + POS.s("cash.save") + "</button></div>";
       var close = POS.openModal(wrap, { label: POS.s(titleKey), onClose: function () { POS.osk.close(); } });
       var valBtn = wrap.querySelector("#cashVal");
-      valBtn.addEventListener("click", function () {
-        if (kind === "open") {   // abertura também pode ser contada por denominação
-          denomCounter({ onConfirm: function (totalCents) { valueCents = totalCents; valBtn.textContent = POS.money(valueCents); valBtn.classList.toggle("is-set", valueCents > 0); } });
-          return;
-        }
+      function setVal(c) { valueCents = c; valBtn.textContent = POS.money(valueCents); valBtn.classList.toggle("is-set", valueCents > 0); }
+      valBtn.addEventListener("click", function () {   // por defeito: valor simples (keypad)
         POS.keypad({ title: POS.s(valLabelKey), decimal: true, initial: valueCents ? valueCents / 100 : 0, maxInt: 6, maxDec: 2, suffix: "€",
-          onConfirm: function (v) { valueCents = Math.round(v * 100); valBtn.textContent = POS.money(valueCents); valBtn.classList.toggle("is-set", valueCents > 0); } });
+          onConfirm: function (v) { setVal(Math.round(v * 100)); } });
       });
+      var denomBtn = wrap.querySelector("#cashDenom");   // opcional: expandir p/ contar por denominação
+      if (denomBtn) denomBtn.addEventListener("click", function () { denomCounter({ onConfirm: function (totalCents) { setVal(totalCents); } }); });
       wrap.querySelector("#cashNote").addEventListener("focus", function () { POS.osk.open(); });
       wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
       var saving = false;
@@ -837,7 +920,8 @@
       var wrap = document.createElement("div"); wrap.className = "sheet";
       wrap.innerHTML = "<h3>" + POS.s("cash.close") + "</h3><div class='sheet__sub'>" + POS.s("cash.countedHint") + "</div>" +
         '<label class="ff"><span>' + POS.s("cash.countedCash") + '</span>' +
-          '<button class="ff__in cash-valbtn" id="ccCounted" type="button">—</button></label>' +
+          '<button class="ff__in cash-valbtn" id="ccCounted" type="button">—</button>' +
+          '<button class="ff-denom" id="ccDenom" type="button">' + ic("columns", { size: 15 }) + " " + POS.s("denom.expand") + "</button></label>" +
         '<label class="ff" style="margin-top:var(--sp-3)"><span>' + POS.s("cash.reportedCard") + '</span>' +
           '<button class="ff__in cash-valbtn is-set" id="ccCard" type="button">' + POS.money(0) + '</button>' +
           '<small class="ff__hint">' + POS.s("cash.reportedHint") + "</small></label>" +
@@ -847,11 +931,13 @@
         '<button class="btn btn--primary" data-k="review" disabled>' + POS.s("cash.confirmClose") + "</button></div>";
       var close = POS.openModal(wrap, { label: POS.s("cash.close"), noClose: true, onClose: function () { POS.osk.close(); } });
       var bC = wrap.querySelector("#ccCounted"), bK = wrap.querySelector("#ccCard"), review = wrap.querySelector('[data-k="review"]');
-      bC.addEventListener("click", function () {
-        denomCounter({ initial: countedBreakdown, onConfirm: function (totalCents, counts) {
-          counted = totalCents; countedBreakdown = counts;
-          bC.textContent = POS.money(counted); bC.classList.add("is-set"); review.disabled = false;
-        } });
+      function setCounted(c, breakdown) { counted = c; countedBreakdown = breakdown || null; bC.textContent = POS.money(counted); bC.classList.add("is-set"); review.disabled = false; }
+      bC.addEventListener("click", function () {   // por defeito: valor simples (keypad)
+        POS.keypad({ title: POS.s("cash.countedCash"), decimal: true, initial: counted != null ? counted / 100 : 0, maxInt: 7, maxDec: 2, suffix: "€",
+          onConfirm: function (v) { setCounted(Math.round(v * 100), null); } });
+      });
+      wrap.querySelector("#ccDenom").addEventListener("click", function () {   // opcional: contar por denominação
+        denomCounter({ initial: countedBreakdown, onConfirm: function (totalCents, counts) { setCounted(totalCents, counts); } });
       });
       bK.addEventListener("click", function () {
         POS.keypad({ title: POS.s("cash.reportedCard"), decimal: true, initial: reported / 100, maxInt: 7, maxDec: 2, suffix: "€",
@@ -1356,13 +1442,18 @@
             '<span class="set-toggle__text"><span class="set-toggle__lbl">' + POS.s("set.showSummary") + "</span>" +
             '<span class="set-toggle__hint">' + POS.s("set.showSummaryHint") + "</span></span>" +
             '<span class="set-toggle__track" aria-hidden="true"><span class="set-toggle__thumb"></span></span>' +
+          "</button>" +
+          '<button class="set-toggle" id="toggleAutoPrint" type="button" role="switch" aria-checked="' + (POS.autoPrint() ? "true" : "false") + '">' +
+            '<span class="set-toggle__text"><span class="set-toggle__lbl">' + POS.s("doc.autoPrint") + "</span>" +
+            '<span class="set-toggle__hint">' + POS.s("doc.autoPrintHint") + "</span></span>" +
+            '<span class="set-toggle__track" aria-hidden="true"><span class="set-toggle__thumb"></span></span>' +
           "</button></div>";
-      var tg = body.querySelector("#toggleSummary");
-      tg.addEventListener("click", function () {
-        var next = tg.getAttribute("aria-checked") !== "true";
-        POS.setShowSummary(next);
-        tg.setAttribute("aria-checked", String(next));
-      });
+      function bindToggle(id, get, set) {
+        var tg = body.querySelector("#" + id);
+        tg.addEventListener("click", function () { var next = tg.getAttribute("aria-checked") !== "true"; set(next); tg.setAttribute("aria-checked", String(next)); });
+      }
+      bindToggle("toggleSummary", POS.showSummary, POS.setShowSummary);
+      bindToggle("toggleAutoPrint", POS.autoPrint, POS.setAutoPrint);
     }
     function renderAboutTab(body) {
       body.innerHTML = '<div class="set-sec"><div class="pd__grid">' +
@@ -1515,6 +1606,93 @@
       if (a === "moloni") return POS.toast(POS.s("user.backToMoloni") + " · demo", { duration: 1500 });
     }
     function initials(name) { return (name || "").trim().split(/\s+/).map(function (w) { return w[0] || ""; }).slice(0, 2).join("").toUpperCase() || "?"; }
+    function currentOp() { var t = POS.terminal(); return POS.operators.find(function (o) { return o.id === t.operatorId; }) || { id: t.operatorId, name: t.operatorName, pin: "" }; }
+
+    /* ---------- Ecrã de bloqueio do terminal ---------- */
+    function lockTerminal() {
+      if (document.querySelector(".lockscreen")) return;
+      try { sessionStorage.setItem("pos_locked", "1"); } catch (e) {}
+      var target = currentOp(), pin = "", fromId = currentOp().id;
+      var node = document.createElement("div"); node.className = "lockscreen"; node.setAttribute("role", "dialog"); node.setAttribute("aria-modal", "true");
+      node.innerHTML = '<div class="lk-stars" id="lkStars" aria-hidden="true"></div><div class="lk-wrap" id="lkWrap"></div>';
+      (function makeStars() {   // pontinhos animados (flutuam + pulsam) — fundo estilo MoloniCRM
+        var box = node.querySelector("#lkStars"), html = "";
+        for (var i = 0; i < 46; i++) {
+          var sz = (Math.random() * 2.4 + 1).toFixed(1);
+          var dur = (Math.random() * 5 + 4).toFixed(1), del = (-Math.random() * 8).toFixed(1);
+          html += '<span class="lk-star" style="left:' + (Math.random() * 100).toFixed(2) + "%;top:" + (Math.random() * 100).toFixed(2) +
+            "%;width:" + sz + "px;height:" + sz + "px;animation-duration:" + dur + "s;animation-delay:" + del + 's"></span>';
+        }
+        box.innerHTML = html;
+      })();
+      function dots() { var n = (target.pin || "0000").length || 4; var out = ""; for (var i = 0; i < n; i++) out += '<span class="lk-dot' + (i < pin.length ? " is-on" : "") + '"></span>'; return out; }
+      function shell() {
+        node.querySelector("#lkWrap").innerHTML =
+          '<div class="lock-card" id="lkCard">' +
+            '<div class="lock-brand"><span class="lock-logo">' + ic("register", { size: 22 }) + '</span><span class="lock-word">Moloni <b>POS</b></span></div>' +
+            '<div class="lock-badge">' + ic("lock", { size: 26 }) + "</div>" +
+            '<div class="lock-title">' + POS.s("lock.title") + "</div>" +
+            '<div class="lock-op"><span class="op-ava">' + initials(target.name) + "</span><div class=\"lock-opinfo\"><b>" + target.name + "</b><small>" + POS.s("lock.enterPin") + "</small></div></div>" +
+            '<div class="lk-dots" id="lkDots">' + dots() + "</div>" +
+            '<div class="lk-pad" id="lkPad"></div>' +
+            '<button class="lk-switch" id="lkSwitch" type="button">' + ic("repeat", { size: 16 }) + " " + POS.s("lock.switch") + "</button>" +
+          "</div>";
+        var pad = node.querySelector("#lkPad");
+        ["1", "2", "3", "4", "5", "6", "7", "8", "9", "blank", "0", "back"].forEach(function (k) {
+          if (k === "blank") { var sp = document.createElement("span"); sp.className = "lk-key lk-key--blank"; sp.setAttribute("aria-hidden", "true"); pad.appendChild(sp); return; }
+          var b = document.createElement("button"); b.type = "button"; b.className = "lk-key";
+          if (k === "back") { b.className += " lk-key--ico"; b.innerHTML = ic("backspace", { size: 24 }); b.setAttribute("aria-label", "Backspace"); }
+          else b.textContent = k;
+          b.addEventListener("click", function () { press(k); });
+          pad.appendChild(b);
+        });
+        node.querySelector("#lkSwitch").addEventListener("click", chooseOp);
+      }
+      function redraw() { var d = node.querySelector("#lkDots"); if (d) d.innerHTML = dots(); }
+      function press(k) {
+        if (k === "back") { pin = pin.slice(0, -1); redraw(); return; }
+        var max = (target.pin || "0000").length || 4;
+        if (pin.length >= max) return;
+        pin += k; redraw();
+        if (pin.length === max) setTimeout(check, 120);
+      }
+      function check() {
+        if (pin === (target.pin || "")) { unlock(); return; }
+        var card = node.querySelector("#lkCard"); if (card) { card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake"); }
+        pin = ""; redraw(); POS.toast(POS.s("op.wrongPin"), { variant: "danger", duration: 1400 });
+      }
+      function chooseOp() {
+        var list = document.createElement("div"); list.className = "lk-oplist";
+        POS.operators.forEach(function (o) {
+          var b = document.createElement("button"); b.type = "button"; b.className = "op-row" + (o.id === target.id ? " is-sel" : "");
+          b.innerHTML = '<span class="op-ava">' + initials(o.name) + "</span><span class=\"op-info\"><b>" + o.name + "</b><small>" + POS.t(o.role) + "</small></span>";
+          b.addEventListener("click", function () { target = o; pin = ""; shell(); });
+          list.appendChild(b);
+        });
+        var card = node.querySelector("#lkCard");
+        card.innerHTML = '<div class="lock-brand"><span class="lock-logo">' + ic("register", { size: 22 }) + '</span><span class="lock-word">Moloni <b>POS</b></span></div>' +
+          '<div class="lock-title">' + POS.s("user.switchOperator") + "</div>";
+        card.appendChild(list);
+      }
+      function unlock() {
+        try { sessionStorage.removeItem("pos_locked"); } catch (e) {}
+        document.removeEventListener("keydown", onKey, true);
+        node.remove();
+        if (target.id !== fromId) {
+          POS.setTerminal({ operatorId: target.id, operatorName: target.name });
+          if (POS.cash.isOpen()) POS.cash.movement("handover", 0, currentOp().name);
+          renderUser(); afterCashChange();
+          POS.toast(POS.s("op.switched") + " · " + target.name, { variant: "success", duration: 1600 });
+        }
+      }
+      function onKey(e) {
+        if (/^[0-9]$/.test(e.key)) { e.preventDefault(); press(e.key); }
+        else if (e.key === "Backspace") { e.preventDefault(); press("back"); }
+      }
+      shell();
+      document.body.appendChild(node);
+      document.addEventListener("keydown", onKey, true);
+    }
     function opRole(t) { var o = POS.operators.find(function (x) { return x.id === t.operatorId; }); return o ? POS.t(o.role) : POS.s("user.role"); }
     function renderUser() {   // reflete o operador atual no topo (avatar + nome)
       var t = POS.terminal();
@@ -1610,9 +1788,10 @@
     $("#kbdToggle").addEventListener("click", function () { $("#search").focus(); POS.osk.toggle(); $("#kbdToggle").setAttribute("aria-pressed", String(POS.osk.isOpen())); });
     $("#btnCustomer").addEventListener("click", openCustomer);
     $("#docBtn").addEventListener("click", openDocMenu);
-    [["#tbBell","Notificações"],["#tbMsg","Mensagens"],["#tbLock","Bloquear terminal"]].forEach(function (x) {
+    [["#tbBell","Notificações"],["#tbMsg","Mensagens"]].forEach(function (x) {
       $(x[0]).addEventListener("click", function () { POS.toast(x[1] + " · demo", { duration: 1400 }); });
     });
+    $("#tbLock").addEventListener("click", lockTerminal);
     $("#tbTheme").addEventListener("click", function () { openAppearance(); });
     $("#tbUser").addEventListener("click", function () { openUserMenu($("#tbUser")); });
 
@@ -1628,6 +1807,7 @@
     renderAll();
     tick(); setInterval(tick, 1000 * 20);
     $("#search").focus();
+    try { if (sessionStorage.getItem("pos_locked") === "1") lockTerminal(); } catch (e) {}   // mantém bloqueado entre recargas
     cashStartupPrompt();   // convida a abrir a caixa se estiver fechada (dispensável)
   })();
   </script>

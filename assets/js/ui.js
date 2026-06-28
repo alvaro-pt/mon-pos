@@ -249,7 +249,11 @@ window.POS = window.POS || {};
       '<button class="btn btn--primary" data-k="ok">' + (o.confirmLabel || POS.s("act.confirm")) + "</button></div>";
     var disp = wrap.querySelector("#kpDisp"), pad = wrap.querySelector("#kpPad");
     var dec = POS.lang === "pt" ? "," : ".";
-    function draw() { disp.textContent = (buf === "" ? "0" : buf).replace(".", dec) + (o.suffix ? " " + o.suffix : ""); }
+    // mask: mostra • por cada dígito (PIN/password) mas regista o valor real em `buf`
+    function draw() {
+      if (o.mask) { disp.textContent = buf === "" ? "" : buf.replace(/./g, "•"); return; }
+      disp.textContent = (buf === "" ? "0" : buf).replace(".", dec) + (o.suffix ? " " + o.suffix : "");
+    }
     function canAdd(next) {
       var parts = next.split("."); if (parts[0].replace("-", "").length > maxInt) return false;
       if (parts[1] != null && parts[1].length > maxDec) return false;

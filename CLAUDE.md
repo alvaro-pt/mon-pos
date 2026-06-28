@@ -83,11 +83,12 @@ assets/
     sale.css          CSS dedicado do ecrã de venda
   fonts/              Red Hat Display (.woff2)
   js/
-    data.js           FONTE DE VERDADE: produtos, categorias+subfamílias, IVA, mesas, clientes. Namespace global POS.
+    data.js           FONTE DE VERDADE: produtos, categorias+subfamílias, IVA, mesas, clientes, operadores (POS.operators), emitente (POS.store), documentos. Namespace global POS.
     i18n.js           Strings PT/EN. Toda a UI tem chave PT e EN.
     icons.js          Set de ícones SVG inline (estilo Lucide). POS.icon('nome', {size}). SEM emojis na UI.
-    ui.js             dev-nav, idioma, toasts, POS.money, POS.keypad (numérico: vírgula/Limpar/Retroceder), POS.osk (teclado QWERTY on-screen), modais (foco + inert).
-    cart.js           Estado da venda (linhas, totais, IVA, tipo de doc) + suspender/recuperar (park) + persistência.
+    ui.js             dev-nav, idioma, toasts, POS.money, POS.keypad (numérico; opção mask p/ PIN), POS.osk (QWERTY on-screen), modais (foco + inert).
+    cart.js           Estado da venda + POS.cash (estado da caixa) + persistência + commitSale.
+    doc.js            Render do DOCUMENTO de venda (POS.buildSaleDoc: talão/A4/oferta) + POS.printDoc + ATCUD/QR simulados. Lógica pura.
 ```
 
 > **Tema visual: Grafite & Índigo.** Chrome escuro (topbar/rail) em grafite (`--shell-*`); acento de marca índigo-violeta (`--brand-*`). Verde **sóbrio** (`--pay-*`) reservado ao Pagar/sucesso — não usar como "positivo genérico". Destrutivos irreversíveis (cancelar/limpar venda, confirmar eliminação) a **vermelho sólido + texto branco** (`.btn--danger-solid`); ações que só abrem confirmação ou têm desfazer ficam subtis. Cor de família = **tinta suave** (`color-mix`), não saturada. Tokens em `base.css` — não mudar a paleta por hardcode.
@@ -131,7 +132,7 @@ Ordem de construção (cada um navegável e demo-ready antes do seguinte):
 
 1. **Ecrã de venda** (`sale.html`) — ✅ v2: navegação por família (breadcrumb), tiles cor+ícone, dialog de detalhes (stock/IVA/variantes), talão com tipo de doc, keypad, descontos por linha, cliente, ações.
 2. **Pagamento** (`payment.html`) — ✅ v3 (funil do PM): cartões de método (default = último usado), **`payments[]`** com dividido por progressive disclosure, estados de cartão (aguardar→aprovado/recusado-retry/cancelar), validação inline, **Fase 3 opcional** ("Mostrar resumo no fim da venda" — resumo+destinos email/PDF/talão venda/troca, ou segue limpo com passo de troco). `commitSale()` grava transação imutável em `pos_sales` (payments/operador/terminal/troco/IVA) antes de `clear()`. **Sem NIF tardio** (doc imutável após emissão). A enriquecer: dividido UI completo, quick-cash nota+moeda, pagamento parkável, paperless real.
-3. **Talão/recibo** — pré-visualização do documento fiscal (com NIF, IVA discriminado, ATCUD/QR simulado).
+3. **Documento de venda (talão/recibo)** — ✅ Onda A. Na lista de **Documentos**, tocar abre **preview no drawer** com blocos colapsáveis (Clientes · Artigos · Impostos · Pagamentos · Resumo) + ações **E-mail · Imprimir PDF (A4) · Talão de troca (oferta) · Talão de venda (80mm)**. Render partilhado `POS.buildSaleDoc` (talão/A4/oferta) com ATCUD/QR simulados. No fim da venda, o talão sai **direto** (toast) se a definição "Imprimir talão automaticamente" estiver ligada (Definições › Terminal). **Onda B (falta):** Converter para NC (item 6). NOTA: não há "ecrã de recibo" no funil — o documento sai da venda; preview/reimpressão vivem em Documentos.
 4. **Mesas** (`tables.html`) — mapa de mesas, abrir/transferir/dividir conta (ativa a vertente restauração).
 5. **Estado da caixa (máquina de estados)** — ✅ v1 + **resumo Z no fecho**. Fonte única `POS.cash` (`cart.js`), **persistente por terminal** em `localStorage` (`pos_cash_<terminalId>`). Ver regras dedicadas em **§5.1**. Falta: ecrã dedicado `register-close.html`, multi-TPA, histórico de turnos, permissões por perfil. Cliente: modal com pesquisa + formulário expansível (nome/NIF/morada/CP/localidade/país/telefone), com teclado on-screen.
 6. **Devoluções / nota de crédito** — selecionar venda, devolver linhas, emitir NC.
@@ -141,6 +142,8 @@ Fluxo nuclear da demo: `index → sale → payment → recibo` (e regresso a `sa
 ### 5.1 Regras do estado da caixa (porteiro do POS)
 
 - **Dois estados por terminal:** `fechada` (default ao arrancar / sem registo) e `aberta`. **Sem auto-fecho** ao recarregar/fechar o browser — uma caixa aberta continua aberta (a sessão do browser ≠ turno). Por isso o estado e as vendas vivem em **`localStorage`** (não session).
+- **Fecho é definitivo:** depois de fechada, não há reabertura nem "cliente retardatário" — uma venda nova exige abrir um novo turno (decisão do PM: não há venda fora de turno).
+- **Bloqueio do terminal (lock):** o cadeado no topo (`lockTerminal`) abre um ecrã cheio que desfoca o fundo, identifica o Moloni POS e pede **PIN** (pad próprio, mascarado) para desbloquear com o mesmo operador ou **trocar de operador** ao desbloquear. Persiste em `pos_locked`.
 - **Vender exige caixa aberta.** Bloqueia-se **no ponto de venda**, não com um muro à entrada. **Bloqueado:** adicionar artigo, ir para pagamento (`Pagar` fica `disabled`), recuperar venda suspensa. **Permitido com caixa fechada:** navegar/pesquisar catálogo, ver detalhes, consultar documentos/vendas, consultar movimentos (resumo+detalhado), abrir a caixa, Definições/idioma/tema.
 - **Saída a 1 toque:** catálogo mostra banner persistente "Caixa fechada → Abrir caixa"; tentar vender dá toast com ação "Abrir caixa". Ícone "Caixa" no rail reflete o estado (**fechada = badge `×` com forma+`aria-label`**, não só cor). Prompt de arranque é **dispensável** (X/Esc, "Agora não"), 1× por sessão.
 - **Abrir = inserir fundo de caixa.** Entradas (`in`)/saídas (`out`) exigem caixa aberta. Valores invulgares (> 2000 €) pedem confirmação suave.

@@ -323,7 +323,7 @@ window.POS = window.POS || {};
   POS.clearLastSale = function () { try { sessionStorage.removeItem("pos_last_sale"); } catch (e) {} };
 
   /* ---- Terminal / operador (default criado à 1ª leitura) ---- */
-  var DEFAULT_TERMINAL = { terminalId: "T1", operatorId: "op1", operatorName: "Ana Sousa", seriesId: "FS 2026" };
+  var DEFAULT_TERMINAL = { terminalId: "T1", operatorId: "op1", operatorName: "Ana Sousa", seriesId: "2026" };
   POS.terminal = function () {
     try {
       var raw = sessionStorage.getItem("pos_terminal");
@@ -345,6 +345,10 @@ window.POS = window.POS || {};
   /* ---- Último método de pagamento usado neste terminal ---- */
   POS.lastMethod = function () { try { return sessionStorage.getItem("pos_last_method") || "cash"; } catch (e) { return "cash"; } };
   POS.setLastMethod = function (m) { try { sessionStorage.setItem("pos_last_method", m); } catch (e) {} };
+
+  /* ---- Definição do terminal: imprimir talão automaticamente no fim da venda (default ON) ---- */
+  POS.autoPrint = function () { try { return sessionStorage.getItem("pos_auto_print") !== "0"; } catch (e) { return true; } };
+  POS.setAutoPrint = function (v) { try { sessionStorage.setItem("pos_auto_print", v ? "1" : "0"); } catch (e) {} };
 
   /* =======================================================================
      ESTADO DA CAIXA (cash register state machine) — fonte única

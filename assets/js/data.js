@@ -104,6 +104,15 @@ window.POS = window.POS || {};
     { id: "c3", name: { pt: "Café Central, Lda", en: "Café Central, Lda" }, nif: "509871234" },
   ];
 
+  /* ---- Emitente (loja) — dados para o documento fiscal ---- */
+  POS.store = {
+    name: "Mercearia Avenida",
+    nif: "500 000 000",
+    address: "Av. da República, 12",
+    zip: "1050-191", city: "Lisboa",
+    certNumber: "0000/AT",   // nº de certificação do programa (simulado)
+  };
+
   /* ---- Operadores do terminal (roster; PIN simulado p/ protótipo) ---- */
   POS.operators = [
     { id: "op1", name: "Ana Sousa",     role: { pt: "Operadora",  en: "Operator" },   pin: "1234" },
@@ -166,10 +175,18 @@ window.POS = window.POS || {};
 
   /* ---- Documentos (mock, para "Consultar documentos") ---- */
   POS.documents = [
-    { id: "d1", type: "simplified", no: "FS 1042", customerId: "final", totalCents: 1860, ts: Date.now() - 1000 * 60 * 8,  certified: true },
-    { id: "d2", type: "receipt",    no: "TL 318",  customerId: "c1",    totalCents: 540,  ts: Date.now() - 1000 * 60 * 26, certified: true },
-    { id: "d3", type: "invoiceReceipt", no: "FR 77", customerId: "c3",  totalCents: 6900, ts: Date.now() - 1000 * 60 * 73, certified: true },
-    { id: "d4", type: "simplified", no: "FS 1041", customerId: "c2",    totalCents: 320,  ts: Date.now() - 1000 * 60 * 95, certified: true },
+    { id: "d1", type: "simplified", number: 1042, seriesId: "2026", customerId: "final", operatorName: "Ana Sousa", terminalId: "T1", certified: true, ts: Date.now() - 1000 * 60 * 8,
+      lines: [ { productId: "p-galao", qty: 2, unitPriceCents: 150 }, { productId: "p-tosta", qty: 1, unitPriceCents: 260 }, { productId: "p-bolo", qty: 2, unitPriceCents: 350 }, { productId: "p-sumo", qty: 2, unitPriceCents: 300 } ],
+      payments: [ { method: "card", amountCents: 1860 } ] },
+    { id: "d2", type: "receipt", number: 318, seriesId: "2026", customerId: "c1", nif: "218456701", operatorName: "João Pereira", terminalId: "T1", certified: true, ts: Date.now() - 1000 * 60 * 26,
+      lines: [ { productId: "p-cafe", qty: 2, unitPriceCents: 70 }, { productId: "p-croiss", qty: 1, unitPriceCents: 120 }, { productId: "p-pao", qty: 4, unitPriceCents: 70 } ],
+      payments: [ { method: "cash", amountCents: 1000 } ], changeCents: 460 },
+    { id: "d3", type: "invoiceReceipt", number: 77, seriesId: "2026", customerId: "c3", nif: "509871234", operatorName: "Rita Marques", terminalId: "T1", certified: true, ts: Date.now() - 1000 * 60 * 73,
+      lines: [ { productId: "p-vinho", qty: 3, unitPriceCents: 1200 }, { productId: "p-cerveja", qty: 6, unitPriceCents: 150 }, { productId: "p-arroz", qty: 2, unitPriceCents: 600 }, { productId: "p-ovos", qty: 2, unitPriceCents: 600 } ],
+      payments: [ { method: "card", amountCents: 6900 } ] },
+    { id: "d4", type: "simplified", number: 1041, seriesId: "2026", customerId: "c2", nif: "245983112", operatorName: "Ana Sousa", terminalId: "T1", certified: true, ts: Date.now() - 1000 * 60 * 95,
+      lines: [ { productId: "p-agua", qty: 2, unitPriceCents: 60 }, { productId: "p-refri", qty: 1, unitPriceCents: 200 } ],
+      payments: [ { method: "mbway", amountCents: 320 } ] },
   ];
 
   /* ---- Lookups ---- */
