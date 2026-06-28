@@ -19,6 +19,8 @@ window.POS = window.POS || {};
     docType: "receipt", // receipt | invoice
     discount: null,     // desconto GLOBAL do documento: {type:'pct'|'abs', value} (abs em cêntimos)
     saleNo: 1,
+    payments: [],       // { method:'cash'|'card'|'mbway', amountCents, ts }
+    attempts: [],       // tentativas de cartão recusadas/canceladas (preparado): { method, amountCents, result, ts }
   };
 
   /* ---- persistência ---- */
@@ -30,6 +32,8 @@ window.POS = window.POS || {};
       var raw = sessionStorage.getItem("pos_cart");
       if (raw) {
         state = JSON.parse(raw);
+        if (!Array.isArray(state.payments)) state.payments = [];
+        if (!Array.isArray(state.attempts)) state.attempts = [];
         state.lines.forEach(function (l) { if (l.key >= seq) seq = l.key + 1; });
       }
     } catch (e) {}
@@ -128,12 +132,84 @@ window.POS = window.POS || {};
       emit();
     },
 
-    clear: function () { state.lines = []; state.discount = null; emit(); },
+    clear: function () { state.lines = []; state.discount = null; state.payments = []; state.attempts = []; emit(); },
 
     setCustomer: function (id) { state.customerId = id; emit(); },
     setDocType: function (t) { state.docType = t; emit(); },
     setDiscount: function (d) { state.discount = d; emit(); },         // desconto global do documento
     applyDiscountToAllLines: function (d) { state.lines.forEach(function (l) { l.discount = d ? { type: d.type, value: d.value } : null; }); emit(); },
+
+    /* ---- pagamentos da venda atual (módulo puro, React-friendly) ----
+       payments[] = lista de pagamentos CONFIRMADOS (split). Derivamos pago/falta/troco
+       sempre do total atual (cart.totals().totalCents) — nunca duplicamos. */
+    payments: function () { return state.payments.slice(); },
+    addPayment: function (p) {
+      if (!p || !p.method) return;
+      var amt = Math.max(0, Math.round(p.amountCents || 0));
+      state.payments.push({ method: p.method, amountCents: amt, ts: Date.now() });
+      emit();
+      return state.payments.length - 1;
+    },
+    removePayment: function (i) {
+      if (i < 0 || i >= state.payments.length) return null;
+      var removed = state.payments.splice(i, 1)[0];
+      emit();
+      return { payment: removed, index: i };
+    },
+    clearPayments: function () { state.payments = []; emit(); },
+    paidCents: function () {
+      return state.payments.reduce(function (s, p) { return s + p.amountCents; }, 0);
+    },
+    dueCents: function () {
+      return Math.max(0, POS.cart.totals().totalCents - POS.cart.paidCents());
+    },
+    changeCents: function () {
+      return Math.max(0, POS.cart.paidCents() - POS.cart.totals().totalCents);
+    },
+    // tentativas recusadas/canceladas de terminal (preparado para auditoria)
+    recordAttempt: function (a) {
+      if (!a || !a.method) return;
+      state.attempts.push({ method: a.method, amountCents: Math.round(a.amountCents || 0), result: a.result || "declined", ts: Date.now() });
+      emit();
+    },
+    attempts: function () { return state.attempts.slice(); },
+
+    /* ---- emissão: regista venda imutável em pos_sales e limpa o estado ---- */
+    commitSale: function (opts) {
+      opts = opts || {};
+      var t = POS.cart.totals();
+      var term = POS.terminal();
+      var cust = POS.cart.customer();
+      var saleNo = nextSaleNo();
+      var sale = {
+        id: "S" + Date.now(),
+        saleNo: saleNo,
+        ts: Date.now(),
+        operatorId: term.operatorId,
+        operatorName: term.operatorName,
+        terminalId: term.terminalId,
+        seriesId: term.seriesId,
+        syncState: "local",
+        docType: state.docType,
+        customerId: state.customerId,
+        nif: cust && cust.nif ? cust.nif : null,
+        lines: JSON.parse(JSON.stringify(state.lines)),
+        totals: {
+          totalCents: t.totalCents,
+          taxCents: t.taxCents,
+          subtotalCents: t.subtotalCents,
+          discountCents: t.discountCents,
+          taxBreakdown: JSON.parse(JSON.stringify(t.taxBreakdown)),
+        },
+        payments: JSON.parse(JSON.stringify(state.payments)),
+        attempts: JSON.parse(JSON.stringify(state.attempts)),
+        changeCents: POS.cart.changeCents(),
+        receiptDest: opts.receiptDest || "none",
+      };
+      var list = readSales(); list.push(sale); writeSales(list);
+      POS.cart.clear();
+      return sale;
+    },
 
     /* ---- snapshot / load ---- */
     snapshot: function () {
@@ -141,6 +217,7 @@ window.POS = window.POS || {};
         lines: JSON.parse(JSON.stringify(state.lines)),
         customerId: state.customerId, docType: state.docType,
         discount: state.discount ? { type: state.discount.type, value: state.discount.value } : null,
+        payments: JSON.parse(JSON.stringify(state.payments)),
         saleNo: state.saleNo, ts: Date.now(),
       };
     },
@@ -150,6 +227,8 @@ window.POS = window.POS || {};
       state.customerId = snap.customerId || "final";
       state.docType = snap.docType || "receipt";
       state.discount = snap.discount || null;
+      state.payments = Array.isArray(snap.payments) ? JSON.parse(JSON.stringify(snap.payments)) : [];
+      state.attempts = [];
       state.lines.forEach(function (l) { if (l.key >= seq) seq = l.key + 1; });
       emit();
     },
@@ -225,6 +304,40 @@ window.POS = window.POS || {};
   function find(key) { return state.lines.find(function (l) { return l.key === key; }); }
   function readParked() { try { return JSON.parse(sessionStorage.getItem("pos_parked") || "[]"); } catch (e) { return []; } }
   function writeParked(list) { try { sessionStorage.setItem("pos_parked", JSON.stringify(list)); } catch (e) {} }
+
+  /* ---- vendas emitidas (imutáveis) ---- */
+  function readSales() { try { return JSON.parse(sessionStorage.getItem("pos_sales") || "[]"); } catch (e) { return []; } }
+  function writeSales(list) { try { sessionStorage.setItem("pos_sales", JSON.stringify(list)); } catch (e) {} }
+  function nextSaleNo() {
+    var n = 1; try { n = parseInt(sessionStorage.getItem("pos_sale_seq") || "0", 10) + 1; } catch (e) {}
+    try { sessionStorage.setItem("pos_sale_seq", String(n)); } catch (e) {}
+    return n;
+  }
+  POS.sales = function () { return readSales(); };
+
+  /* ---- Terminal / operador (default criado à 1ª leitura) ---- */
+  var DEFAULT_TERMINAL = { terminalId: "T1", operatorId: "op1", operatorName: "Ana Sousa", seriesId: "FS 2026" };
+  POS.terminal = function () {
+    try {
+      var raw = sessionStorage.getItem("pos_terminal");
+      if (raw) { var t = JSON.parse(raw); return Object.assign({}, DEFAULT_TERMINAL, t); }
+    } catch (e) {}
+    try { sessionStorage.setItem("pos_terminal", JSON.stringify(DEFAULT_TERMINAL)); } catch (e) {}
+    return Object.assign({}, DEFAULT_TERMINAL);
+  };
+  POS.setTerminal = function (patch) {
+    var t = Object.assign(POS.terminal(), patch || {});
+    try { sessionStorage.setItem("pos_terminal", JSON.stringify(t)); } catch (e) {}
+    return t;
+  };
+
+  /* ---- Definição: mostrar resumo no fim da venda (toggle de terminal) ---- */
+  POS.showSummary = function () { try { return sessionStorage.getItem("pos_show_summary") === "1"; } catch (e) { return false; } };
+  POS.setShowSummary = function (v) { try { sessionStorage.setItem("pos_show_summary", v ? "1" : "0"); } catch (e) {} };
+
+  /* ---- Último método de pagamento usado neste terminal ---- */
+  POS.lastMethod = function () { try { return sessionStorage.getItem("pos_last_method") || "cash"; } catch (e) { return "cash"; } };
+  POS.setLastMethod = function (m) { try { sessionStorage.setItem("pos_last_method", m); } catch (e) {} };
 
   POS.onCartChange = function (fn) { if (typeof fn === "function") subs.push(fn); };
 

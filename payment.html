@@ -13,39 +13,45 @@
   <header class="pay-top">
     <a class="pay-top__back" href="sale.html" id="back"></a>
     <span class="pay-top__title" id="title">Pagamento</span>
+    <span class="pay-top__doc" id="docChip"></span>
   </header>
 
-  <main class="pay-screen">
+  <main class="pay-screen" id="screen">
     <h1 class="sr-only" id="h1">Pagamento</h1>
+
     <section class="pay-left">
-      <div class="pay-total">
-        <div class="lbl" id="lblDue"></div>
-        <div class="big num" id="grandTotal">—</div>
+      <!-- Total dominante + estados condicionais -->
+      <div class="pay-total" id="totalBlock">
+        <div class="pay-total__lbl" id="lblDue"></div>
+        <div class="pay-total__val num" id="grandTotal">—</div>
+        <div class="pay-banners" id="banners"></div>
       </div>
 
-      <div class="methods" id="methods">
-        <button class="method" type="button" data-m="cash" aria-pressed="true"><span data-icon="banknote"></span><span data-s="pay.method.cash"></span></button>
-        <button class="method" type="button" data-m="card" aria-pressed="false"><span data-icon="card"></span><span data-s="pay.method.card"></span></button>
-        <button class="method" type="button" data-m="mbway" aria-pressed="false"><span data-icon="smartphone"></span><span data-s="pay.method.mbway"></span></button>
+      <!-- Métodos -->
+      <div class="methods" id="methods" role="group">
+        <button class="method" type="button" data-m="cash" aria-pressed="false"><span class="method__ic" data-icon="banknote"></span><span class="method__lbl" data-s="pay.method.cash"></span></button>
+        <button class="method" type="button" data-m="card" aria-pressed="false"><span class="method__ic" data-icon="card"></span><span class="method__lbl" data-s="pay.method.card"></span></button>
+        <button class="method" type="button" data-m="mbway" aria-pressed="false"><span class="method__ic" data-icon="smartphone"></span><span class="method__lbl" data-s="pay.method.mbway"></span></button>
       </div>
 
-      <!-- painel dinheiro -->
-      <div class="panel" id="cashPanel">
+      <!-- Painel dinheiro -->
+      <div class="panel" id="cashPanel" hidden>
         <button class="cash__received" id="received" type="button">
           <span class="k" id="lblReceived"></span>
-          <span class="v num" id="receivedVal">0,00 €</span>
+          <span class="v num" id="receivedVal">—</span>
         </button>
         <div class="quick" id="quick"></div>
-        <div class="change-row"><span class="k" id="lblChange"></span><span class="v num" id="changeVal">0,00 €</span></div>
       </div>
 
-      <!-- painel cartão / mbway -->
-      <div class="panel hidden" id="termPanel">
-        <div class="terminal">
-          <span data-icon="card" id="termIcon"></span>
-          <p id="termMsg"></p>
-          <small id="termHint"></small>
-        </div>
+      <!-- Painel cartão / MB WAY (máquina de estados) -->
+      <div class="panel panel--term" id="termPanel" hidden>
+        <div class="terminal" id="terminal"></div>
+      </div>
+
+      <!-- Lista de pagamentos (progressive disclosure: só após 1º parcial) -->
+      <div class="paylist" id="payList" hidden>
+        <h2 class="paylist__title" id="payListTitle"></h2>
+        <div id="payListRows"></div>
       </div>
     </section>
 
@@ -54,7 +60,14 @@
         <h2 id="rTitle"></h2>
         <div id="rRows"></div>
       </div>
-      <button class="pay" id="finish" type="button"><span id="finishLbl"></span><span class="pay__amount num" id="finishAmt"></span></button>
+      <div class="pay-cta">
+        <button class="addpay" id="addPay" type="button" hidden></button>
+        <button class="pay" id="finish" type="button">
+          <span class="pay__lbl" id="finishLbl"></span>
+          <span class="pay__amount num" id="finishAmt"></span>
+          <span class="pay__reason" id="finishReason"></span>
+        </button>
+      </div>
       <div class="cert">
         <div class="qr" aria-hidden="true"></div>
         ATCUD: AJ4F-1 · <span id="certTxt"></span>
@@ -73,125 +86,421 @@
     var $ = function (s) { return document.querySelector(s); };
     var ic = POS.icon, cart = POS.cart;
 
-    // Fonte de verdade única: o carrinho. Sem itens => volta à venda.
-    var totals = cart.totals();
-    if (!totals.itemCount) { window.location.href = "sale.html"; return; }
+    // Fonte única: o carrinho. Sem itens => volta à venda.
+    if (!cart.totals().itemCount) { window.location.href = "sale.html"; return; }
 
-    var method = "cash";
-    var receivedCents = 0;
+    /* ---------------- Estado de UI (não-persistente) ---------------- */
+    var method = POS.lastMethod();              // método selecionado (default = último usado)
+    var amountCents = 0;                          // valor em curso para o método selecionado
+    var amountTouched = false;                    // operador já definiu valor manual/quick?
+    var termState = "idle";                       // idle | waiting | declined | cancelled
+    var splitMode = false;                        // dividido visível? (só após 1º parcial)
 
-    function paintIcons() {
-      document.querySelectorAll("[data-icon]").forEach(function (el) { el.innerHTML = ic(el.getAttribute("data-icon"), { size: 32, stroke: 1.6 }); });
-      $("#back").innerHTML = ic("chevron-left", { size: 20 }) + "<span>" + POS.s("act.back") + "</span>";
-    }
+    function totals() { return cart.totals(); }
+    function due() { return cart.dueCents(); }
 
+    /* ---------------- i18n estático ---------------- */
     function applyStatic() {
       document.querySelectorAll("[data-s]").forEach(function (el) { el.textContent = POS.s(el.getAttribute("data-s")); });
       $("#title").textContent = POS.s("pay.title");
       $("#h1").textContent = POS.s("pay.title");
-      $("#lblDue").textContent = POS.s("cart.totalDue");
       $("#lblReceived").textContent = POS.s("pay.received");
-      $("#lblChange").textContent = POS.s("pay.change");
       $("#rTitle").textContent = POS.s("pay.summary");
       $("#certTxt").textContent = POS.s("pay.cert");
-      $("#finishLbl").textContent = POS.s("pay.complete");
+      $("#payListTitle").textContent = POS.s("pay.payments");
       $("#back").innerHTML = ic("chevron-left", { size: 20 }) + "<span>" + POS.s("act.back") + "</span>";
+      $("#docChip").textContent = POS.s("doc." + (cart.state.docType === "invoiceReceipt" ? "invoiceReceipt" : cart.state.docType));
+    }
+    function paintIcons() {
+      document.querySelectorAll("[data-icon]").forEach(function (el) { el.innerHTML = ic(el.getAttribute("data-icon"), { size: 30, stroke: 1.7 }); });
     }
 
-    function renderTotals() {
-      totals = cart.totals();
-      $("#grandTotal").textContent = POS.money(totals.totalCents);
-      $("#finishAmt").textContent = POS.money(totals.totalCents);
-      var rows = rrow(POS.s("tot.subtotal"), POS.money(totals.subtotalCents));
-      totals.taxBreakdown.forEach(function (g) { rows += rrow(POS.s("tot.tax") + " " + g.rate + "%", POS.money(g.tax)); });
-      if (totals.discountCents > 0) rows += rrow(POS.s("tot.discount"), "−" + POS.money(totals.discountCents));
+    /* ---------------- Total + banners (em falta / troco) ---------------- */
+    function renderTotalBlock() {
+      var t = totals(), d = due(), change = cart.changeCents();
+      $("#grandTotal").textContent = POS.money(t.totalCents);
+      $("#lblDue").textContent = POS.s("cart.totalDue");
+      var b = "";
+      if (splitMode && cart.paidCents() > 0 && d > 0) {
+        b += '<div class="banner banner--due"><span>' + POS.s("pay.due") + '</span><span class="num">' + POS.money(d) + "</span></div>";
+      }
+      if (change > 0) {
+        b += '<div class="banner banner--change"><span>' + POS.s("pay.change") + '</span><span class="num">' + POS.money(change) + "</span></div>";
+      }
+      $("#banners").innerHTML = b;
+    }
+
+    /* ---------------- Resumo (talão) ---------------- */
+    function rrow(l, v) { return '<div class="rrow"><span>' + l + '</span><span class="v num">' + v + "</span></div>"; }
+    function renderSummary() {
+      var t = totals();
+      var rows = rrow(POS.s("tot.subtotal"), POS.money(t.subtotalCents));
+      t.taxBreakdown.forEach(function (g) { rows += rrow(POS.s("tot.tax") + " " + g.rate + "%", POS.money(g.tax)); });
+      if (t.discountCents > 0) rows += rrow(POS.s("tot.discount"), "−" + POS.money(t.discountCents));
       var c = cart.customer();
       rows += rrow(POS.s("cart.customer"), c.nif ? "NIF " + c.nif : POS.t(c.name));
-      rows += '<div class="rrow tot"><span>' + POS.s("tot.total") + '</span><span class="v">' + POS.money(totals.totalCents) + "</span></div>";
+      rows += '<div class="rrow tot"><span>' + POS.s("tot.total") + '</span><span class="v num">' + POS.money(t.totalCents) + "</span></div>";
       $("#rRows").innerHTML = rows;
     }
-    function rrow(l, v) { return '<div class="rrow"><span>' + l + '</span><span class="v">' + v + "</span></div>"; }
 
-    /* ---------- Quick cash: denominações EUR ≥ total + exato ---------- */
+    /* ---------------- Quick-cash ---------------- */
+    function methodIcon(m) { return m === "cash" ? "banknote" : m === "card" ? "card" : "smartphone"; }
     function renderQuick() {
       var host = $("#quick"); host.innerHTML = "";
+      var target = splitMode ? due() : totals().totalCents;
+      if (target <= 0) return;
       var notes = [500, 1000, 2000, 5000, 10000];
-      var vals = [totals.totalCents];
-      // próxima nota "redonda" e notas standard acima do total
-      notes.forEach(function (n) { if (n > totals.totalCents) vals.push(n); });
-      var ceil5 = Math.ceil(totals.totalCents / 500) * 500;
-      if (ceil5 > totals.totalCents) vals.push(ceil5);
+      var vals = [target];
+      // próxima nota redonda acima do alvo + notas standard superiores
+      var ceil5 = Math.ceil(target / 500) * 500; if (ceil5 > target) vals.push(ceil5);
+      notes.forEach(function (n) { if (n > target) vals.push(n); });
+      // 1 combinação realista nota+moeda (alvo arredondado para cima ao euro)
+      var ceilEuro = Math.ceil(target / 100) * 100; if (ceilEuro > target && vals.indexOf(ceilEuro) < 0) vals.push(ceilEuro);
       vals = vals.filter(function (v, i, a) { return a.indexOf(v) === i; }).sort(function (a, b) { return a - b; }).slice(0, 6);
       vals.forEach(function (v) {
         var b = document.createElement("button"); b.type = "button";
-        if (v === totals.totalCents) { b.className = "exact"; b.textContent = POS.s("pay.exact"); }
-        else b.textContent = POS.money(v);
-        b.addEventListener("click", function () { receivedCents = v; renderCash(); });
+        if (v === target) { b.className = "exact"; b.innerHTML = '<span>' + POS.s("pay.exact") + '</span><span class="num">' + POS.money(v) + "</span>"; }
+        else b.innerHTML = '<span class="num">' + POS.money(v) + "</span>";
+        b.addEventListener("click", function () { amountCents = v; amountTouched = true; renderCash(); renderTotalBlockLive(); refreshCTA(); });
         host.appendChild(b);
       });
     }
-
     function renderCash() {
-      $("#receivedVal").textContent = POS.money(receivedCents);
-      $("#changeVal").textContent = POS.money(Math.max(0, receivedCents - totals.totalCents));
+      $("#receivedVal").textContent = amountTouched ? POS.money(amountCents) : "—";
+      $("#received").classList.toggle("is-set", amountTouched);
+    }
+    // troco/banner em tempo real durante a entrada (antes de confirmar)
+    function renderTotalBlockLive() {
+      var t = totals();
+      var d = due();
+      var liveChange = Math.max(0, (cart.paidCents() + (amountTouched ? amountCents : 0)) - t.totalCents);
+      var b = "";
+      var liveDue = Math.max(0, d - (amountTouched ? amountCents : 0));
+      if (splitMode && cart.paidCents() + (amountTouched ? amountCents : 0) < t.totalCents && (cart.paidCents() > 0 || amountTouched)) {
+        b += '<div class="banner banner--due"><span>' + POS.s("pay.due") + '</span><span class="num">' + POS.money(liveDue) + "</span></div>";
+      }
+      if (method === "cash" && liveChange > 0) {
+        b += '<div class="banner banner--change"><span>' + POS.s("pay.change") + '</span><span class="num">' + POS.money(liveChange) + "</span></div>";
+      }
+      $("#banners").innerHTML = b;
     }
 
-    /* ---------- Método ---------- */
+    /* ---------------- Painel cartão / MB WAY ---------------- */
+    function renderTerminal() {
+      var host = $("#terminal");
+      var chargeAmt = splitMode ? (amountTouched ? amountCents : due()) : totals().totalCents;
+      if (termState === "idle") {
+        host.className = "terminal terminal--idle";
+        host.innerHTML =
+          '<span class="terminal__ic">' + ic(methodIcon(method), { size: 46, stroke: 1.5 }) + "</span>" +
+          '<p class="terminal__msg">' + POS.s("pay.card.idle") + "</p>" +
+          '<div class="terminal__amt num">' + POS.money(chargeAmt) + "</div>";
+      } else if (termState === "waiting") {
+        host.className = "terminal terminal--waiting";
+        host.innerHTML =
+          '<div class="spin" aria-hidden="true"></div>' +
+          '<p class="terminal__msg">' + POS.s(method === "mbway" ? "pay.mbway.waiting" : "pay.card.waiting") + "</p>" +
+          '<div class="terminal__amt num">' + POS.money(chargeAmt) + "</div>" +
+          '<button class="btn btn--block term-cancel" type="button" id="termCancel">' + POS.s("pay.card.cancelOp") + "</button>" +
+          '<div class="sim" role="group" aria-label="' + POS.s("pay.sim.hint") + '">' +
+            '<button class="sim__btn sim__ok" type="button" id="simOk">' + ic("check", { size: 16 }) + "<span>" + POS.s("pay.sim.approve") + "</span></button>" +
+            '<button class="sim__btn sim__no" type="button" id="simNo">' + ic("ban", { size: 16 }) + "<span>" + POS.s("pay.sim.decline") + "</span></button>" +
+          "</div>";
+        host.querySelector("#termCancel").addEventListener("click", function () { termCancel(chargeAmt); });
+        host.querySelector("#simOk").addEventListener("click", function () { termApprove(chargeAmt); });
+        host.querySelector("#simNo").addEventListener("click", function () { termDecline(chargeAmt); });
+      } else if (termState === "declined") {
+        host.className = "terminal terminal--declined";
+        host.innerHTML =
+          '<span class="terminal__ic terminal__ic--bad">' + ic("alert-circle", { size: 46, stroke: 2 }) + "</span>" +
+          '<p class="terminal__msg">' + POS.s("pay.card.declined") + "</p>" +
+          '<small class="terminal__hint">' + POS.s("pay.card.declinedHint") + "</small>" +
+          '<div class="terminal__actions">' +
+            '<button class="btn btn--primary btn--block" type="button" id="retry">' + POS.s("pay.card.retry") + "</button>" +
+            '<button class="btn btn--block" type="button" id="changeM">' + POS.s("pay.card.changeMethod") + "</button>" +
+          "</div>";
+        host.querySelector("#retry").addEventListener("click", function () { termState = "idle"; renderTerminal(); refreshCTA(); });
+        host.querySelector("#changeM").addEventListener("click", function () { termState = "idle"; setMethod("cash"); });
+      }
+    }
+    function startTerminal() {
+      termState = "waiting";
+      renderTerminal();
+      refreshCTA();
+    }
+    function termApprove(amt) {
+      cart.addPayment({ method: method, amountCents: amt });
+      POS.setLastMethod(method);
+      termState = "idle";
+      afterPaymentConfirmed();
+    }
+    function termDecline(amt) {
+      cart.recordAttempt({ method: method, amountCents: amt, result: "declined" });
+      termState = "declined";
+      renderTerminal();
+      refreshCTA();
+    }
+    function termCancel(amt) {
+      cart.recordAttempt({ method: method, amountCents: amt, result: "cancelled" });
+      termState = "idle";
+      renderTerminal();
+      refreshCTA();
+      POS.toast(POS.s("pay.card.cancelled"), { duration: 1600 });
+    }
+
+    /* ---------------- Lista de pagamentos (split) ---------------- */
+    function renderPayList() {
+      var pays = cart.payments();
+      var show = splitMode && pays.length > 0;
+      $("#payList").hidden = !show;
+      if (!show) return;
+      var rows = "";
+      pays.forEach(function (p, i) {
+        rows += '<div class="payrow">' +
+          '<span class="payrow__ic">' + ic(methodIcon(p.method), { size: 20, stroke: 1.7 }) + "</span>" +
+          '<span class="payrow__m">' + POS.s("pay.method." + p.method) + "</span>" +
+          '<span class="payrow__v num">' + POS.money(p.amountCents) + "</span>" +
+          '<button class="payrow__rm" type="button" data-i="' + i + '" aria-label="' + POS.s("pay.removePayment") + '">' + ic("x", { size: 18 }) + "</button>" +
+        "</div>";
+      });
+      $("#payListRows").innerHTML = rows;
+      $("#payListRows").querySelectorAll(".payrow__rm").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var i = parseInt(btn.dataset.i, 10);
+          var rem = cart.removePayment(i);
+          if (rem) POS.toast(POS.s("pay.paymentRemoved"), { duration: 1800, action: { label: POS.s("cart.undo"), onClick: function () { cart.addPayment({ method: rem.payment.method, amountCents: rem.payment.amountCents }); rerender(); } } });
+          // se já não há pagamentos, sai do modo dividido
+          if (cart.payments().length === 0) splitMode = false;
+          resetCurrent();
+          rerender();
+        });
+      });
+    }
+
+    /* ---------------- Método ---------------- */
+    function resetCurrent() {
+      // Trocar de método / após confirmar parcial: limpa o valor em curso (sem fantasmas)
+      amountCents = 0; amountTouched = false; termState = "idle";
+    }
     function setMethod(m) {
       method = m;
+      resetCurrent();
       document.querySelectorAll(".method").forEach(function (x) { x.setAttribute("aria-pressed", String(x.dataset.m === m)); });
-      $("#cashPanel").classList.toggle("hidden", m !== "cash");
-      $("#termPanel").classList.toggle("hidden", m === "cash");
-      if (m !== "cash") {
-        $("#termIcon").innerHTML = ic(m === "card" ? "card" : "smartphone", { size: 44, stroke: 1.5 });
-        $("#termMsg").textContent = POS.s(m === "card" ? "pay.method.card" : "pay.method.mbway");
-        $("#termHint").textContent = POS.money(totals.totalCents);
+      $("#cashPanel").hidden = (m !== "cash");
+      $("#termPanel").hidden = (m === "cash");
+      if (m === "cash") { renderQuick(); renderCash(); }
+      else renderTerminal();
+      renderTotalBlock();
+      refreshCTA();
+    }
+
+    /* ---------------- Após confirmar um pagamento ---------------- */
+    function afterPaymentConfirmed() {
+      // O total ainda em falta?
+      if (cart.dueCents() > 0) {
+        // pagamento parcial -> entra em modo dividido e pré-preenche próximo com o em falta
+        splitMode = true;
+        resetCurrent();
+        rerender();
+        return;
       }
+      // pago na totalidade -> concluir
+      completeSale();
     }
 
-    /* ---------- Finalizar ---------- */
-    function finish() {
-      if (method === "cash" && receivedCents < totals.totalCents) {
-        POS.toast(POS.s("pay.insufficient"), { variant: "danger" }); return;
+    /* ---------------- Adicionar pagamento (cash) ---------------- */
+    function confirmCash() {
+      if (!amountTouched || amountCents <= 0) return;
+      cart.addPayment({ method: "cash", amountCents: amountCents });
+      POS.setLastMethod("cash");
+      afterPaymentConfirmed();
+    }
+
+    /* ---------------- CTA principal ---------------- */
+    function ctaState() {
+      // devolve { label, amount, reason, action } — reason != null => desativado
+      var d = due();
+      var paid = cart.paidCents();
+      var inSplit = splitMode && paid > 0;
+      if (termState === "waiting") return { label: POS.s("pay.charge"), amount: "", reason: POS.s("pay.card.waiting"), action: null, busy: true };
+      if (termState === "declined") return { label: POS.s("pay.charge"), amount: "", reason: POS.s("pay.card.declined"), action: null };
+
+      if (method === "cash") {
+        var pay = amountTouched ? amountCents : 0;
+        if (pay <= 0) return { label: inSplit ? POS.s("pay.addPayment") : POS.s("pay.complete"), amount: "", reason: POS.s("pay.needAmount"), action: null };
+        // pagamento cobre tudo o que falta?
+        if (pay >= d) return { label: POS.s("pay.complete"), amount: POS.money(d), reason: null, action: confirmCash };
+        // pagamento parcial
+        return { label: POS.s("pay.addPayment"), amount: POS.money(pay), reason: null, action: confirmCash };
       }
-      if (method === "cash") return success();
-      // cartão / mbway: estado de espera simulado
-      var ov = waiting(POS.s(method === "card" ? "pay.cardWaiting" : "pay.mbwayWaiting"));
-      setTimeout(function () { ov.remove(); success(); }, 1400);
+      // cartão / mbway (idle)
+      var amt = inSplit ? (amountTouched ? amountCents : d) : totals().totalCents;
+      if (amt <= 0) return { label: POS.s("pay.charge"), amount: "", reason: POS.s("pay.needAmount"), action: null };
+      if (inSplit && amt < d) return { label: POS.s("pay.addPayment"), amount: POS.money(amt), reason: null, action: startTerminal };
+      return { label: POS.s("pay.charge"), amount: POS.money(amt), reason: null, action: startTerminal };
+    }
+    function refreshCTA() {
+      var s = ctaState();
+      var btn = $("#finish");
+      $("#finishLbl").textContent = s.label;
+      $("#finishAmt").textContent = s.amount || "";
+      $("#finishReason").textContent = s.reason || "";
+      btn.classList.toggle("has-reason", !!s.reason);
+      btn.classList.toggle("is-busy", !!s.busy);
+      btn.disabled = !s.action;
+      btn.onclick = s.action || null;
+      // addPay extra (atalho explícito) só faz sentido no caminho simples não-split com valor que cobre tudo:
+      $("#addPay").hidden = true;
     }
 
-    function waiting(msg) {
-      var ov = document.createElement("div"); ov.className = "success-ov";
-      ov.innerHTML = '<div class="success"><div class="spin"></div><h2>' + msg + "</h2></div>";
-      document.body.appendChild(ov); return ov;
+    /* ---------------- Concluir venda (commit SEMPRE) ---------------- */
+    function completeSale() {
+      if (POS.showSummary()) return showSummaryScreen();
+      // resumo desligado
+      var change = cart.changeCents();
+      if (change > 0) return showChangeStep(change);
+      cart.commitSale({ receiptDest: "none" });
+      cleanup();
+      POS.toast(POS.s("pay.done") + " ✓", { variant: "success", duration: 1600 });
+      setTimeout(function () { window.location.href = "sale.html"; }, 700);
     }
 
-    function success() {
-      var change = Math.max(0, receivedCents - totals.totalCents);
-      var ov = document.createElement("div"); ov.className = "success-ov";
-      ov.innerHTML = '<div class="success"><div class="success__badge">' + ic("check", { size: 44, stroke: 2.4 }) + "</div>" +
-        "<h2>" + POS.s("pay.done") + "</h2>" +
-        (method === "cash" && change > 0 ? '<div class="success__change">' + POS.money(change) + "<small>" + POS.s("pay.change") + "</small></div>" : "") +
-        '<button class="btn btn--pay btn--block" id="newSale" style="margin-top:var(--sp-4)">' + POS.s("pay.newSale") + "</button></div>";
+    function cleanup() { try { sessionStorage.removeItem("pos_payment"); } catch (e) {} }
+
+    /* ---------------- Passo mínimo de troco (resumo desligado) ---------------- */
+    function showChangeStep(change) {
+      var ov = document.createElement("div"); ov.className = "pay-ov";
+      ov.innerHTML =
+        '<div class="changecard">' +
+          '<div class="changecard__lbl">' + POS.s("pay.changeDue") + "</div>" +
+          '<div class="changecard__val num">' + POS.money(change) + "</div>" +
+          '<button class="btn btn--pay btn--block changecard__ok" type="button" id="chgOk">' + POS.s("pay.complete") + "</button>" +
+        "</div>";
       document.body.appendChild(ov);
-      cart.clear();
-      try { sessionStorage.removeItem("pos_payment"); } catch (e) {}
-      ov.querySelector("#newSale").addEventListener("click", function () { window.location.href = "sale.html"; });
-      setTimeout(function () { window.location.href = "sale.html"; }, 2600);
+      var go = function () { cart.commitSale({ receiptDest: "none" }); cleanup(); window.location.href = "sale.html"; };
+      ov.querySelector("#chgOk").addEventListener("click", go);
+      ov.querySelector("#chgOk").focus();
     }
 
-    function renderAll() { applyStatic(); paintIcons(); renderTotals(); renderQuick(); renderCash(); setMethod(method); }
+    /* ---------------- Ecrã de sucesso + destino (resumo ligado) ---------------- */
+    function showSummaryScreen() {
+      var t = totals();
+      var c = cart.customer();
+      var change = cart.changeCents();
+      var pays = cart.payments();
+      var seriesNo = POS.terminal().seriesId + " · " + POS.s("doc." + (cart.state.docType === "invoiceReceipt" ? "invoiceReceipt" : cart.state.docType));
+      var custLine = c.nif ? "NIF " + c.nif + (c.id !== "final" ? " · " + POS.t(c.name) : "") : POS.t(c.name);
 
-    document.querySelectorAll(".method").forEach(function (m) { m.addEventListener("click", function () { setMethod(m.dataset.m); }); });
-    $("#received").addEventListener("click", function () {
-      POS.keypad({ title: POS.s("pay.received"), sub: POS.s("cart.totalDue") + ": " + POS.money(totals.totalCents),
-        decimal: true, initial: 0, maxInt: 5, maxDec: 2, suffix: "€",
-        onConfirm: function (v) { receivedCents = Math.round(v * 100); renderCash(); } });
+      var DEST = [
+        { id: "none",     icon: "no-paper",  label: "pay.dest.none" },
+        { id: "email",    icon: "mail",      label: "pay.dest.email" },
+        { id: "print",    icon: "printer",   label: "pay.dest.print" },
+        { id: "sale",     icon: "file-text", label: "pay.dest.sale" },
+        { id: "exchange", icon: "ticket",    label: "pay.dest.exchange" },
+      ];
+      var chosenDest = "none";
+
+      function sec(id, title, inner, open) {
+        return '<details class="sumsec"' + (open ? " open" : "") + '><summary class="sumsec__sum">' +
+          "<span>" + title + "</span>" + ic("chevron-down", { size: 18 }) + "</summary>" +
+          '<div class="sumsec__body">' + inner + "</div></details>";
+      }
+      function kv(l, v, cls) { return '<div class="kv' + (cls ? " " + cls : "") + '"><span>' + l + '</span><span class="num">' + v + "</span></div>"; }
+
+      var itemsHtml = cart.lines.map(function (l) {
+        var p = POS.getProduct(l.productId);
+        var name = l.nameOverride || POS.t(p.name);
+        var qty = l.weighable ? POS.weight(l.qty) : l.qty + "×";
+        return kv(qty + " " + name, POS.money(cart.lineTotal(l)));
+      }).join("");
+      var taxesHtml = t.taxBreakdown.map(function (g) { return kv(POS.s("tot.tax") + " " + g.rate + "% (" + POS.s("tot.subtotal").toLowerCase() + " " + POS.money(g.base) + ")", POS.money(g.tax)); }).join("");
+      var payHtml = pays.map(function (p) { return kv(POS.s("pay.method." + p.method), POS.money(p.amountCents)); }).join("") +
+        (change > 0 ? kv(POS.s("pay.change"), POS.money(change), "kv--change") : "");
+      var sumHtml = kv(POS.s("pay.grossTotal"), POS.money(t.subtotalCents + t.taxCents)) +
+        t.taxBreakdown.map(function (g) { return kv(POS.s("tot.tax") + " " + g.rate + "%", POS.money(g.tax)); }).join("") +
+        kv(POS.s("pay.totalValue"), POS.money(t.totalCents), "kv--total");
+
+      var ov = document.createElement("div"); ov.className = "pay-ov pay-ov--summary";
+      ov.innerHTML =
+        '<div class="summary-screen" role="dialog" aria-modal="true" aria-label="' + POS.s("pay.success") + '">' +
+          '<div class="summary-head">' +
+            '<div class="summary-badge">' + ic("check", { size: 38, stroke: 2.6 }) + "</div>" +
+            "<h2>" + POS.s("pay.success") + "</h2>" +
+            '<div class="summary-meta">' + seriesNo + " · " + custLine + "</div>" +
+          "</div>" +
+          (change > 0 ? '<div class="summary-change"><span class="summary-change__lbl">' + POS.s("pay.changeDue") + '</span><span class="summary-change__val num">' + POS.money(change) + "</span></div>" : "") +
+          '<div class="summary-secs">' +
+            sec("items", POS.s("pay.sec.items"), itemsHtml, false) +
+            sec("taxes", POS.s("pay.sec.taxes"), taxesHtml, false) +
+            sec("payment", POS.s("pay.sec.payment"), payHtml, true) +
+            sec("summary", POS.s("pay.sec.summary"), sumHtml, false) +
+          "</div>" +
+          '<div class="summary-dest"><div class="summary-dest__title">' + POS.s("pay.dest.title") + "</div>" +
+            '<div class="dest-grid" id="destGrid"></div></div>' +
+          '<button class="btn btn--pay btn--block summary-new" type="button" id="newSale">' + POS.s("pay.newSale") + "</button>" +
+        "</div>";
+      document.body.appendChild(ov);
+
+      var grid = ov.querySelector("#destGrid");
+      DEST.forEach(function (d) {
+        var b = document.createElement("button"); b.type = "button"; b.className = "dest"; b.dataset.d = d.id;
+        b.setAttribute("aria-pressed", String(d.id === chosenDest));
+        b.innerHTML = ic(d.icon, { size: 24, stroke: 1.7 }) + "<span>" + POS.s(d.label) + "</span>";
+        b.addEventListener("click", function () {
+          chosenDest = d.id;
+          grid.querySelectorAll(".dest").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+          if (d.id === "email") POS.toast(POS.s("pay.dest.sent"), { variant: "success", duration: 1600 });
+          else if (d.id === "print") POS.toast(POS.s("pay.dest.printing"), { duration: 1600 });
+        });
+        grid.appendChild(b);
+      });
+
+      // commit AGORA (imutável). receiptDest = escolha atual; se mudar antes de Nova venda, atualizamos.
+      var sale = cart.commitSale({ receiptDest: chosenDest });
+      cleanup();
+      ov.querySelector("#newSale").addEventListener("click", function () {
+        // persistir o destino final escolhido no registo já gravado
+        try {
+          var list = POS.sales();
+          var rec = list.find(function (s) { return s.id === sale.id; });
+          if (rec) { rec.receiptDest = chosenDest; sessionStorage.setItem("pos_sales", JSON.stringify(list)); }
+        } catch (e) {}
+        window.location.href = "sale.html";
+      });
+      ov.querySelector("#newSale").focus();
+    }
+
+    /* ---------------- Render geral ---------------- */
+    function rerender() {
+      renderTotalBlock();
+      renderSummary();
+      renderPayList();
+      if (method === "cash") { $("#cashPanel").hidden = false; $("#termPanel").hidden = true; renderQuick(); renderCash(); }
+      else { $("#cashPanel").hidden = true; $("#termPanel").hidden = false; renderTerminal(); }
+      document.querySelectorAll(".method").forEach(function (x) { x.setAttribute("aria-pressed", String(x.dataset.m === method)); });
+      refreshCTA();
+    }
+    function renderAll() { applyStatic(); paintIcons(); rerender(); }
+
+    /* ---------------- Eventos ---------------- */
+    document.querySelectorAll(".method").forEach(function (m) {
+      m.addEventListener("click", function () { setMethod(m.dataset.m); });
     });
-    $("#finish").addEventListener("click", finish);
+    $("#received").addEventListener("click", function () {
+      var target = splitMode ? due() : totals().totalCents;
+      POS.keypad({
+        title: POS.s("pay.received"),
+        sub: POS.s("cart.totalDue") + ": " + POS.money(target),
+        decimal: true, initial: 0, maxInt: 5, maxDec: 2, suffix: "€",
+        onConfirm: function (v) { amountCents = Math.round(v * 100); amountTouched = true; renderCash(); renderTotalBlockLive(); refreshCTA(); }
+      });
+    });
+
     POS.onLangChange(renderAll);
 
     POS.mountDevNav("sale");
+    // selecionar método inicial (default = último usado)
+    setMethod(method);
     renderAll();
   })();
   </script>

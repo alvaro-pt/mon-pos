@@ -752,9 +752,9 @@
         var name = d.name || (nif ? "Cliente c/ NIF " + nif : POS.s("cart.customer"));
         var c = { id: id, name: { pt: name, en: name }, nif: nif || null,
           phone: d.phone, address: d.address, zip: d.zip, city: d.city, country: d.country };
-        POS.customers.push(c); cart.setCustomer(id);
+        POS.customers.push(c); cart.setCustomer(id);   // passa a ser o destino da venda
         POS.osk.close(); close();
-        POS.toast(d.quick ? POS.t(c.name) : POS.s("cust.saved"), { variant: "success", duration: 1600 });
+        POS.toast(POS.s(d.quick ? "cust.created" : "cust.saved"), { variant: "success", duration: 1800 });
       }
     }
 
@@ -874,9 +874,22 @@
     }
     function renderTerminalTab(body) {
       function row(k, v) { return '<div class="pd__cell"><div class="k">' + POS.s(k) + '</div><div class="v">' + v + "</div></div>"; }
+      var term = POS.terminal();
       body.innerHTML = '<div class="set-sec"><div class="pd__grid">' +
-        row("set.store", "Mercearia Avenida") + row("set.terminalNo", "#1") +
-        row("set.operator", "Ana Sousa") + row("cart.soldBy", "Ana S.") + "</div></div>";
+          row("set.store", "Mercearia Avenida") + row("set.terminalNo", "#1") +
+          row("set.operator", term.operatorName) + row("cart.soldBy", "Ana S.") + "</div></div>" +
+        '<div class="set-sec"><h4>' + POS.s("set.options") + "</h4>" +
+          '<button class="set-toggle" id="toggleSummary" type="button" role="switch" aria-checked="' + (POS.showSummary() ? "true" : "false") + '">' +
+            '<span class="set-toggle__text"><span class="set-toggle__lbl">' + POS.s("set.showSummary") + "</span>" +
+            '<span class="set-toggle__hint">' + POS.s("set.showSummaryHint") + "</span></span>" +
+            '<span class="set-toggle__track" aria-hidden="true"><span class="set-toggle__thumb"></span></span>' +
+          "</button></div>";
+      var tg = body.querySelector("#toggleSummary");
+      tg.addEventListener("click", function () {
+        var next = tg.getAttribute("aria-checked") !== "true";
+        POS.setShowSummary(next);
+        tg.setAttribute("aria-checked", String(next));
+      });
     }
     function renderAboutTab(body) {
       body.innerHTML = '<div class="set-sec"><div class="pd__grid">' +

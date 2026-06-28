@@ -194,7 +194,8 @@ window.POS = window.POS || {};
     "cust.nifPlaceholder": { pt: "Introduzir NIF",      en: "Enter VAT number" },
     "cust.use":          { pt: "Usar",                  en: "Use" },
     "cust.noResults":    { pt: "Sem clientes",          en: "No customers" },
-    "cust.invoiceNifShort": { pt: "Faturar",            en: "Invoice" },
+    "cust.invoiceNifShort": { pt: "Criar cliente",      en: "Create customer" },
+    "cust.created":      { pt: "Cliente criado · destino da venda", en: "Customer created · sale recipient" },
     "cust.moreFields":   { pt: "Mais campos do cliente", en: "More customer fields" },
     "cust.new":          { pt: "Novo cliente",          en: "New customer" },
     "cust.nif":          { pt: "NIF",                   en: "VAT no." },
@@ -219,19 +220,70 @@ window.POS = window.POS || {};
     "pay.method.cash":  { pt: "Dinheiro",           en: "Cash" },
     "pay.method.card":  { pt: "Cartão",             en: "Card" },
     "pay.method.mbway": { pt: "MB WAY",             en: "MB WAY" },
+    "pay.method":       { pt: "Método de pagamento", en: "Payment method" },
     "pay.received":     { pt: "Valor recebido",     en: "Amount received" },
     "pay.change":       { pt: "Troco",              en: "Change" },
+    "pay.due":          { pt: "Em falta",           en: "Remaining" },
     "pay.exact":        { pt: "Valor exato",        en: "Exact" },
     "pay.enterAmount":  { pt: "Inserir valor",      en: "Enter amount" },
+    "pay.otherAmount":  { pt: "Outro valor",        en: "Other amount" },
     "pay.summary":      { pt: "Resumo da venda",    en: "Sale summary" },
-    "pay.complete":     { pt: "Finalizar pagamento", en: "Complete payment" },
-    "pay.done":         { pt: "Pagamento concluído", en: "Payment complete" },
-    "pay.insufficient": { pt: "Valor recebido insuficiente", en: "Insufficient amount" },
-    "pay.cardWaiting":  { pt: "A aguardar terminal…", en: "Waiting for terminal…" },
-    "pay.mbwayWaiting": { pt: "A aguardar confirmação MB WAY…", en: "Waiting for MB WAY…" },
-    "pay.approved":     { pt: "Aprovado",           en: "Approved" },
-    "pay.cert":         { pt: "Processado por programa certificado", en: "Processed by certified software" },
+    "pay.charge":       { pt: "Cobrar",             en: "Charge" },
+    "pay.complete":     { pt: "Concluir",           en: "Complete" },
+    "pay.done":         { pt: "Pago",               en: "Paid" },
+    "pay.insufficient": { pt: "Valor insuficiente", en: "Insufficient amount" },
     "pay.newSale":      { pt: "Nova venda",         en: "New sale" },
+    "pay.cert":         { pt: "Processado por programa certificado", en: "Processed by certified software" },
+
+    // Pagamento — validação inline (motivo no botão desativado)
+    "pay.needAmount":   { pt: "Indique o valor",   en: "Enter an amount" },
+
+    // Pagamento — dividido / lista de pagamentos
+    "pay.addPayment":   { pt: "Adicionar pagamento", en: "Add payment" },
+    "pay.payments":     { pt: "Pagamentos",          en: "Payments" },
+    "pay.partial":      { pt: "Pagamento parcial",   en: "Partial payment" },
+    "pay.removePayment":{ pt: "Remover pagamento",   en: "Remove payment" },
+    "pay.paymentRemoved":{ pt: "Pagamento removido", en: "Payment removed" },
+
+    // Cartão / MB WAY — máquina de estados
+    "pay.card.idle":     { pt: "Pronto a cobrar",        en: "Ready to charge" },
+    "pay.card.waiting":  { pt: "A aguardar terminal…",   en: "Waiting for terminal…" },
+    "pay.mbway.waiting": { pt: "A aguardar confirmação MB WAY…", en: "Waiting for MB WAY…" },
+    "pay.card.approved": { pt: "Aprovado",               en: "Approved" },
+    "pay.card.declined": { pt: "Pagamento recusado",     en: "Payment declined" },
+    "pay.card.cancelled":{ pt: "Operação cancelada",     en: "Operation cancelled" },
+    "pay.card.retry":    { pt: "Tentar novamente",       en: "Try again" },
+    "pay.card.changeMethod": { pt: "Mudar método",       en: "Change method" },
+    "pay.card.cancelOp": { pt: "Cancelar",               en: "Cancel" },
+    "pay.card.declinedHint": { pt: "O terminal recusou o pagamento. Tenta novamente ou usa outro método.", en: "The terminal declined the payment. Try again or use another method." },
+    "pay.sim.approve":   { pt: "Simular aprovação",      en: "Simulate approval" },
+    "pay.sim.decline":   { pt: "Simular recusa",         en: "Simulate decline" },
+    "pay.sim.hint":      { pt: "Andaime de protótipo",   en: "Prototype scaffold" },
+
+    // Sucesso / resumo
+    "pay.success":       { pt: "Venda concluída",        en: "Sale completed" },
+    "pay.changeDue":     { pt: "Troco a entregar",       en: "Change due" },
+    "pay.sec.items":     { pt: "Artigos",                en: "Items" },
+    "pay.sec.taxes":     { pt: "Impostos",               en: "Taxes" },
+    "pay.sec.payment":   { pt: "Pagamento",              en: "Payment" },
+    "pay.sec.summary":   { pt: "Resumo",                 en: "Summary" },
+    "pay.grossTotal":    { pt: "Total ilíquido",         en: "Gross total" },
+    "pay.totalValue":    { pt: "Valor total",            en: "Total value" },
+
+    // Destino do recibo
+    "pay.dest.title":    { pt: "Entregar recibo",        en: "Deliver receipt" },
+    "pay.dest.none":     { pt: "Sem papel",              en: "Paperless" },
+    "pay.dest.email":    { pt: "E-mail",                 en: "E-mail" },
+    "pay.dest.print":    { pt: "Imprimir",               en: "Print" },
+    "pay.dest.sale":     { pt: "Talão de venda",         en: "Sales receipt" },
+    "pay.dest.exchange": { pt: "Talão de troca",         en: "Exchange receipt" },
+    "pay.dest.sent":     { pt: "Recibo enviado",         en: "Receipt sent" },
+    "pay.dest.printing": { pt: "A imprimir…",            en: "Printing…" },
+
+    // Definição de terminal
+    "set.showSummary":     { pt: "Mostrar resumo no fim da venda", en: "Show summary at end of sale" },
+    "set.showSummaryHint": { pt: "Apresenta um resumo persistente e os destinos do recibo após concluir.", en: "Shows a persistent summary and receipt destinations after completing." },
+    "set.options":         { pt: "Opções",               en: "Options" },
   };
 
   // Estado de idioma (persistente)

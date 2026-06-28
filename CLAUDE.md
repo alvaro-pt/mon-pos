@@ -129,7 +129,7 @@ Regra de ouro: **derivar, não duplicar.** Totais, IVA e troco calculam-se a par
 Ordem de construção (cada um navegável e demo-ready antes do seguinte):
 
 1. **Ecrã de venda** (`sale.html`) — ✅ v2: navegação por família (breadcrumb), tiles cor+ícone, dialog de detalhes (stock/IVA/variantes), talão com tipo de doc, keypad, descontos por linha, cliente, ações.
-2. **Pagamento** (`payment.html`) — ✅ v2: i18n completo (re-traduz), `payment.css` dedicado, método (dinheiro/cartão/MB WAY) com estados simulados, valor recebido via keypad, quick-cash com notas EUR reais, **troco**, sucesso com troco, recibo c/ ATCUD/QR. Fonte única: `cart.totals()`. A enriquecer: divisão de pagamento.
+2. **Pagamento** (`payment.html`) — ✅ v3 (funil do PM): cartões de método (default = último usado), **`payments[]`** com dividido por progressive disclosure, estados de cartão (aguardar→aprovado/recusado-retry/cancelar), validação inline, **Fase 3 opcional** ("Mostrar resumo no fim da venda" — resumo+destinos email/PDF/talão venda/troca, ou segue limpo com passo de troco). `commitSale()` grava transação imutável em `pos_sales` (payments/operador/terminal/troco/IVA) antes de `clear()`. **Sem NIF tardio** (doc imutável após emissão). A enriquecer: dividido UI completo, quick-cash nota+moeda, pagamento parkável, paperless real.
 3. **Talão/recibo** — pré-visualização do documento fiscal (com NIF, IVA discriminado, ATCUD/QR simulado).
 4. **Mesas** (`tables.html`) — mapa de mesas, abrir/transferir/dividir conta (ativa a vertente restauração).
 5. **Fecho de caixa** — ✅ base via modal "Movimentos de caixa" no ecrã de venda (abertura/fecho/entrada/saída + consultar, persistido em `pos_cash`). Falta ecrã dedicado/resumo Z. Cliente: modal com pesquisa + formulário expansível (nome/NIF/morada/CP/localidade/país/telefone), com teclado on-screen.
@@ -149,6 +149,7 @@ Não implementamos certificação real, mas o protótipo tem de **transmitir con
 - **Tipos de documento** (visual): Talão de venda / Fatura Simplificada / Fatura-Recibo / Nota de Crédito.
 - **Marcas de certificação** (simuladas no recibo): **ATCUD**, **QR code**, indicação "Processado por programa certificado".
 - **Arredondamento:** trabalha em cêntimos; arredonda só na apresentação. IVA calculado de forma consistente para o total bater certo.
+- **Documento imutável após emissão (PT):** depois de emitido, um documento **não pode ser alterado** — nem o NIF/cliente. Não existe "NIF tardio". O NIF é capturado **antes** de emitir (cliente da venda); corrigir = **anular o documento e emitir um novo**. O fecho regista a transação em `pos_sales` (imutável).
 
 ---
 
@@ -173,7 +174,7 @@ O objetivo final é **migrar toda a lógica deste protótipo para um projeto Rea
 
 - **Lógica separada da apresentação.** Mantém regras de negócio, cálculos e dados em módulos puros (`data.js`, `cart.js`, helpers de `ui.js`) desacoplados do DOM — migram quase copy-paste para `utils`/hooks/store. Evita enterrar lógica dentro de manipulação de DOM.
 - **Cada ecrã = componente isolado** com inputs/outputs claros. Pensa cada página como um componente com estado próprio e dependências explícitas (não globais escondidas).
-- **Estado partilhado bem identificado e centralizado.** Hoje vive em `sessionStorage` + pub/sub (`POS.onCartChange`/`onLangChange`/`onThemeChange`/`onLayoutChange`). Chaves: `pos_lang`, `pos_theme`, `pos_layout`, `pos_ops_w`, `pos_cart`, `pos_payment`, `pos_parked`, `pos_cash`. Em React → `useState`/`useContext`/store (Zustand/Redux); o pub/sub atual mapeia 1:1 para subscrição de store.
+- **Estado partilhado bem identificado e centralizado.** Hoje vive em `sessionStorage` + pub/sub (`POS.onCartChange`/`onLangChange`/`onThemeChange`/`onLayoutChange`). Chaves: `pos_lang`, `pos_theme`, `pos_layout`, `pos_ops_w`, `pos_cart` (inclui `payments[]`), `pos_parked`, `pos_cash`, `pos_sales` (transações emitidas, imutáveis), `pos_terminal` (terminalId/operador/série), `pos_show_summary`, `pos_last_method`. Em React → `useState`/`useContext`/store (Zustand/Redux); o pub/sub atual mapeia 1:1 para subscrição de store.
 - **Render reativo previsível.** O padrão `render()` + subscritores mapeia para re-render por estado em React. Mantém render idempotente a partir do estado (sem mutações dispersas de DOM).
 - **O que migra fácil:** CSS ~1:1 (→ CSS modules/styled/Tailwind, conforme o destino); lógica pura (copy-paste); HTML→JSX (`class`→`className`). **O que muda de paradigma:** estado (sessionStorage+render → hooks/store), navegação entre páginas (→ React Router), i18n (`POS.s`/`POS.t` → `react-i18next` com as mesmas chaves — por isso mantém as chaves limpas e estáveis).
 - **Stack de destino:** a confirmar (Next.js / Vite+React / CRA; estado; styling; i18n). Quando definido, orientar decisões aqui para minimizar atrito.
