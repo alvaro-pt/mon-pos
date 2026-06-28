@@ -17,6 +17,7 @@ window.POS = window.POS || {};
     lines: [],          // { key, productId, qty, unitPriceCents, weighable, discount:{type,value}|null }
     customerId: "final",
     docType: "receipt", // receipt | invoice
+    discount: null,     // desconto GLOBAL do documento: {type:'pct'|'abs', value} (abs em cêntimos)
     saleNo: 1,
   };
 
@@ -110,6 +111,8 @@ window.POS = window.POS || {};
       l.discount = discount;
       emit();
     },
+    setLineUnitPrice: function (key, cents) { var l = find(key); if (!l) return; l.unitPriceCents = Math.max(0, Math.round(cents)); emit(); },
+    editLine: function (key, d) { var l = find(key); if (!l) return; if (d.name != null) l.nameOverride = d.name || null; if (d.note != null) l.note = d.note || null; if (d.warehouse != null) l.warehouse = d.warehouse; emit(); },
 
     remove: function (key) {
       var i = state.lines.findIndex(function (l) { return l.key === key; });
@@ -125,17 +128,20 @@ window.POS = window.POS || {};
       emit();
     },
 
-    clear: function () { state.lines = []; emit(); },
+    clear: function () { state.lines = []; state.discount = null; emit(); },
 
     setCustomer: function (id) { state.customerId = id; emit(); },
     setDocType: function (t) { state.docType = t; emit(); },
+    setDiscount: function (d) { state.discount = d; emit(); },         // desconto global do documento
+    applyDiscountToAllLines: function (d) { state.lines.forEach(function (l) { l.discount = d ? { type: d.type, value: d.value } : null; }); emit(); },
 
     /* ---- snapshot / load ---- */
     snapshot: function () {
       return {
         lines: JSON.parse(JSON.stringify(state.lines)),
-        customerId: state.customerId, docType: state.docType, saleNo: state.saleNo,
-        ts: Date.now(),
+        customerId: state.customerId, docType: state.docType,
+        discount: state.discount ? { type: state.discount.type, value: state.discount.value } : null,
+        saleNo: state.saleNo, ts: Date.now(),
       };
     },
     load: function (snap) {
@@ -143,6 +149,7 @@ window.POS = window.POS || {};
       state.lines = JSON.parse(JSON.stringify(snap.lines || []));
       state.customerId = snap.customerId || "final";
       state.docType = snap.docType || "receipt";
+      state.discount = snap.discount || null;
       state.lines.forEach(function (l) { if (l.key >= seq) seq = l.key + 1; });
       emit();
     },
@@ -183,19 +190,33 @@ window.POS = window.POS || {};
         if (!groups[k]) groups[k] = { rate: tax.rate, gross: 0 };
         groups[k].gross += lt;
       });
-      var taxBreakdown = Object.keys(groups).map(function (k) {
+      // desconto GLOBAL do documento (sobre o total já com descontos de linha)
+      var globalDisc = 0;
+      if (state.discount && totalGross > 0) {
+        if (state.discount.type === "pct") globalDisc = Math.round(totalGross * Math.min(100, state.discount.value) / 100);
+        else globalDisc = Math.min(totalGross, Math.round(state.discount.value)); // value em cêntimos
+      }
+      // distribui o desconto global proporcionalmente por cada escalão de IVA (resto na última)
+      var keys = Object.keys(groups).sort(function (a, b) { return groups[b].rate - groups[a].rate; });
+      var distributed = 0;
+      var taxBreakdown = keys.map(function (k, i) {
         var g = groups[k];
-        var base = Math.round(g.gross / (1 + g.rate / 100));
-        return { rate: g.rate, base: base, tax: g.gross - base, gross: g.gross };
-      }).sort(function (a, b) { return b.rate - a.rate; });
+        var gd = (i === keys.length - 1) ? (globalDisc - distributed) : Math.round(globalDisc * g.gross / totalGross);
+        distributed += gd;
+        var net = g.gross - gd;
+        var base = Math.round(net / (1 + g.rate / 100));
+        return { rate: g.rate, base: base, tax: net - base, gross: net };
+      });
 
       var taxTotal = taxBreakdown.reduce(function (s, g) { return s + g.tax; }, 0);
+      var total = totalGross - globalDisc;
       return {
         itemCount: POS.cart.itemCount(),
-        discountCents: totalDiscount,
-        subtotalCents: totalGross - taxTotal, // base tributável
+        discountCents: totalDiscount + globalDisc,
+        globalDiscountCents: globalDisc,
+        subtotalCents: total - taxTotal, // base tributável
         taxCents: taxTotal,
-        totalCents: totalGross,
+        totalCents: total,
         taxBreakdown: taxBreakdown,
       };
     },

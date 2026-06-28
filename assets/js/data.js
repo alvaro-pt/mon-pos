@@ -149,6 +149,13 @@ window.POS = window.POS || {};
     }
   });
 
+  /* ---- Armazéns ---- */
+  POS.warehouses = [
+    { id: "G", name: { pt: "GLOBAL (G)", en: "GLOBAL (G)" } },
+    { id: "L", name: { pt: "Loja (L)",   en: "Store (L)" } },
+    { id: "A", name: { pt: "Armazém (A)", en: "Warehouse (A)" } },
+  ];
+
   /* ---- Documentos (mock, para "Consultar documentos") ---- */
   POS.documents = [
     { id: "d1", type: "simplified", no: "FS 1042", customerId: "final", totalCents: 1860, ts: Date.now() - 1000 * 60 * 8,  certified: true },

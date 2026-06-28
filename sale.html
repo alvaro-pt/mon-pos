@@ -358,15 +358,15 @@
         var p = POS.getProduct(l.productId);
         var gross = cart.lineGross(l), tot = cart.lineTotal(l), disc = cart.lineDiscount(l);
         var qtyLabel = l.weighable ? POS.weight(l.qty) : l.qty;
-        var row = document.createElement("div"); row.className = "line";
+        var row = document.createElement("div"); row.className = "line" + (l.key === selectedLine ? " is-selected" : "");
         row.innerHTML =
           '<div class="stepper">' +
             '<button type="button" data-act="dec" aria-label="−">' + ic("minus", { size: 18 }) + "</button>" +
             '<button type="button" class="qty" data-act="edit" aria-label="' + POS.s("cart.qty") + '">' + qtyLabel + "</button>" +
             '<button type="button" data-act="inc" aria-label="+">' + ic("plus", { size: 18 }) + "</button>" +
           "</div>" +
-          '<button class="line__info" data-act="menu" style="background:none;text-align:left">' +
-            '<span class="line__name">' + POS.t(p.name) + "</span>" +
+          '<button class="line__info" data-act="select" style="background:none;text-align:left">' +
+            '<span class="line__name">' + (l.nameOverride || POS.t(p.name)) + "</span>" +
             '<span class="line__sub"><small>' + POS.money(l.unitPriceCents) + (l.weighable ? "/kg" : "") + " · " + POS.getTax(p.tax).rate + "%</small>" +
               (disc ? '<span class="disc-badge">−' + (l.discount.type === "pct" ? l.discount.value + "%" : POS.money(disc)) + "</span>" : "") +
             "</span>" +
@@ -379,7 +379,7 @@
         row.querySelector('[data-act="dec"]').addEventListener("click", function () { cart.changeQty(l.key, -1); });
         row.querySelector('[data-act="inc"]').addEventListener("click", function () { cart.changeQty(l.key, +1); });
         row.querySelector('[data-act="edit"]').addEventListener("click", function () { openQty(l); });
-        row.querySelector('[data-act="menu"]').addEventListener("click", function () { selectedLine = l.key; openLineMenu(l); });
+        row.querySelector('[data-act="select"]').addEventListener("click", function () { selectLine(l); });
         row.querySelector('[data-act="del"]').addEventListener("click", function () { removeLine(l); });
         host.appendChild(row);
       });
@@ -387,7 +387,12 @@
 
     function removeLine(l) {
       var snap = cart.remove(l.key);
+      if (selectedLine === l.key) selectedLine = null;
       POS.toast(POS.s("cart.removed"), { variant: "danger", action: { label: POS.s("cart.undo"), onClick: function () { cart.restore(snap); } } });
+    }
+    function selectLine(l) {
+      if (POS.layout === "c") { selectedLine = (selectedLine === l.key) ? null : l.key; renderOps(); renderLines(); }
+      else { selectedLine = l.key; openLineMenu(l); }
     }
 
     function renderSummary() {
@@ -430,7 +435,7 @@
         { icon: "rotate-ccw", label: "act.parkedSales", action: openParked },
         { icon: "register", label: "act.movements", action: openCashMovements },
         { icon: "file", label: "act.documents", action: openDocuments },
-        { icon: "percent", label: "act.addDisc", action: function () { if (cart.lines.length) openDiscount(selectedLine || cart.lines[cart.lines.length - 1].key); else POS.toast(POS.s("cart.empty.title"), { duration: 1400 }); } },
+        { icon: "percent", label: "act.addDisc", action: openDiscountChooser },
         { icon: "trash", label: "cart.clear", danger: true, action: confirmClear },
       ];
       var wrap = document.createElement("div"); wrap.className = "menu";
@@ -606,12 +611,11 @@
         onConfirm: function (v) { if (v > 0) { flyToCart(srcEl); var k = cart.add(p.id, { qty: v }); selectedLine = k; } } });
     }
 
-    function openDiscount(lineKey) {
-      var l = cart.lines.find(function (x) { return x.key === lineKey; }); if (!l) return;
-      var p = POS.getProduct(l.productId), mode = "pct", buf = "";
+    /* Teclado de desconto reutilizável (%/€). onApply(d) — d:{type,value} (value: cêntimos p/ abs, % p/ pct) ou null p/ remover */
+    function discountKeypad(o) {
+      var mode = "pct", buf = "", dec = POS.lang === "pt" ? "," : ".";
       var wrap = document.createElement("div"); wrap.className = "sheet";
-      var dec = POS.lang === "pt" ? "," : ".";
-      wrap.innerHTML = "<h3>" + POS.s("cart.discountLine") + "</h3><div class='sheet__sub'>" + POS.t(p.name) + "</div>" +
+      wrap.innerHTML = "<h3>" + o.title + "</h3><div class='sheet__sub'>" + o.sub + "</div>" + (o.topHtml || "") +
         '<div class="seg" id="dMode"><button type="button" data-m="pct" aria-pressed="true">%</button><button type="button" data-m="abs" aria-pressed="false">€</button></div>' +
         '<div class="kp-display"><span class="sheet__display" id="dDisp">0</span><button class="kp-clear" type="button" data-k="clear">' + POS.s("kp.clear") + "</button></div>" +
         '<div class="keypad" id="dPad"></div>' +
@@ -637,9 +641,46 @@
         b.addEventListener("click", function () { mode = b.dataset.m; if (mode === "pct" && buf.indexOf(".") >= 0) buf = buf.split(".")[0]; wrap.querySelectorAll("#dMode button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); }); draw(); });
       });
       draw();
-      var close = POS.openModal(wrap, { label: POS.s("cart.discountLine") });
+      var close = POS.openModal(wrap, { label: o.title });
       wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
-      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () { var v = parseFloat(buf || "0"); close(); if (v > 0) cart.setLineDiscount(l.key, { type: mode, value: mode === "abs" ? Math.round(v * 100) : Math.min(100, v) }); });
+      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () {
+        var v = parseFloat(buf || "0"); close();
+        o.onApply(v > 0 ? { type: mode, value: mode === "abs" ? Math.round(v * 100) : Math.min(100, v) } : null);
+      });
+    }
+
+    function openDiscount(lineKey) { // desconto numa linha específica (menu da linha)
+      var l = cart.lines.find(function (x) { return x.key === lineKey; }); if (!l) return;
+      var p = POS.getProduct(l.productId);
+      discountKeypad({ title: POS.s("cart.discountLine"), sub: POS.t(p.name), onApply: function (d) { cart.setLineDiscount(l.key, d); } });
+    }
+
+    // Desconto ao nível do DOCUMENTO (sem linha selecionada): escolher tipo primeiro
+    function openDiscountChooser() {
+      if (!cart.lines.length) { POS.toast(POS.s("cart.empty.title"), { duration: 1400 }); return; }
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      wrap.innerHTML = "<h3>" + POS.s("disc.chooseTitle") + "</h3><div class='sheet__sub'>" + POS.s("disc.chooseSub") + "</div>" +
+        '<div class="disc-choose">' +
+          '<button class="disc-opt" type="button" data-c="article"><span class="disc-opt__ic">' + ic("percent", { size: 24 }) + "</span><b>" + POS.s("disc.perArticle") + "</b></button>" +
+          '<button class="disc-opt" type="button" data-c="global"><span class="disc-opt__ic">' + ic("tag", { size: 24 }) + "</span><b>" + POS.s("disc.global") + "</b></button>" +
+        "</div>";
+      var close = POS.openModal(wrap, { label: POS.s("disc.chooseTitle") });
+      wrap.querySelector('[data-c="article"]').addEventListener("click", function () { close(); openPerArticleDiscount(); });
+      wrap.querySelector('[data-c="global"]').addEventListener("click", function () { close(); openGlobalDiscount(); });
+    }
+    function openGlobalDiscount() {
+      var t = cart.totals();
+      discountKeypad({
+        title: POS.s("disc.globalTitle"), sub: POS.s("disc.globalSub"),
+        topHtml: '<div class="disc-total"><span>' + POS.s("disc.docValue") + '</span><b class="num">' + POS.money(t.totalCents + t.discountCents) + "</b></div>",
+        onApply: function (d) { cart.setDiscount(d); POS.toast(POS.s(d ? "disc.applied" : "disc.removed"), { variant: "success", duration: 1400 }); },
+      });
+    }
+    function openPerArticleDiscount() {
+      discountKeypad({
+        title: POS.s("disc.perArticleTitle"), sub: POS.s("disc.perArticleSub"),
+        onApply: function (d) { cart.applyDiscountToAllLines(d); POS.toast(POS.s(d ? "disc.applied" : "disc.removed"), { variant: "success", duration: 1400 }); },
+      });
     }
 
     function openCustomer() {
@@ -851,30 +892,83 @@
       window.location.href = "payment.html";
     }
 
-    /* ---------- Coluna de operações (Layout C) ---------- */
+    /* ---------- Coluna de operações (Layout C) — contextual ---------- */
     function renderOps() {
       var ops = $("#ops");
       var old = ops.querySelector(".ops__group"); if (old) old.remove();
+      var sel = selectedLine != null ? cart.lines.find(function (l) { return l.key === selectedLine; }) : null;
       var g = document.createElement("div"); g.className = "ops__group"; g.style.cssText = "display:flex;flex-direction:column;gap:var(--sp-2);flex:1;min-height:0";
+      if (sel) buildArticleOps(g, sel); else buildDocOps(g);
+      ops.appendChild(g);
+    }
+    function opsBtn(icon, label, cls) { return '<button class="ops__btn' + (cls ? " " + cls : "") + '" type="button">' + ic(icon, { size: 20 }) + "<span>" + POS.s(label) + "</span></button>"; }
+    function buildDocOps(g) {
       var items = [
         { icon: "users", label: "act.searchClients", fn: openCustomer },
-        { icon: "percent", label: "act.addDisc", fn: function () { if (cart.lines.length) openDiscount(selectedLine || cart.lines[cart.lines.length - 1].key); else POS.toast(POS.s("cart.empty.title"), { duration: 1400 }); } },
+        { icon: "percent", label: "act.addDisc", fn: openDiscountChooser },
         { icon: "pause", label: "act.suspend", fn: function () { if (cart.park()) POS.toast(POS.s("park.parked"), { variant: "success", duration: 1600 }); } },
         { icon: "rotate-ccw", label: "act.parkedSales", fn: openParked },
         { icon: "register", label: "act.movements", fn: openCashMovements },
         { icon: "file", label: "act.documents", fn: openDocuments },
       ];
       g.innerHTML = '<div class="ops__title">' + POS.s("act.options") + "</div>";
-      items.forEach(function (it) {
-        var b = document.createElement("button"); b.className = "ops__btn"; b.type = "button";
-        b.innerHTML = ic(it.icon, { size: 20 }) + "<span>" + POS.s(it.label) + "</span>";
-        b.addEventListener("click", it.fn); g.appendChild(b);
-      });
+      items.forEach(function (it) { var b = document.createElement("button"); b.className = "ops__btn"; b.type = "button"; b.innerHTML = ic(it.icon, { size: 20 }) + "<span>" + POS.s(it.label) + "</span>"; b.addEventListener("click", it.fn); g.appendChild(b); });
       var sp = document.createElement("div"); sp.className = "ops__spacer"; g.appendChild(sp);
       var cancel = document.createElement("button"); cancel.className = "ops__btn danger"; cancel.type = "button";
       cancel.innerHTML = ic("trash", { size: 20 }) + "<span>" + POS.s("act.cancel") + "</span>";
-      cancel.addEventListener("click", confirmClear); g.appendChild(cancel);
-      ops.appendChild(g);
+      cancel.addEventListener("click", function () { if (cart.lines.length) confirmClear(); }); g.appendChild(cancel);
+    }
+    function buildArticleOps(g, l) {
+      var p = POS.getProduct(l.productId);
+      var qtyLabel = l.weighable ? POS.weight(l.qty) : l.qty;
+      g.innerHTML = '<div class="ops__title">' + POS.s("art.options") + "</div>" +
+        '<div class="ops__artname">' + (l.nameOverride || POS.t(p.name)) + "</div>" +
+        '<div class="ops__stepper"><button type="button" data-a="dec" aria-label="−">' + ic("minus", { size: 22 }) + '</button>' +
+          '<span class="ops__qty">' + qtyLabel + '</span>' +
+          '<button type="button" data-a="inc" aria-label="+">' + ic("plus", { size: 22 }) + "</button></div>" +
+        opsBtn("tag", "art.qty") + opsBtn("settings", "art.edit") + opsBtn("percent", "cart.discountLine") + opsBtn("banknote", "art.unitPrice");
+      // mapear ações pela ordem dos ops__btn
+      var btns = g.querySelectorAll(".ops__btn");
+      btns[0].addEventListener("click", function () { openQty(l); });
+      btns[1].addEventListener("click", function () { openEditArticle(l); });
+      btns[2].addEventListener("click", function () { openDiscount(l.key); });
+      btns[3].addEventListener("click", function () { openUnitPrice(l); });
+      g.querySelector('[data-a="dec"]').addEventListener("click", function () { cart.changeQty(l.key, -1); });
+      g.querySelector('[data-a="inc"]').addEventListener("click", function () { cart.changeQty(l.key, +1); });
+      var del = document.createElement("button"); del.className = "ops__btn danger"; del.type = "button";
+      del.innerHTML = ic("trash", { size: 20 }) + "<span>" + POS.s("art.delete") + "</span>";
+      del.addEventListener("click", function () { removeLine(l); selectedLine = null; renderOps(); renderLines(); });
+      g.appendChild(del);
+      var sp = document.createElement("div"); sp.className = "ops__spacer"; g.appendChild(sp);
+      var back = document.createElement("button"); back.className = "ops__btn ops__back"; back.type = "button";
+      back.innerHTML = ic("corner-up-left", { size: 20 }) + "<span>" + POS.s("art.back") + "</span>";
+      back.addEventListener("click", function () { selectedLine = null; renderOps(); renderLines(); });
+      g.appendChild(back);
+    }
+
+    function openEditArticle(l) {
+      var p = POS.getProduct(l.productId);
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      var whOpts = POS.warehouses.map(function (w) { return '<option value="' + w.id + '"' + ((l.warehouse || "G") === w.id ? " selected" : "") + ">" + POS.t(w.name) + "</option>"; }).join("");
+      wrap.innerHTML = "<h3>" + POS.s("edit.title") + "</h3><div class='sheet__sub'>" + POS.s("edit.sub") + "</div>" +
+        '<label class="ff"><span>' + POS.s("edit.designation") + '</span><input id="edName" class="ff__in" autocomplete="off" value="' + (l.nameOverride || POS.t(p.name)).replace(/"/g, "&quot;") + '"></label>' +
+        '<label class="ff" style="margin-top:var(--sp-3)"><span>' + POS.s("edit.summary") + '</span><textarea id="edNote" class="ff__in" rows="2" style="height:auto;padding:10px 12px">' + (l.note || "") + "</textarea></label>" +
+        '<label class="ff" style="margin-top:var(--sp-3)"><span>' + POS.s("edit.warehouse") + '</span><select id="edWh" class="ff__in">' + whOpts + "</select></label>" +
+        '<div class="sheet__foot"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
+        '<button class="btn btn--primary" data-k="ok">' + POS.s("act.apply") + "</button></div>";
+      var close = POS.openModal(wrap, { label: POS.s("edit.title"), onClose: function () { POS.osk.close(); } });
+      wrap.querySelector("#edName").addEventListener("focus", function () { POS.osk.open(); });
+      wrap.querySelector("#edNote").addEventListener("focus", function () { POS.osk.open(); });
+      wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
+      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () {
+        cart.editLine(l.key, { name: wrap.querySelector("#edName").value.trim(), note: wrap.querySelector("#edNote").value.trim(), warehouse: wrap.querySelector("#edWh").value });
+        close();
+      });
+    }
+    function openUnitPrice(l) {
+      POS.keypad({ title: POS.s("art.priceTitle"), sub: l.nameOverride || POS.t(POS.getProduct(l.productId).name),
+        decimal: true, initial: l.unitPriceCents / 100, maxInt: 6, maxDec: 2, suffix: "€",
+        onConfirm: function (v) { cart.setLineUnitPrice(l.key, Math.round(v * 100)); } });
     }
 
     /* ---------- Animação ghost (artigo voa para o talão) ---------- */
@@ -984,7 +1078,8 @@
     function renderCart() { renderDoc(); renderCustomer(); renderLines(); renderSummary(); }
     function renderAll() { applyStatic(); paintStaticIcons(); renderRail(); renderCatalog(); renderCart(); renderOps(); }
 
-    POS.onCartChange(function () { renderLines(); renderSummary(); renderGrid(); });
+    POS.onCartChange(function () { renderLines(); renderSummary(); renderGrid(); renderOps(); });
+    POS.onLayoutChange(function () { renderOps(); renderLines(); });
     POS.onLangChange(renderAll);
     POS.onLangChange(function () { if (reopenScreen && !$("#screen").hidden) reopenScreen(); });
 
