@@ -255,6 +255,12 @@ window.POS = window.POS || {};
       list.splice(i, 1); writeParked(list);
       POS.cart.load(snap);
     },
+    removeParked: function (id) {
+      var list = readParked();
+      var i = list.findIndex(function (s) { return s.id === id; });
+      if (i < 0) return false;
+      list.splice(i, 1); writeParked(list); return true;
+    },
     customer: function () { return POS.customers.find(function (c) { return c.id === state.customerId; }) || POS.customers[0]; },
 
     /* ---- totais derivados (tax-inclusive) ---- */

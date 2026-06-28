@@ -196,18 +196,15 @@
       body.querySelectorAll("[data-cash]").forEach(function (b) { b.addEventListener("click", function () { cashAction(b.dataset.cash); }); });
     }
     function buildDocsPlaceholder(body) {
-      var DT = { simplified: "doc.simplified", receipt: "doc.receipt", invoiceReceipt: "doc.invoiceReceipt" };
-      var rows = POS.documents.map(function (dd) {
-        var cust = POS.customers.find(function (c) { return c.id === dd.customerId; }) || POS.customers[0];
-        var time = new Date(dd.ts).toLocaleString(POS.lang === "pt" ? "pt-PT" : "en-IE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-        return '<button class="clist__item" type="button" data-no="' + dd.no + '"><span class="customer__ava">' + ic("file", { size: 18 }) + "</span>" +
-          '<span style="flex:1"><b>' + dd.no + (dd.certified ? ' <span style="color:var(--pay-600)">' + ic("check-circle", { size: 14 }) + "</span>" : "") +
-          "</b><span>" + POS.s(DT[dd.type]) + " · " + POS.t(cust.name) + " · " + time + "</span></span>" +
-          '<span class="line__price">' + POS.money(dd.totalCents) + "</span></button>";
-      }).join("");
-      body.innerHTML = '<div class="set-sec"><div class="clist" style="max-height:none">' + rows + "</div>" +
-        '<p class="muted" style="margin-top:var(--sp-4);font-size:var(--fs-sm)">' + POS.s("ph.docsFilter") + "</p></div>";
-      body.querySelectorAll(".clist__item").forEach(function (b) { b.addEventListener("click", function () { POS.toast(b.dataset.no + " · demo", { duration: 1400 }); }); });
+      body.classList.add("set-body--docs");
+      body.innerHTML = '<div class="docs-master">' +
+        '<div class="docs-master__list dl-host" id="docsHost"></div>' +
+        '<div class="docs-master__detail" id="docsDetail"></div></div>';
+      var detail = body.querySelector("#docsDetail");
+      function showDetail(d) { detail.innerHTML = ""; detail.appendChild(buildDocPreview(d, { inline: true })); }
+      var docs = POS.documents.slice().sort(function (a, b) { return b.ts - a.ts; });
+      renderDocList(body.querySelector("#docsHost"), { onSelect: showDetail, selectedId: docs[0] && docs[0].id });
+      if (docs[0]) showDetail(docs[0]);   // master-detail: 1.º documento carregado por defeito
     }
 
     /* ---------- Breadcrumb ---------- */
@@ -605,57 +602,140 @@
       var close = POS.openModal(wrap, { label: POS.s("cart.more") });
     }
 
+    function parkedCust(s) { return POS.customers.find(function (c) { return c.id === s.customerId; }) || POS.customers[0]; }
+    function parkedItemEl(s, onClick) {
+      var cust = parkedCust(s), nm = POS.t(cust.name);
+      var total = s.lines.reduce(function (a, l) { return a + cart.lineTotal(l); }, 0);
+      var count = s.lines.reduce(function (n, l) { return n + (l.weighable ? 1 : l.qty); }, 0);
+      var time = new Date(s.ts).toLocaleString(POS.lang === "pt" ? "pt-PT" : "en-IE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+      var b = document.createElement("button"); b.type = "button"; b.className = "clist__item doc-item";
+      b.innerHTML = '<span class="doc-code" style="--code-c:' + (cust.isDefault ? "var(--ink-500)" : avatarColor(nm)) + '">' + (cust.isDefault ? ic("user", { size: 20 }) : initials(nm)) + "</span>" +
+        '<span class="doc-item__main"><span class="doc-item__no">' + nm + "</span>" +
+          '<span class="doc-item__sub">' + count + " " + POS.s(count === 1 ? "tot.item" : "tot.items") + " · " + time + "</span></span>" +
+        '<span class="doc-item__total num">' + POS.money(total) + "</span>";
+      b.addEventListener("click", function () { onClick(s, b); });
+      return b;
+    }
+    function buildParkedDetail(s) {
+      var cust = parkedCust(s), nm = POS.t(cust.name);
+      var total = s.lines.reduce(function (a, l) { return a + cart.lineTotal(l); }, 0);
+      var time = new Date(s.ts).toLocaleString(POS.lang === "pt" ? "pt-PT" : "en-IE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+      var rows = s.lines.map(function (l) {
+        var p = POS.getProduct(l.productId);
+        return "<tr><td>" + (p ? POS.t(p.name) : "—") + '</td><td class="r">' + (l.weighable ? l.weight : l.qty) + '</td><td class="r">' + POS.money(cart.lineTotal(l)) + "</td></tr>";
+      }).join("");
+      var wrap = document.createElement("div"); wrap.className = "docsum docsum--inline";
+      wrap.innerHTML =
+        '<div class="docsum__head"><h3>' + nm + "</h3><div class='docsum__sub'>" + POS.s("park.title") + " · " + time + "</div></div>" +
+        '<div class="docsum__body"><table class="doc-tbl"><thead><tr><th>' + POS.s("doc.designation") + '</th><th class="r">' + POS.s("doc.qty") + '</th><th class="r">' + POS.s("doc.lineTotal") + "</th></tr></thead><tbody>" + rows + "</tbody></table></div>" +
+        '<div class="docsum__total"><span>' + POS.s("doc.grandTotal") + '</span><span class="num">' + POS.money(total) + "</span></div>" +
+        '<div class="docsum__foot"><button class="btn btn--primary docsum__primary" data-a="recover">' + ic("rotate-ccw", { size: 18 }) + " " + POS.s("park.recoverCta") + "</button>" +
+          '<button class="btn btn--danger" data-a="del" style="min-height:48px">' + ic("trash", { size: 18 }) + " " + POS.s("park.delete") + "</button></div>";
+      wrap.querySelector('[data-a="recover"]').addEventListener("click", function () { if (!requireOpenCash()) return; cart.recover(s.id); hideScreen(); POS.toast(POS.s("park.recover"), { variant: "success", duration: 1600 }); });
+      wrap.querySelector('[data-a="del"]').addEventListener("click", function () { cart.removeParked(s.id); POS.toast(POS.s("park.deleted"), { variant: "danger", duration: 1500 }); openParked(); });
+      return wrap;
+    }
     function openParked() {
-      var list = cart.parkedList();
-      var wrap = document.createElement("div"); wrap.className = "sheet";
+      var list = cart.parkedList().slice().reverse();
+      var wrap = document.createElement("div"); wrap.className = "settings";
+      wrap.innerHTML = '<div class="set-head"><h3>' + POS.s("park.title") + "</h3>" +
+        '<button class="set-close" id="pkClose" type="button" aria-label="' + POS.s("act.close") + '">' + ic("x", { size: 22 }) + "</button></div>" +
+        '<div class="set-body set-body--docs" id="pkBody"></div>';
+      wrap.querySelector("#pkClose").addEventListener("click", function () { hideScreen(); });
+      var body = wrap.querySelector("#pkBody");
       if (!list.length) {
-        wrap.innerHTML = "<h3>" + POS.s("park.title") + "</h3><div class='sheet__sub'>" + POS.s("park.empty") + "</div>";
-        POS.openDrawer(wrap, { label: POS.s("park.title") }); return;
+        body.innerHTML = '<div class="empty">' + ic("rotate-ccw", { size: 44, stroke: 1.5 }) + "<h3>" + POS.s("park.empty") + "</h3></div>";
+        showScreen(wrap, POS.s("park.title"), openParked); return;
       }
-      wrap.innerHTML = "<h3>" + POS.s("park.title") + "</h3><div class='clist' id='plist'></div>";
-      var host = wrap.querySelector("#plist");
-      list.slice().reverse().forEach(function (s) {
-        var total = s.lines.reduce(function (a, l) { return a + cart.lineTotal(l); }, 0);
-        var count = s.lines.reduce(function (n, l) { return n + (l.weighable ? 1 : l.qty); }, 0);
-        var cust = POS.customers.find(function (c) { return c.id === s.customerId; }) || POS.customers[0];
-        var time = new Date(s.ts).toLocaleTimeString(POS.lang === "pt" ? "pt-PT" : "en-IE", { hour: "2-digit", minute: "2-digit" });
-        var b = document.createElement("button"); b.type = "button"; b.className = "clist__item";
-        b.innerHTML = '<span class="customer__ava">' + ic("pause", { size: 18 }) + "</span>" +
-          '<span style="flex:1"><b>' + POS.t(cust.name) + "</b><span>" + count + " " + POS.s(count === 1 ? "tot.item" : "tot.items") + " · " + time + "</span></span>" +
-          '<span class="line__price">' + POS.money(total) + "</span>";
-        b.addEventListener("click", function () { if (!requireOpenCash()) { close(); return; } cart.recover(s.id); close(); POS.toast(POS.s("park.recover"), { variant: "success", duration: 1600 }); });
-        host.appendChild(b);
+      body.innerHTML = '<div class="docs-master"><div class="docs-master__list dl-list" id="pkList"></div><div class="docs-master__detail" id="pkDetail"></div></div>';
+      var listEl = body.querySelector("#pkList"), detail = body.querySelector("#pkDetail");
+      function showDetail(s) { detail.innerHTML = ""; detail.appendChild(buildParkedDetail(s)); }
+      list.forEach(function (s, idx) {
+        var el = parkedItemEl(s, function () { listEl.querySelectorAll(".doc-item").forEach(function (x) { x.classList.remove("is-active"); }); el.classList.add("is-active"); showDetail(s); });
+        if (idx === 0) el.classList.add("is-active");
+        listEl.appendChild(el);
       });
-      var close = POS.openDrawer(wrap, { label: POS.s("park.title") });
+      showScreen(wrap, POS.s("park.title"), openParked);
+      showDetail(list[0]);
     }
 
-    function openDocuments() {
-      var wrap = document.createElement("div"); wrap.className = "sheet";
-      wrap.innerHTML = "<h3>" + POS.s("act.documents") + "</h3><div class='clist' style='max-height:none' id='dlist'></div>";
-      var host = wrap.querySelector("#dlist");
-      var DT = { simplified: "doc.simplified", receipt: "doc.receipt", invoiceReceipt: "doc.invoiceReceipt" };
-      POS.documents.slice().forEach(function (d) {
-        var cust = POS.customers.find(function (c) { return c.id === d.customerId; }) || POS.customers[0];
-        var time = new Date(d.ts).toLocaleString(POS.lang === "pt" ? "pt-PT" : "en-IE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-        var total = POS.docTotals(d.lines).totalCents;
-        var sub = POS.s(DT[d.type]) + " · " + POS.t(cust.name) + (d.nif ? " · " + d.nif : "") + " · " + time;
-        var b = document.createElement("button"); b.type = "button"; b.className = "clist__item doc-item";
-        b.innerHTML = '<span class="doc-code" style="--code-c:' + POS.docCodeColor(d.type) + '">' + POS.docCode(d.type) + "</span>" +
-          '<span class="doc-item__main"><span class="doc-item__no">' + POS.docLabel(d) + "</span>" +
-            '<span class="doc-item__sub">' + sub + "</span></span>" +
-          '<span class="doc-item__total num">' + POS.money(total) + "</span>";
-        b.addEventListener("click", function () { openDocPreview(d); });
-        host.appendChild(b);
+    var DOC_DT = { simplified: "doc.simplified", receipt: "doc.receipt", invoiceReceipt: "doc.invoiceReceipt", creditNote: "doc.creditNote" };
+    // item de documento (disco código AT + TIPO série/número + total) — toque abre o preview
+    function docItemEl(d, onClick) {
+      var cust = POS.customers.find(function (c) { return c.id === d.customerId; }) || POS.customers[0];
+      var time = new Date(d.ts).toLocaleString(POS.lang === "pt" ? "pt-PT" : "en-IE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+      var sub = POS.s(DOC_DT[d.type]) + " · " + POS.t(cust.name) + (d.nif ? " · " + d.nif : "") + " · " + time;
+      var b = document.createElement("button"); b.type = "button"; b.className = "clist__item doc-item"; b.dataset.docId = d.id;
+      b.innerHTML = '<span class="doc-code" style="--code-c:' + POS.docCodeColor(d.type) + '">' + POS.docCode(d.type) + "</span>" +
+        '<span class="doc-item__main"><span class="doc-item__no">' + POS.docLabel(d) + "</span>" +
+          '<span class="doc-item__sub">' + sub + "</span></span>" +
+        '<span class="doc-item__total num">' + POS.money(POS.docTotals(d.lines).totalCents) + "</span>";
+      b.addEventListener("click", function () { if (onClick) onClick(d, b); else openDocPreview(d); });
+      return b;
+    }
+    // lista de documentos com pesquisa + paginação (mesma lógica da lista de movimentos)
+    function renderDocList(host, opts) {
+      opts = opts || {};
+      var all = POS.documents.slice().sort(function (a, b) { return b.ts - a.ts; });
+      var st = { q: "", size: opts.size || 25, page: 1 };
+      host.innerHTML =
+        '<div class="cd-search"><input id="dlSearch" type="search" autocomplete="off" placeholder="' + POS.s("doc.search") + '" aria-label="' + POS.s("doc.search") + '" /></div>' +
+        '<div class="dl-list" id="dlList"></div>' +
+        '<div class="cd-foot"><div class="seg cd-size" role="group" aria-label="' + POS.s("cash.perPage") + '">' +
+          [10, 25, 50].map(function (n) { return '<button type="button" data-size="' + n + '"' + (n === st.size ? ' aria-pressed="true"' : "") + ">" + n + "</button>"; }).join("") + "</div>" +
+          '<div class="cd-pager"><button class="cd-nav" id="dlPrev" type="button" aria-label="' + POS.s("cash.prevPage") + '">' + ic("chevron-left", { size: 20 }) + "</button>" +
+          '<span class="cd-pginfo" id="dlInfo"></span>' +
+          '<button class="cd-nav" id="dlNext" type="button" aria-label="' + POS.s("cash.nextPage") + '">' + ic("chevron-right", { size: 20 }) + "</button></div></div>";
+      var listEl = host.querySelector("#dlList"), info = host.querySelector("#dlInfo");
+      function filtered() {
+        var q = st.q.trim().toLowerCase(); if (!q) return all;
+        return all.filter(function (d) {
+          var cust = POS.customers.find(function (c) { return c.id === d.customerId; }) || POS.customers[0];
+          var hay = (POS.docLabel(d) + " " + POS.s(DOC_DT[d.type]) + " " + POS.t(cust.name) + " " + (d.nif || "") + " " + POS.money(POS.docTotals(d.lines).totalCents)).toLowerCase();
+          return hay.indexOf(q) >= 0;
+        });
+      }
+      function render() {
+        var list = filtered();
+        var pages = Math.max(1, Math.ceil(list.length / st.size));
+        if (st.page > pages) st.page = pages;
+        listEl.innerHTML = "";
+        if (!list.length) { listEl.innerHTML = '<p class="muted" style="padding:24px;text-align:center">' + POS.s(st.q ? "cash.noSearch" : "doc.none") + "</p>"; }
+        else list.slice((st.page - 1) * st.size, st.page * st.size).forEach(function (d) {
+          var el = docItemEl(d, opts.onSelect ? function () {
+            listEl.querySelectorAll(".doc-item").forEach(function (x) { x.classList.remove("is-active"); });
+            el.classList.add("is-active"); opts.onSelect(d);
+          } : null);
+          if (opts.selectedId === d.id) el.classList.add("is-active");
+          listEl.appendChild(el);
+        });
+        info.textContent = POS.s("cash.page") + " " + st.page + " " + POS.s("cash.of") + " " + pages;
+        host.querySelector("#dlPrev").disabled = st.page <= 1;
+        host.querySelector("#dlNext").disabled = st.page >= pages;
+      }
+      var si = host.querySelector("#dlSearch");
+      si.addEventListener("focus", function () { POS.osk.open(); });
+      si.addEventListener("input", function () { st.q = si.value; st.page = 1; render(); });
+      host.querySelectorAll(".cd-size button").forEach(function (b) {
+        b.addEventListener("click", function () { st.size = parseInt(b.dataset.size, 10); st.page = 1; host.querySelectorAll(".cd-size button").forEach(function (x) { x.removeAttribute("aria-pressed"); }); b.setAttribute("aria-pressed", "true"); render(); });
       });
-      POS.openDrawer(wrap, { label: POS.s("act.documents") });
+      host.querySelector("#dlPrev").addEventListener("click", function () { if (st.page > 1) { st.page--; render(); } });
+      host.querySelector("#dlNext").addEventListener("click", function () { st.page++; render(); });
+      render();
+    }
+    function openDocuments() {
+      var wrap = document.createElement("div"); wrap.className = "sheet cash-detail";
+      wrap.innerHTML = "<h3>" + POS.s("act.documents") + '</h3><div class="dl-host" id="dlHost"></div>';
+      renderDocList(wrap.querySelector("#dlHost"));
+      POS.openDrawer(wrap, { label: POS.s("act.documents"), onClose: function () { POS.osk.close(); } });
     }
 
     var TAX_NAME = { 23: "tax.normal", 13: "tax.intermedia", 6: "tax.reduzida", 0: "tax.isento" };
     // preview do documento em blocos colapsáveis (Clientes/Artigos/Impostos/Pagamentos/Resumo) — no drawer
-    function openDocPreview(d) {
+    function buildDocPreview(d, opts) {
+      opts = opts || {};
       var cust = POS.customers.find(function (c) { return c.id === d.customerId; }) || POS.customers[0];
       var tot = POS.docTotals(d.lines || []);
-      var typeLabel = POS.s("doc." + (d.docType || d.type || "simplified"));
       function acc(id, titleKey, bodyHtml, open) {
         return '<section class="acc' + (open ? " is-open" : "") + '" data-acc="' + id + '">' +
           '<button class="acc__hd" type="button" aria-expanded="' + (open ? "true" : "false") + '">' +
@@ -688,15 +768,16 @@
       }).join("") + (d.changeCents ? '<div class="kv"><span>' + POS.s("doc.change") + '</span><span class="num">' + POS.money(d.changeCents) + "</span></div>" : "");
       // Resumo
       var net = tot.taxBreakdown.reduce(function (n, g) { return n + g.base; }, 0);
+      // Resumo colapsável SÓ com líquido + IVA; o Valor Total fica fixo (sempre visível)
       var sumHtml = '<div class="kv"><span>' + POS.s("doc.netTotal") + '</span><span class="num">' + POS.money(net) + "</span></div>" +
-        tot.taxBreakdown.map(function (g) { return '<div class="kv"><span>' + POS.s(TAX_NAME[g.rate] || "tax.normal") + '</span><span class="num">' + POS.money(g.tax) + "</span></div>"; }).join("") +
-        '<div class="kv kv--total"><span>' + POS.s("doc.grandTotal") + '</span><span class="num">' + POS.money(tot.totalCents) + "</span></div>";
+        tot.taxBreakdown.map(function (g) { return '<div class="kv"><span>' + POS.s(TAX_NAME[g.rate] || "tax.normal") + '</span><span class="num">' + POS.money(g.tax) + "</span></div>"; }).join("");
 
-      var wrap = document.createElement("div"); wrap.className = "docsum";
+      var wrap = document.createElement("div"); wrap.className = "docsum" + (opts.inline ? " docsum--inline" : "");
       wrap.innerHTML =
         '<div class="docsum__head"><h3>' + POS.s("doc.summaryOf") + " " + POS.docLabel(d) + "</h3>" +
           '<div class="docsum__sub">' + POS.s("doc.contributor") + ": " + POS.t(cust.name) + "</div></div>" +
         '<div class="docsum__body"></div>' +
+        '<div class="docsum__total"><span>' + POS.s("doc.grandTotal") + '</span><span class="num">' + POS.money(tot.totalCents) + "</span></div>" +
         '<div class="docsum__foot">' +
           '<button class="btn btn--primary docsum__primary" data-a="talao">' + ic("printer", { size: 18 }) + " " + POS.s("doc.saleReceipt") + "</button>" +
           '<div class="docsum__sec">' +
@@ -707,20 +788,21 @@
         "</div>";
       // monta os blocos na ordem pedida
       var body = wrap.querySelector(".docsum__body");
-      body.innerHTML = acc("clients", "doc.clientsBlock", clientHtml, true) +
-        acc("items", "doc.items", artHtml, true) +
+      body.innerHTML = acc("clients", "doc.clientsBlock", clientHtml, false) +
+        acc("items", "doc.items", artHtml, true) +   // por defeito só Artigos aberto
         acc("taxes", "doc.taxes", taxHtml, false) +
         acc("pay", "doc.payment", payHtml, false) +
-        acc("summary", "doc.summaryBlock", sumHtml, true);
+        acc("summary", "doc.summaryBlock", sumHtml, false);
       body.querySelectorAll(".acc__hd").forEach(function (h) {
         h.addEventListener("click", function () { var sec = h.parentNode; var on = sec.classList.toggle("is-open"); h.setAttribute("aria-expanded", on ? "true" : "false"); });
       });
-      POS.openDrawer(wrap, { label: POS.s("doc.preview"), onClose: function () { POS.osk.close(); } });
       wrap.querySelector('[data-a="pdf"]').addEventListener("click", function () { POS.printDoc(d, { format: "a4" }); });
       wrap.querySelector('[data-a="gift"]').addEventListener("click", function () { POS.printDoc(d, { format: "oferta" }); POS.toast(POS.s("doc.giftPrinted"), { duration: 1500 }); });
       wrap.querySelector('[data-a="talao"]').addEventListener("click", function () { POS.printDoc(d, { format: "talao" }); POS.toast(POS.s("doc.printed"), { variant: "success", duration: 1500 }); });
       wrap.querySelector('[data-a="email"]').addEventListener("click", function () { emailDoc(d); });
+      return wrap;
     }
+    function openDocPreview(d) { POS.openDrawer(buildDocPreview(d), { label: POS.s("doc.preview"), onClose: function () { POS.osk.close(); } }); }
     function emailDoc(d) {
       var wrap = document.createElement("div"); wrap.className = "sheet";
       wrap.innerHTML = "<h3>" + POS.s("doc.email") + "</h3>" +
@@ -1264,9 +1346,12 @@
         });
         if (!rows.length) { list.innerHTML = '<p class="muted" style="padding:12px">' + POS.s("cust.noResults") + "</p>"; return; }
         rows.forEach(function (c) {
-          var b = document.createElement("button"); b.type = "button"; b.className = "clist__item";
+          var nm = POS.t(c.name);
+          var b = document.createElement("button"); b.type = "button"; b.className = "clist__item doc-item";
           b.setAttribute("aria-pressed", String(c.id === cart.state.customerId));
-          b.innerHTML = '<span class="customer__ava">' + ic("user", { size: 18 }) + "</span><span><b>" + POS.t(c.name) + "</b><span>" + (c.nif ? "NIF " + c.nif : POS.s("cart.customer")) + "</span></span>";
+          b.innerHTML = '<span class="doc-code" style="--code-c:' + (c.isDefault ? "var(--ink-500)" : avatarColor(nm)) + '">' + (c.isDefault ? ic("user", { size: 20 }) : initials(nm)) + "</span>" +
+            '<span class="doc-item__main"><span class="doc-item__no">' + nm + "</span>" +
+            '<span class="doc-item__sub">' + (c.nif ? "NIF " + c.nif : POS.s("cart.customer")) + "</span></span>";
           b.addEventListener("click", function () { cart.setCustomer(c.id); close(); });
           list.appendChild(b);
         });
@@ -1605,10 +1690,25 @@
       if (a === "switch") return switchOperator();
       if (a === "moloni") return POS.toast(POS.s("user.backToMoloni") + " · demo", { duration: 1500 });
     }
-    function initials(name) { return (name || "").trim().split(/\s+/).map(function (w) { return w[0] || ""; }).slice(0, 2).join("").toUpperCase() || "?"; }
+    function initials(name) {
+      var w = (name || "").trim().split(/\s+/).filter(Boolean);
+      if (!w.length) return "?";
+      var a = w[0][0], b = w.length > 1 ? w[w.length - 1][0] : "";   // 1º + último nome
+      return (a + b).toUpperCase();
+    }
+    // cor determinística por inicial (uma por letra do abecedário) — disco do avatar
+    function avatarColor(name) {
+      var ch = (name || "?").trim().toUpperCase().charCodeAt(0);
+      var i = (ch >= 65 && ch <= 90) ? ch - 65 : 0;
+      return "hsl(" + Math.round(i / 26 * 360) + ", 52%, 46%)";
+    }
     function currentOp() { var t = POS.terminal(); return POS.operators.find(function (o) { return o.id === t.operatorId; }) || { id: t.operatorId, name: t.operatorName, pin: "" }; }
 
     /* ---------- Ecrã de bloqueio do terminal ---------- */
+    var MOLONI_MARK = '<svg viewBox="0 0 500 500" fill="currentColor" aria-hidden="true" focusable="false">' +
+      '<path d="M493.6 394.7v94.34H159.58C74.62 489.04 5.5 419.92 5.5 334.96V95.46h94.34v239.49c0 32.95 26.79 59.75 59.75 59.75H493.6Z"/>' +
+      '<path d="M493.6 155.08v333.95h-94.34V155.08c0-32.95-26.79-59.75-59.75-59.75H99.96V1h239.55c84.97 0 154.08 69.12 154.08 154.08Z"/>' +
+      '<path d="M194.85 190.34H304.2v109.35H194.85z"/></svg>';
     function lockTerminal() {
       if (document.querySelector(".lockscreen")) return;
       try { sessionStorage.setItem("pos_locked", "1"); } catch (e) {}
@@ -1628,8 +1728,9 @@
       function dots() { var n = (target.pin || "0000").length || 4; var out = ""; for (var i = 0; i < n; i++) out += '<span class="lk-dot' + (i < pin.length ? " is-on" : "") + '"></span>'; return out; }
       function shell() {
         node.querySelector("#lkWrap").innerHTML =
+          '<div class="lk-head"><span class="lk-logo">' + MOLONI_MARK + "</span>" +
+            '<span class="lk-brand"><b>Moloni</b><small>' + POS.s("lock.brandTagline") + "</small></span></div>" +
           '<div class="lock-card" id="lkCard">' +
-            '<div class="lock-brand"><span class="lock-logo">' + ic("register", { size: 22 }) + '</span><span class="lock-word">Moloni <b>POS</b></span></div>' +
             '<div class="lock-badge">' + ic("lock", { size: 26 }) + "</div>" +
             '<div class="lock-title">' + POS.s("lock.title") + "</div>" +
             '<div class="lock-op"><span class="op-ava">' + initials(target.name) + "</span><div class=\"lock-opinfo\"><b>" + target.name + "</b><small>" + POS.s("lock.enterPin") + "</small></div></div>" +

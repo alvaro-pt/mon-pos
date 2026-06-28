@@ -59,6 +59,7 @@ window.POS = window.POS || {};
     "lock.switch":        { pt: "Desbloquear com outro operador", en: "Unlock as another operator" },
     "lock.locked":        { pt: "Terminal bloqueado",    en: "Terminal locked" },
     "lock.subtitle":      { pt: "Sessão protegida",      en: "Session protected" },
+    "lock.brandTagline":  { pt: "Ponto de Venda",        en: "Point of Sale" },
     "cash.handover":      { pt: "Troca de operador",     en: "Operator handover" },
     "user.fullscreen":    { pt: "Ecrã inteiro",          en: "Full screen" },
     "user.exitFullscreen":{ pt: "Sair de ecrã inteiro",  en: "Exit full screen" },
@@ -160,6 +161,8 @@ window.POS = window.POS || {};
     "doc.creditNote":    { pt: "Nota de crédito",     en: "Credit note" },
     // documento de venda (talão / fatura) + ações
     "doc.preview":       { pt: "Documento",           en: "Document" },
+    "doc.search":        { pt: "Procurar documento…",  en: "Search document…" },
+    "doc.none":          { pt: "Sem documentos",       en: "No documents" },
     "doc.formatTalao":   { pt: "Talão",               en: "Receipt" },
     "doc.formatA4":      { pt: "A4",                  en: "A4" },
     "doc.printTalao":    { pt: "Imprimir talão",      en: "Print receipt" },
@@ -195,7 +198,7 @@ window.POS = window.POS || {};
     // resumo em blocos (preview no drawer)
     "doc.summaryOf":     { pt: "Resumo",               en: "Summary" },
     "doc.contributor":   { pt: "Contribuinte",         en: "Tax ID" },
-    "doc.clientsBlock":  { pt: "Clientes",             en: "Customer" },
+    "doc.clientsBlock":  { pt: "Cliente",              en: "Customer" },
     "doc.items":         { pt: "Artigos",              en: "Items" },
     "doc.taxes":         { pt: "Impostos",             en: "Taxes" },
     "doc.payment":       { pt: "Pagamento",            en: "Payment" },
@@ -364,6 +367,10 @@ window.POS = window.POS || {};
     "park.empty":        { pt: "Não há vendas suspensas", en: "No parked sales" },
     "park.parked":       { pt: "Venda suspensa",        en: "Sale parked" },
     "park.recover":      { pt: "Recuperar",             en: "Recover" },
+    "park.recoverCta":   { pt: "Recuperar venda",       en: "Recover sale" },
+    "park.delete":       { pt: "Eliminar",              en: "Delete" },
+    "park.deleted":      { pt: "Venda suspensa eliminada", en: "Parked sale deleted" },
+    "park.pick":         { pt: "Selecione uma venda suspensa", en: "Select a parked sale" },
 
     // Pagamento
     "pay.title":        { pt: "Pagamento",          en: "Payment" },
