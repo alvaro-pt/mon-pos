@@ -149,6 +149,14 @@ window.POS = window.POS || {};
     }
   });
 
+  /* ---- Documentos (mock, para "Consultar documentos") ---- */
+  POS.documents = [
+    { id: "d1", type: "simplified", no: "FS 1042", customerId: "final", totalCents: 1860, ts: Date.now() - 1000 * 60 * 8,  certified: true },
+    { id: "d2", type: "receipt",    no: "TL 318",  customerId: "c1",    totalCents: 540,  ts: Date.now() - 1000 * 60 * 26, certified: true },
+    { id: "d3", type: "invoiceReceipt", no: "FR 77", customerId: "c3",  totalCents: 6900, ts: Date.now() - 1000 * 60 * 73, certified: true },
+    { id: "d4", type: "simplified", no: "FS 1041", customerId: "c2",    totalCents: 320,  ts: Date.now() - 1000 * 60 * 95, certified: true },
+  ];
+
   /* ---- Lookups ---- */
   POS.getProduct = function (id) { return POS.products.find(function (p) { return p.id === id; }); };
   POS.getTax = function (key) { return POS.TAX[key] || POS.TAX.normal; };

@@ -76,6 +76,9 @@
       <div class="lines" id="lines"></div>
       <div class="summary" id="summary"></div>
     </aside>
+
+    <!-- Ecrã in-place (substitui catálogo+talão): Definições, etc. -->
+    <section class="screen" id="screen" hidden aria-label="Ecrã"></section>
   </main>
 
   <script src="assets/js/data.js"></script>
@@ -423,7 +426,7 @@
       var items = [
         { icon: "rotate-ccw", label: "act.parkedSales", action: openParked },
         { icon: "register", label: "act.movements", action: openCashMovements },
-        { icon: "file", label: "act.documents" },
+        { icon: "file", label: "act.documents", action: openDocuments },
         { icon: "percent", label: "act.addDisc", action: function () { if (cart.lines.length) openDiscount(selectedLine || cart.lines[cart.lines.length - 1].key); else POS.toast(POS.s("cart.empty.title"), { duration: 1400 }); } },
         { icon: "trash", label: "cart.clear", danger: true, action: confirmClear },
       ];
@@ -443,7 +446,7 @@
       var wrap = document.createElement("div"); wrap.className = "sheet";
       if (!list.length) {
         wrap.innerHTML = "<h3>" + POS.s("park.title") + "</h3><div class='sheet__sub'>" + POS.s("park.empty") + "</div>";
-        POS.openModal(wrap, { label: POS.s("park.title") }); return;
+        POS.openDrawer(wrap, { label: POS.s("park.title") }); return;
       }
       wrap.innerHTML = "<h3>" + POS.s("park.title") + "</h3><div class='clist' id='plist'></div>";
       var host = wrap.querySelector("#plist");
@@ -459,7 +462,26 @@
         b.addEventListener("click", function () { cart.recover(s.id); close(); POS.toast(POS.s("park.recover"), { variant: "success", duration: 1600 }); });
         host.appendChild(b);
       });
-      var close = POS.openModal(wrap, { label: POS.s("park.title") });
+      var close = POS.openDrawer(wrap, { label: POS.s("park.title") });
+    }
+
+    function openDocuments() {
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      wrap.innerHTML = "<h3>" + POS.s("act.documents") + "</h3><div class='clist' style='max-height:none' id='dlist'></div>";
+      var host = wrap.querySelector("#dlist");
+      var DT = { simplified: "doc.simplified", receipt: "doc.receipt", invoiceReceipt: "doc.invoiceReceipt" };
+      POS.documents.slice().forEach(function (d) {
+        var cust = POS.customers.find(function (c) { return c.id === d.customerId; }) || POS.customers[0];
+        var time = new Date(d.ts).toLocaleString(POS.lang === "pt" ? "pt-PT" : "en-IE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+        var b = document.createElement("button"); b.type = "button"; b.className = "clist__item";
+        b.innerHTML = '<span class="customer__ava">' + ic("file", { size: 18 }) + "</span>" +
+          '<span style="flex:1"><b>' + d.no + (d.certified ? ' <span style="color:var(--pay-600)">' + ic("check-circle", { size: 14 }) + "</span>" : "") +
+            "</b><span>" + POS.s(DT[d.type]) + " · " + POS.t(cust.name) + " · " + time + "</span></span>" +
+          '<span class="line__price">' + POS.money(d.totalCents) + "</span>";
+        b.addEventListener("click", function () { POS.toast(d.no + " · demo", { duration: 1500 }); });
+        host.appendChild(b);
+      });
+      POS.openDrawer(wrap, { label: POS.s("act.documents") });
     }
 
     /* ---------- Movimentos de caixa ---------- */
@@ -729,12 +751,31 @@
       { id: "terminal", icon: "register", label: "set.terminal" },
       { id: "about", icon: "info", label: "set.about" },
     ];
+    var reopenScreen = null;   // re-render do ecrã atual (ex. ao mudar idioma)
+    function showScreen(node, label, reopen) {
+      var s = $("#screen"); s.classList.remove("is-leaving"); s.innerHTML = ""; s.appendChild(node); s.setAttribute("aria-label", label || "");
+      s.hidden = false; $(".app").classList.add("screen-on");
+      reopenScreen = reopen || null;
+      var f = s.querySelector("button,input,[tabindex]"); if (f) f.focus();
+    }
+    function hideScreen() {
+      var s = $("#screen"); if (s.hidden) return;
+      reopenScreen = null;
+      function done() { s.classList.remove("is-leaving"); s.hidden = true; s.innerHTML = ""; $(".app").classList.remove("screen-on"); }
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion:reduce)").matches) return done();
+      s.classList.add("is-leaving");
+      s.addEventListener("animationend", done, { once: true });
+    }
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("#screen").hidden && !document.querySelector(".modal-backdrop,.drawer-backdrop")) hideScreen(); });
+
     function openAppearance(activeTab) {
       activeTab = activeTab || "appearance";
       var wrap = document.createElement("div"); wrap.className = "settings";
-      wrap.innerHTML = '<div class="set-head"><h3>' + POS.s("nav.settings") + "</h3></div>" +
+      wrap.innerHTML = '<div class="set-head"><h3>' + POS.s("nav.settings") + "</h3>" +
+          '<button class="set-close" id="setClose" type="button" aria-label="' + POS.s("act.close") + '">' + ic("x", { size: 22 }) + "</button></div>" +
         '<div class="set-tabs" id="setTabs" role="tablist"></div>' +
         '<div class="set-body" id="setBody"></div>';
+      wrap.querySelector("#setClose").addEventListener("click", hideScreen);
       var tabsEl = wrap.querySelector("#setTabs"), body = wrap.querySelector("#setBody");
       SET_TABS.forEach(function (t) {
         var b = document.createElement("button"); b.type = "button"; b.className = "set-tab"; b.dataset.tab = t.id;
@@ -749,7 +790,7 @@
         return renderAboutTab(body);
       }
       renderTab();
-      POS.openDrawer(wrap, { label: POS.s("nav.settings"), dimmed: false, className: "drawer--wide" });
+      showScreen(wrap, POS.s("nav.settings"), function () { openAppearance(activeTab); });
     }
 
     function renderAppearanceTab(body) {
@@ -818,7 +859,7 @@
         { icon: "pause", label: "act.suspend", fn: function () { if (cart.park()) POS.toast(POS.s("park.parked"), { variant: "success", duration: 1600 }); } },
         { icon: "rotate-ccw", label: "act.parkedSales", fn: openParked },
         { icon: "register", label: "act.movements", fn: openCashMovements },
-        { icon: "file", label: "act.documents", fn: function () { POS.toast(POS.s("act.documents") + " · demo", { duration: 1500 }); } },
+        { icon: "file", label: "act.documents", fn: openDocuments },
       ];
       g.innerHTML = '<div class="ops__title">' + POS.s("act.options") + "</div>";
       items.forEach(function (it) {
@@ -892,6 +933,7 @@
 
     POS.onCartChange(function () { renderLines(); renderSummary(); renderGrid(); });
     POS.onLangChange(renderAll);
+    POS.onLangChange(function () { if (reopenScreen && !$("#screen").hidden) reopenScreen(); });
 
     POS.mountDevNav("sale");
     renderAll();

@@ -92,13 +92,41 @@
   --sh-lg:0 14px 36px rgba(0,0,0,.55); --sh-pop:0 20px 56px rgba(0,0,0,.6);
 }
 :root[data-theme="vivo"] {
-  --brand-900:#3a1aa8; --brand-700:#4f23e0; --brand-600:#6a2bf5; --brand-500:#8a4dff;
-  --brand-400:#b18cff; --brand-100:#e9e0ff; --brand-50:#f4efff;
-  --pay-700:#0e8f47; --pay-600:#12b35a; --pay-500:#1fd06d; --pay-50:#e3f9ec;
-  --surface-2:#f4f2fb; --surface-3:#ebe8f6;
+  /* Vivo — Petróleo & Coral. Chrome teal-petróleo profundo + acento coral quente.
+     Par quente/frio equilibrado: enérgico mas com bom gosto. Pagar fica esmeralda viva. */
+
+  /* Acento de marca — Coral vibrante (rampa coesa). brand-600/700 passam AA c/ branco. */
+  --brand-900:#7a1c08; --brand-700:#bf2f14; --brand-600:#d83a1c; --brand-500:#f04e2a;
+  --brand-400:#f87a5c; --brand-100:#fcd9cd; --brand-50:#fdeee9;
+
+  /* Chrome (topbar / rail) — Petróleo profundo, não grafite. Ink/muted com contraste folgado. */
+  --shell-900:#063a3f; --shell-800:#0a484d; --shell-700:#0f5860;
+  --shell-line:#1a6b73; --shell-ink:#eafaf7; --shell-muted:#8fc4c2;
+
+  /* Confirmar/Pagar — Esmeralda viva (branco passa AA). */
+  --pay-700:#076b34; --pay-600:#0a8540; --pay-500:#13a851; --pay-50:#e2f7ea;
+
+  /* Neutros: superfícies com tinta quente subtil para "respirarem" cor. */
+  --ink-900:#161b1c; --ink-700:#3a474a; --ink-500:#62716f; --ink-300:#a4afac;
+  --line:#e6e3df; --line-strong:#d6d1ca;
+  --surface:#ffffff; --surface-2:#f7f4f1; --surface-3:#efe9e3;
+
+  /* Tintas de família mais vivas mas legíveis (mistura sobre branco quente). */
+  --tint-base:#fffdfb; --tint-ink:#1a1412;
+
+  --danger-600:#d62b2b; --danger-500:#e24242; --danger-50:#fceaea;
+  --warn-600:#c2810a; --warn-500:#e0980f; --warn-50:#fdf3e0;
+  --info-600:#0f7a86; --info-50:#e3f4f5;
+
   --r-md:14px; --r-lg:18px;
-  --info-600:#6a2bf5; --info-50:#f4efff;
 }
+
+/* Punch extra do Vivo (sem tocar Normal/Dark/Clean) */
+:root[data-theme="vivo"] .btn--primary { box-shadow:0 6px 18px rgba(216,58,28,.32), var(--sh-sm); }
+:root[data-theme="vivo"] .btn--pay     { box-shadow:0 8px 22px rgba(10,133,64,.34), var(--sh-sm); }
+:root[data-theme="vivo"] .toast--success { background:var(--pay-600); }
+/* Idioma ativo na dev-nav com acento da marca */
+:root[data-theme="vivo"] .dev-nav__lang button[aria-pressed="true"] { color:var(--brand-700); }
 :root[data-theme="clean"] {
   --brand-900:#2f3545; --brand-700:#3f4658; --brand-600:#4d556a; --brand-500:#5c647b;
   --brand-400:#9aa1b2; --brand-100:#e7e9ee; --brand-50:#f2f3f6;
