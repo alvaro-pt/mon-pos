@@ -1729,11 +1729,13 @@
       function shell() {
         node.querySelector("#lkWrap").innerHTML =
           '<div class="lk-head"><span class="lk-logo">' + MOLONI_MARK + "</span>" +
-            '<span class="lk-brand"><b>Moloni</b><small>' + POS.s("lock.brandTagline") + "</small></span></div>" +
+            '<span class="lk-brand"><span class="lk-brand__top"><b>Moloni</b><span class="lk-pos">POS</span></span>' +
+              "<small>" + POS.s("lock.brandTagline") + "</small></span></div>" +
           '<div class="lock-card" id="lkCard">' +
             '<div class="lock-badge">' + ic("lock", { size: 26 }) + "</div>" +
             '<div class="lock-title">' + POS.s("lock.title") + "</div>" +
-            '<div class="lock-op"><span class="op-ava">' + initials(target.name) + "</span><div class=\"lock-opinfo\"><b>" + target.name + "</b><small>" + POS.s("lock.enterPin") + "</small></div></div>" +
+            '<div class="lock-op"><span class="op-ava">' + initials(target.name) + '</span><b class="lock-opname">' + target.name + "</b></div>" +
+            '<div class="lock-pinhint">' + POS.s("lock.enterPin") + "</div>" +
             '<div class="lk-dots" id="lkDots">' + dots() + "</div>" +
             '<div class="lk-pad" id="lkPad"></div>' +
             '<button class="lk-switch" id="lkSwitch" type="button">' + ic("repeat", { size: 16 }) + " " + POS.s("lock.switch") + "</button>" +
@@ -1803,49 +1805,61 @@
     // troca de operador SEM fechar a caixa; regista handover e carimba as próximas vendas
     function switchOperator() {
       var t = POS.terminal();
-      var sel = null, pin = "";
-      var wrap = document.createElement("div"); wrap.className = "sheet";
+      var sel = null, pin = "", close = null;
+      var wrap = document.createElement("div"); wrap.className = "sheet op-switch";
       wrap.innerHTML = "<h3>" + POS.s("op.switchTitle") + "</h3><div class='sheet__sub'>" + POS.s("op.switchHint") + "</div>" +
         '<div class="op-list" id="opList"></div>' +
-        '<label class="ff" id="opPinRow" hidden><span>' + POS.s("op.pin") + '</span>' +
-          '<button class="ff__in cash-valbtn" id="opPin" type="button">— — — —</button></label>' +
-        '<div class="sheet__foot"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
-        '<button class="btn btn--primary" data-k="ok" disabled>' + POS.s("op.switched") + "</button></div>";
-      var listEl = wrap.querySelector("#opList");
+        '<div class="op-pin" id="opPinSec" hidden><div class="op-pin__lbl">' + POS.s("op.pin") + "</div>" +
+          '<div class="lk-dots" id="opDots"></div><div class="lk-pad op-pad" id="opPad"></div></div>' +
+        '<div class="sheet__foot"><button class="btn btn--block" data-k="cancel">' + POS.s("act.cancel") + "</button></div>";
+      var listEl = wrap.querySelector("#opList"), pinSec = wrap.querySelector("#opPinSec"), dotsEl = wrap.querySelector("#opDots"), pad = wrap.querySelector("#opPad");
+      function pinLen() { return (sel && sel.pin ? sel.pin.length : 4) || 4; }
+      function dots() { var n = pinLen(), h = ""; for (var i = 0; i < n; i++) h += '<span class="lk-dot' + (i < pin.length ? " is-on" : "") + '"></span>'; dotsEl.innerHTML = h; }
+      function buildPad() {
+        pad.innerHTML = "";
+        ["1", "2", "3", "4", "5", "6", "7", "8", "9", "blank", "0", "back"].forEach(function (k) {
+          if (k === "blank") { var sp = document.createElement("span"); sp.className = "lk-key lk-key--blank"; pad.appendChild(sp); return; }
+          var b = document.createElement("button"); b.type = "button"; b.className = "lk-key";
+          if (k === "back") { b.className += " lk-key--ico"; b.innerHTML = ic("backspace", { size: 22 }); b.setAttribute("aria-label", "Backspace"); }
+          else b.textContent = k;
+          b.addEventListener("click", function () { press(k); });
+          pad.appendChild(b);
+        });
+      }
+      function press(k) {
+        if (k === "back") { pin = pin.slice(0, -1); dots(); return; }
+        if (pin.length >= pinLen()) return;
+        pin += k; dots();
+        if (pin.length === pinLen()) setTimeout(check, 120);
+      }
+      function check() {
+        if (sel && pin === (sel.pin || "")) { doSwitch(); return; }
+        pinSec.classList.remove("shake"); void pinSec.offsetWidth; pinSec.classList.add("shake");
+        pin = ""; dots(); POS.toast(POS.s("op.wrongPin"), { variant: "danger", duration: 1400 });
+      }
+      function doSwitch() {
+        var from = POS.terminal().operatorName;
+        POS.setTerminal({ operatorId: sel.id, operatorName: sel.name });
+        if (POS.cash.isOpen()) POS.cash.movement("handover", 0, from + " → " + sel.name);
+        if (close) close(); renderUser(); afterCashChange();
+        POS.toast(POS.s("op.switched") + " · " + sel.name, { variant: "success", duration: 1800 });
+      }
       POS.operators.forEach(function (o) {
         var cur = o.id === t.operatorId;
         var b = document.createElement("button"); b.type = "button"; b.className = "op-row" + (cur ? " is-current" : "");
         if (cur) b.disabled = true;
-        b.innerHTML = '<span class="op-ava">' + initials(o.name) + "</span>" +
+        b.innerHTML = '<span class="op-ava" style="background:' + avatarColor(o.name) + '">' + initials(o.name) + "</span>" +
           '<span class="op-info"><b>' + o.name + "</b><small>" + POS.t(o.role) + (cur ? " · " + POS.s("op.current") : "") + "</small></span>";
         b.addEventListener("click", function () {
           sel = o; pin = "";
           listEl.querySelectorAll(".op-row").forEach(function (x) { x.classList.remove("is-sel"); });
           b.classList.add("is-sel");
-          wrap.querySelector("#opPinRow").hidden = false;
-          wrap.querySelector("#opPin").textContent = "— — — —";
-          wrap.querySelector('[data-k="ok"]').disabled = true;
+          pinSec.hidden = false; buildPad(); dots();
         });
         listEl.appendChild(b);
       });
-      var close = POS.openModal(wrap, { label: POS.s("op.switchTitle") });
-      wrap.querySelector("#opPin").addEventListener("click", function () {
-        var self = this;
-        POS.keypad({ title: POS.s("op.pin"), decimal: false, initial: 0, maxInt: 6, mask: true, onConfirm: function (v) {
-          pin = String(Math.round(v)); self.textContent = pin.replace(/./g, "• ");
-          wrap.querySelector('[data-k="ok"]').disabled = !(sel && pin.length >= 4);
-        } });
-      });
-      wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
-      wrap.querySelector('[data-k="ok"]').addEventListener("click", function () {
-        if (!sel) return;
-        if (sel.pin && pin !== sel.pin) { POS.toast(POS.s("op.wrongPin"), { variant: "danger", duration: 1600 }); return; }
-        var from = POS.terminal().operatorName;
-        POS.setTerminal({ operatorId: sel.id, operatorName: sel.name });
-        if (POS.cash.isOpen()) POS.cash.movement("handover", 0, from + " → " + sel.name);
-        close(); renderUser(); afterCashChange();
-        POS.toast(POS.s("op.switched") + " · " + sel.name, { variant: "success", duration: 1800 });
-      });
+      close = POS.openModal(wrap, { label: POS.s("op.switchTitle") });
+      wrap.querySelector('[data-k="cancel"]').addEventListener("click", function () { close(); });
     }
     function openUserMenu(anchor) {
       if (document.querySelector(".tb-menu")) return; // já aberto (toggle trata o fecho)
