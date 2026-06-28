@@ -41,6 +41,16 @@ window.POS = window.POS || {};
     "theme.clean":     { pt: "Clean",            en: "Clean" },
     "header.store":    { pt: "Loja",             en: "Store" },
     "header.terminal": { pt: "Terminal",         en: "Terminal" },
+    "user.role":          { pt: "Operadora · Terminal #1", en: "Operator · Terminal #1" },
+    "user.profile":       { pt: "O meu perfil",          en: "My profile" },
+    "user.switchOperator":{ pt: "Trocar de operador",    en: "Switch operator" },
+    "user.fullscreen":    { pt: "Ecrã inteiro",          en: "Full screen" },
+    "user.exitFullscreen":{ pt: "Sair de ecrã inteiro",  en: "Exit full screen" },
+    "user.backToMoloni":  { pt: "Voltar ao Moloni",      en: "Back to Moloni" },
+    "user.logout":        { pt: "Sair",                  en: "Log out" },
+    "user.logoutConfirm": { pt: "Terminar sessão?",      en: "Log out?" },
+    "user.logoutBody":    { pt: "As vendas suspensas mantêm-se guardadas.", en: "Parked sales stay saved." },
+    "user.fsUnavailable": { pt: "Ecrã inteiro indisponível neste browser", en: "Full screen unavailable in this browser" },
 
     // Catálogo
     "cat.search":          { pt: "Procurar produto ou ler código…", en: "Search product or scan code…" },

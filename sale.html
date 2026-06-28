@@ -26,7 +26,9 @@
         <button class="topbar__btn" id="tbBell" type="button" aria-label="Notificações"></button>
         <button class="topbar__btn" id="tbMsg" type="button" aria-label="Mensagens"></button>
         <button class="topbar__btn" id="tbTheme" type="button" aria-label="Aspeto"></button>
-        <span class="topbar__user"><span class="topbar__avatar">AS</span> Ana Sousa</span>
+        <button class="topbar__user" id="tbUser" type="button" aria-haspopup="menu" aria-expanded="false">
+          <span class="topbar__avatar">AS</span><span>Ana Sousa</span><span class="topbar__chev" id="tbUserChev" aria-hidden="true"></span>
+        </button>
         <button class="topbar__btn" id="tbLock" type="button" aria-label="Bloquear terminal"></button>
       </div>
     </header>
@@ -115,6 +117,7 @@
       $("#tbBell").innerHTML = ic("bell", { size: 20 });
       $("#tbMsg").innerHTML = ic("message", { size: 20 });
       $("#tbTheme").innerHTML = ic("palette", { size: 20 });
+      $("#tbUserChev").innerHTML = ic("chevron-down", { size: 16 });
       $("#tbLock").innerHTML = ic("lock", { size: 18 });
       $("#custAva").innerHTML = ic("user", { size: 18 });
       $("#custChev").innerHTML = ic("chevron-right", { size: 18 });
@@ -906,6 +909,55 @@
       });
     })();
 
+    /* ---------- Menu do utilizador + fullscreen ---------- */
+    function toggleFullscreen() {
+      try {
+        if (document.fullscreenElement) { document.exitFullscreen && document.exitFullscreen(); }
+        else { var el = document.documentElement; if (el.requestFullscreen) el.requestFullscreen().catch(function () { POS.toast(POS.s("user.fsUnavailable"), { variant: "danger", duration: 1800 }); }); else POS.toast(POS.s("user.fsUnavailable"), { variant: "danger", duration: 1800 }); }
+      } catch (e) { POS.toast(POS.s("user.fsUnavailable"), { variant: "danger", duration: 1800 }); }
+    }
+    function confirmLogout() {
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      wrap.innerHTML = "<h3>" + POS.s("user.logoutConfirm") + "</h3><div class='sheet__sub'>" + POS.s("user.logoutBody") + "</div>" +
+        '<div class="sheet__foot"><button class="btn" data-k="no">' + POS.s("act.cancel") + "</button>" +
+        '<button class="btn btn--primary" data-k="yes">' + POS.s("user.logout") + "</button></div>";
+      var close = POS.openModal(wrap, { label: POS.s("user.logoutConfirm") });
+      wrap.querySelector('[data-k="no"]').addEventListener("click", close);
+      wrap.querySelector('[data-k="yes"]').addEventListener("click", function () { close(); POS.toast(POS.s("user.logout") + " · demo", { duration: 1600 }); });
+    }
+    function handleUserAction(a) {
+      if (a === "settings") return openAppearance();
+      if (a === "fs") return toggleFullscreen();
+      if (a === "logout") return confirmLogout();
+      if (a === "profile") return POS.toast(POS.s("user.profile") + " · demo", { duration: 1500 });
+      if (a === "switch") return POS.toast(POS.s("user.switchOperator") + " · demo", { duration: 1500 });
+      if (a === "moloni") return POS.toast(POS.s("user.backToMoloni") + " · demo", { duration: 1500 });
+    }
+    function openUserMenu(anchor) {
+      if (document.querySelector(".tb-menu")) return; // já aberto (toggle trata o fecho)
+      var fs = !!document.fullscreenElement;
+      function item(icon, label, act, warn) { return '<button class="tb-menu__item' + (warn ? " warn" : "") + '" role="menuitem" data-act="' + (act || "") + '">' + ic(icon, { size: 20 }) + "<span>" + POS.s(label) + "</span></button>"; }
+      var menu = document.createElement("div"); menu.className = "tb-menu"; menu.setAttribute("role", "menu");
+      menu.innerHTML =
+        '<div class="tb-menu__head"><span class="topbar__avatar">AS</span><div><b>Ana Sousa</b><small>' + POS.s("user.role") + "</small></div></div>" +
+        '<div class="tb-menu__sep"></div>' +
+        item("user", "user.profile", "profile") + item("settings", "nav.settings", "settings") +
+        '<div class="tb-menu__sep"></div>' +
+        item("repeat", "user.switchOperator", "switch") + item(fs ? "minimize" : "maximize", fs ? "user.exitFullscreen" : "user.fullscreen", "fs") +
+        '<div class="tb-menu__sep"></div>' +
+        item("corner-up-left", "user.backToMoloni", "moloni") + item("log-out", "user.logout", "logout", true);
+      document.body.appendChild(menu);
+      var r = anchor.getBoundingClientRect();
+      menu.style.top = (r.bottom + 8) + "px"; menu.style.right = Math.max(8, window.innerWidth - r.right) + "px";
+      anchor.setAttribute("aria-expanded", "true");
+      function close() { menu.remove(); anchor.setAttribute("aria-expanded", "false"); document.removeEventListener("mousedown", onOut, true); document.removeEventListener("keydown", onEsc, true); }
+      function onOut(e) { if (!menu.contains(e.target) && !anchor.contains(e.target)) close(); }
+      function onEsc(e) { if (e.key === "Escape") close(); }
+      menu.addEventListener("click", function (e) { var b = e.target.closest("[data-act]"); if (!b) return; close(); handleUserAction(b.dataset.act); });
+      setTimeout(function () { document.addEventListener("mousedown", onOut, true); document.addEventListener("keydown", onEsc, true); }, 0);
+      var f = menu.querySelector(".tb-menu__item"); if (f) f.focus();
+    }
+
     /* ---------- Bindings ---------- */
     $("#search").addEventListener("input", function (e) {
       query = e.target.value.trim();
@@ -927,6 +979,7 @@
       $(x[0]).addEventListener("click", function () { POS.toast(x[1] + " · demo", { duration: 1400 }); });
     });
     $("#tbTheme").addEventListener("click", function () { openAppearance(); });
+    $("#tbUser").addEventListener("click", function () { openUserMenu($("#tbUser")); });
 
     function renderCart() { renderDoc(); renderCustomer(); renderLines(); renderSummary(); }
     function renderAll() { applyStatic(); paintStaticIcons(); renderRail(); renderCatalog(); renderCart(); renderOps(); }
