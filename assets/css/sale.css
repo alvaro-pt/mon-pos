@@ -91,7 +91,7 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .tb-menu__item.warn .ic-svg { color:var(--warn-600); }
 .topbar__avatar {
   width:32px; height:32px; border-radius:50%; flex:none;
-  background:linear-gradient(135deg,#7d7bf5,#5b5bf0); display:grid; place-items:center;
+  background:linear-gradient(135deg,var(--brand-500),var(--brand-600)); display:grid; place-items:center;
   color:#fff; font-weight:800; font-size:13px;
 }
 

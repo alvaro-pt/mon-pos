@@ -138,7 +138,6 @@
       { key: "sale", href: "sale.html", icon: "cart", label: "nav.sale", active: true },
       { key: "register", href: "register-close.html", icon: "register", label: "nav.register" },
       { key: "docs", href: "docs.html", icon: "file", label: "nav.docs" },
-      { key: "tables", href: "tables.html", icon: "utensils", label: "nav.tables" },
     ];
     var currentSection = "sale";
     function renderRail() {
@@ -170,7 +169,7 @@
       updateRailActive();
     }
     function openSectionScreen(key) {
-      var titleKey = key === "register" ? "nav.register" : key === "docs" ? "nav.docs" : "nav.tables";
+      var titleKey = key === "register" ? "nav.register" : "nav.docs";
       var wrap = document.createElement("div"); wrap.className = "settings";
       wrap.innerHTML = '<div class="set-head"><h3>' + POS.s(titleKey) + "</h3>" +
         '<button class="set-close" id="scClose" type="button" aria-label="' + POS.s("act.close") + '">' + ic("x", { size: 22 }) + "</button></div>" +
@@ -1450,10 +1449,10 @@
 
     /* ---------- Definições (drawer): tema + layout + idioma ---------- */
     var THEME_SW = {
-      normal: ["#1e2330", "#f6f7f9", "#5b5bf0"],
-      dark:   ["#0e121b", "#1a1f2b", "#7d7bf5"],
-      vivo:   ["#1e2330", "#f4f2fb", "#6a2bf5"],
-      clean:  ["#1e2330", "#f3f4f6", "#4d556a"],
+      normal: ["#1e2330", "#f6f7f9", "#5533ff"],
+      dark:   ["#0e121b", "#1a1f2b", "#6a4dff"],
+      vivo:   ["#063a3f", "#f7f4f1", "#d83a1c"],
+      clean:  ["#1e2330", "#f3f4f6", "#5a4ad6"],
     };
     // diagramas dos layouts: [classe, peso] por coluna (cart destacado)
     var LAYOUT_DIAG = {

@@ -26,8 +26,8 @@ Estamos a desenhar o **ecrã onde um operador de caixa passa o dia inteiro**. Nu
 - **Erros são caros e públicos.** Anular uma linha, cancelar uma venda ou cobrar mal acontece à frente do cliente. Ações destrutivas pedem confirmação; sempre que possível há **desfazer** em vez de diálogo.
 - **Confiança fiscal.** É um POS português. O documento que sai (talão/fatura) tem de parecer legalmente credível — IVA correto, NIF, ATCUD/QR. Ver secção 6.
 
-### Vertical: híbrido (retalho-first)
-O produto serve **retalho** como base e tem a **restauração preparada na arquitetura** (não escondida atrás de feature flags improvisadas). Arrancamos pelo retalho — grelha de produtos, pesquisa, código de barras, checkout rápido — e o modelo de dados/UI deixa lugar para mesas, modificadores e divisão de conta sem reescrever o ecrã de venda.
+### Vertical: retalho (restauração adiada, mas arquitetura neutra)
+O produto é **retalho-only por agora** — grelha de produtos, pesquisa, código de barras, checkout rápido. **Não há UI de restauração ativa** (sem mesas/zonas/divisão de conta na navegação). A **restauração fica adiada para uma atualização futura**, mas a arquitetura mantém-se **neutra e fácil de reativar**: o modelo de dados não assume retalho-puro e o ecrã de venda não precisa de reescrita para acolher mesas/modificadores/divisão de conta. O stub de mesas vive comentado em `data.js` (`POS.tables`), documentado e pronto a religar à nav + i18n.
 
 ### Dispositivo-alvo: tablet landscape
 Otimizamos primeiro para **tablet em landscape (~1024–1280px, touch)** — o standard da indústria. Desktop touch (balcão) é um upgrade de espaço (3 colunas), mobile é um modo comprimido. Não partimos de mobile; partimos do tablet e degradamos com cuidado.
@@ -53,7 +53,7 @@ Estes princípios mandam sobre preferências estéticas. Quando houver conflito,
 - **Glanceability:** o olho encontra o total, o próximo passo e o estado da venda em <1s. Hierarquia por tamanho/peso/cor ao serviço da prioridade.
 - **Alto contraste, fontes grandes.** Texto operacional nunca cinzento-sobre-cinzento. Números (preços, totais, quantidades) com tabular-nums para não "saltarem".
 - **Sistema, não improviso:** usa os tokens CSS de `base.css`. Falta um token? Propõe adicioná-lo, não faças hardcode disperso.
-- **Tipografia:** **Red Hat Display** (ficheiros `.woff2` em `assets/fonts/`, carregados via `@font-face` em `base.css`). Pesos disponíveis: 300/400/500/600/700/800/900 (+ itálicos). Usa peso forte e `tabular-nums` nos números (preços, totais, quantidades).
+- **Tipografia:** **Noto Sans** (ficheiros `.woff2` em `assets/fonts/`, carregados via `@font-face` em `base.css`). Pesos disponíveis: 400/500/600/700/800/900. Usa peso forte (800/900) e `tabular-nums` nos números (preços, totais, quantidades).
 - **Estados completos** em cada elemento interativo: default, hover (bónus), **focus-visible**, active/pressed, disabled, loading, selected, empty.
 
 ### Interação e motion
@@ -62,9 +62,10 @@ Estes princípios mandam sobre preferências estéticas. Quando houver conflito,
 - **Desfazer > confirmar.** Anular uma linha mostra um toast "Linha removida · Anular" durante alguns segundos em vez de um diálogo bloqueante. Confirmação reserva-se para o irreversível (cancelar venda inteira, fecho de caixa).
 
 ### Acessibilidade (não é opcional, mesmo em protótipo)
+> **Norma de conformidade: europeia.** Alvo = **EN 301 549** (norma do European Accessibility Act), que adota **WCAG 2.1 nível AA** como mínimo legal. AA é piso não-negociável; acréscimos do **WCAG 2.2 AA** (alvos ≥24×24px, foco nunca tapado, sem dependências só-de-arrastar) aplicam-se quando relevantes.
 - HTML semântico: `<button>` para ações, `<a>` para navegação. Nada de `<div onclick>`.
-- `:focus-visible` sempre presente; navegável por teclado (Tab/Enter/Esc) — muitos balcões têm teclado físico. `aria-label` em controlos só-ícone; `aria-hidden` em SVG decorativo.
-- Contraste WCAG AA mínimo (texto normal 4.5:1; texto grande 3:1). Modais/drawers gerem o foco.
+- `:focus-visible` sempre presente (e nunca obscurecido); navegável por teclado (Tab/Enter/Esc) — muitos balcões têm teclado físico. `aria-label` em controlos só-ícone; `aria-hidden` em SVG decorativo.
+- Contraste mínimo WCAG 2.1 AA: texto normal 4.5:1; texto grande 3:1; **componentes/estados de UI 3:1**. Modais/drawers gerem o foco.
 
 ---
 
@@ -76,16 +77,16 @@ Mesmo prisma do protótipo de pricing de onde herdámos os agentes: **páginas s
 index.html            Launcher (redireciona para sale.html) + hub da dev-nav
 sale.html             Ecrã de venda (catálogo + talão + keypad)   ← coração do POS
 payment.html          Fluxo de pagamento (método, troco, recibo)
-...                   tables.html, register-close.html, returns.html (roadmap, secção 5)
+...                   register-close.html, returns.html (roadmap, secção 5) · tables.html adiado (restauração)
 assets/
   css/
     base.css          Design tokens (cores, espaços, tipografia, sombras) + reset + componentes partilhados
     sale.css          CSS dedicado do ecrã de venda
-  fonts/              Red Hat Display (.woff2)
+  fonts/              Noto Sans (.woff2)
   js/
-    data.js           FONTE DE VERDADE: produtos, categorias+subfamílias, IVA, mesas, clientes, operadores (POS.operators), emitente (POS.store), documentos. Namespace global POS.
+    data.js           FONTE DE VERDADE: produtos, categorias+subfamílias, IVA, clientes, operadores (POS.operators), emitente (POS.store), documentos. Namespace global POS. (mesas comentadas — restauração adiada)
     i18n.js           Strings PT/EN. Toda a UI tem chave PT e EN.
-    icons.js          Set de ícones SVG inline (estilo Lucide). POS.icon('nome', {size}). SEM emojis na UI.
+    icons.js          Set de ícones SVG inline (Tabler Icons, MIT, inlined). POS.icon('nome', {size}). SEM emojis na UI.
     ui.js             dev-nav, idioma, toasts, POS.money, POS.keypad (numérico; opção mask p/ PIN), POS.osk (QWERTY on-screen), modais (foco + inert).
     cart.js           Estado da venda + POS.cash (estado da caixa) + persistência + commitSale.
     doc.js            Render do DOCUMENTO de venda (POS.buildSaleDoc: talão/A4/oferta) + POS.printDoc + ATCUD/QR simulados. Lógica pura.
@@ -115,12 +116,12 @@ assets/
 
 Definido em `data.js`, namespace `POS`. Princípios:
 
-- **Produto:** `id`, `name {pt,en}`, `priceCents`, `tax` (chave em `POS.TAX`), `cat` (família), `sub` (subfamília, opcional), `color`/`icon`, `barcode`/`ref`, `stock`, `desc {pt,en}`, `fav`, `weighable` (preço/kg). `variants` (opcional: tamanho/cor) e `modifiers` (restauração) preparados. Enriquecimento (ref/stock/desc default) no fim de `data.js`.
+- **Produto:** `id`, `name {pt,en}`, `priceCents`, `tax` (chave em `POS.TAX`), `cat` (família), `sub` (subfamília, opcional), `color`/`icon`, `barcode`/`ref`, `stock`, `desc {pt,en}`, `fav`, `weighable` (preço/kg). `variants` (opcional: tamanho/cor) usados no retalho; `modifiers` (restauração) ficam previstos no modelo mas **inativos** (sem UI). Enriquecimento (ref/stock/desc default) no fim de `data.js`.
 - **Categoria (família):** `id`, `name {pt,en}`, `icon` (nome do set), `color`, `pinned`. **Subfamílias** em `POS.subcategories[catId]` (drill-down). Lookups: `productsByCategory`, `productsBySubcategory`, `hasSub`, `getSubcategories`.
 - **Linha de venda (cart):** ref ao produto + `qty`/`weight`, `unitPriceCents` (editável), `discount {type:'pct'|'abs', value}`. Subtotal e IVA derivam-se. Estado tem `docType` (`receipt`/`simplified`/`invoiceReceipt`).
 - **Cliente:** `Consumidor Final` por defeito; opção de NIF/nome.
 - **Operador:** roster em `POS.operators` (`id`, `name`, `role {pt,en}`, `pin`). O operador ativo vive em `pos_terminal` (`operatorId`/`operatorName`); trocar regista `handover` na caixa (ver §5.1).
-- **Mesa** (preparado, restauração): `id`, `zona`, `estado` (livre/aberta/a-pagar), venda associada.
+- **Mesa** (adiado, restauração — stub comentado em `data.js`): `id`, `zona`, `estado` (livre/aberta/a-pagar), venda associada.
 
 Regra de ouro: **derivar, não duplicar.** Totais, IVA e troco calculam-se a partir das linhas; nunca se guardam dois sítios que possam divergir.
 
@@ -133,7 +134,7 @@ Ordem de construção (cada um navegável e demo-ready antes do seguinte):
 1. **Ecrã de venda** (`sale.html`) — ✅ v2: navegação por família (breadcrumb), tiles cor+ícone, dialog de detalhes (stock/IVA/variantes), talão com tipo de doc, keypad, descontos por linha, cliente, ações.
 2. **Pagamento** (`payment.html`) — ✅ v3 (funil do PM): cartões de método (default = último usado), **`payments[]`** com dividido por progressive disclosure, estados de cartão (aguardar→aprovado/recusado-retry/cancelar), validação inline, **Fase 3 opcional** ("Mostrar resumo no fim da venda" — resumo+destinos email/PDF/talão venda/troca, ou segue limpo com passo de troco). `commitSale()` grava transação imutável em `pos_sales` (payments/operador/terminal/troco/IVA) antes de `clear()`. **Sem NIF tardio** (doc imutável após emissão). A enriquecer: dividido UI completo, quick-cash nota+moeda, pagamento parkável, paperless real.
 3. **Documento de venda (talão/recibo)** — ✅ Onda A. Na lista de **Documentos**, tocar abre **preview no drawer** com blocos colapsáveis (Clientes · Artigos · Impostos · Pagamentos · Resumo) + ações **E-mail · Imprimir PDF (A4) · Talão de troca (oferta) · Talão de venda (80mm)**. Render partilhado `POS.buildSaleDoc` (talão/A4/oferta) com ATCUD/QR simulados. No fim da venda, o talão sai **direto** (toast) se a definição "Imprimir talão automaticamente" estiver ligada (Definições › Terminal). **Converter para NC** disponível no preview (ver item 6). NOTA: não há "ecrã de recibo" no funil — o documento sai da venda; preview/reimpressão vivem em Documentos.
-4. **Mesas** (`tables.html`) — mapa de mesas, abrir/transferir/dividir conta (ativa a vertente restauração).
+4. **Mesas** (`tables.html`) — **adiado** (ativa a vertente restauração): mapa de mesas, abrir/transferir/dividir conta. Stub de dados comentado em `data.js`; reativar = descomentar `POS.tables` + religar nav (rail/dev-nav) + i18n `nav.tables`.
 5. **Estado da caixa (máquina de estados)** — ✅ v1 + **resumo Z no fecho**. Fonte única `POS.cash` (`cart.js`), **persistente por terminal** em `localStorage` (`pos_cash_<terminalId>`). Ver regras dedicadas em **§5.1**. Falta: ecrã dedicado `register-close.html`, multi-TPA, histórico de turnos, permissões por perfil. Cliente: modal com pesquisa + formulário expansível (nome/NIF/morada/CP/localidade/país/telefone), com teclado on-screen.
 6. **Devoluções / nota de crédito** — ✅ v1 (Onda B): no preview de um documento convertível (FT/FS/FR/VD), **Converter para NC** pede **motivo** (chips + nota) e emite uma **NC** (`POS.emitCreditNote`) — documento novo imutável que referencia o original (`relatedLabel`/`reason`), com código AT **NC**, série 2026, à frente da lista de Documentos, imprimível (talão mostra "Documento de origem" + motivo). **Falta:** seleção de linhas (devolução parcial); persistência (hoje a NC vive em `POS.documents` em memória).
 

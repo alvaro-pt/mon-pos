@@ -1,6 +1,6 @@
 /* =========================================================================
    Moloni POS — data.js
-   FONTE DE VERDADE: produtos, categorias, taxas de IVA, clientes, mesas.
+   FONTE DE VERDADE: produtos, categorias, taxas de IVA, clientes.
    Dinheiro SEMPRE em cêntimos (inteiros). Nomes traduzíveis: {pt,en}.
    Namespace global: POS
    ========================================================================= */
@@ -121,7 +121,10 @@ window.POS = window.POS || {};
     { id: "op4", name: "Carlos Dias",   role: { pt: "Gerente",    en: "Manager" },    pin: "9999" },
   ];
 
-  /* ---- Mesas (preparado p/ restauração) ---- */
+  /* ---- Mesas (RESERVADO p/ vertente restauração — desativado no retalho) ----
+     O POS é retalho-only por agora. O modelo de mesa fica aqui, documentado e
+     pronto a reativar quando a restauração entrar (mapa de mesas, dividir conta).
+     Para reativar: descomentar e voltar a ligar a nav (rail/dev-nav) + i18n nav.tables.
   POS.tables = [
     { id: "m1", label: "1", zone: { pt: "Salão", en: "Hall" }, state: "free" },
     { id: "m2", label: "2", zone: { pt: "Salão", en: "Hall" }, state: "open" },
@@ -129,6 +132,7 @@ window.POS = window.POS || {};
     { id: "t1", label: "E1", zone: { pt: "Esplanada", en: "Terrace" }, state: "billing" },
     { id: "t2", label: "E2", zone: { pt: "Esplanada", en: "Terrace" }, state: "free" },
   ];
+  */
 
   /* ---- Atribuição de subfamílias ---- */
   var SUB = {

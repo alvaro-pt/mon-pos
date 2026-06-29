@@ -52,7 +52,10 @@ O utilizador é um caixa, de pé, com fila, por vezes a olhar para o cliente e n
 - No mobile, o teclado virtual não esconde campos importantes?
 - Funciona com teclado (Tab, Enter, Escape)?
 
-### Acessibilidade (WCAG AA como mínimo)
+### Acessibilidade (norma europeia — EN 301 549 / WCAG 2.1 AA como mínimo obrigatório)
+
+> **Padrão de conformidade: a norma europeia.** Avalia sempre contra a **EN 301 549**, a norma harmonizada do **European Accessibility Act (EAA)**, que adota **WCAG 2.1 nível AA** como mínimo legal. Trata WCAG 2.1 AA como piso não-negociável (não "bónus"); os acréscimos do **WCAG 2.2 AA** (ex.: alvo mínimo 24×24px, foco não tapado, autenticação acessível) são boa prática a aplicar quando relevantes. Falhas de AA são defeitos, não sugestões — sinaliza-as como bloqueantes.
+
 - Imagens/ícones SVG com `alt`/`aria-label` ou `aria-hidden` conforme o caso?
 - Botões e links com texto ou `aria-label` descritivo (sobretudo os que são só ícone)?
 - Hierarquia de headings correta (um `h1` por página, sem saltos)?
@@ -95,6 +98,6 @@ Ordena por severidade. Termina com um resumo de 2-3 linhas e os 3 fixes de maior
 ## O que NÃO fazer
 
 - Não reportar preferências estéticas subjetivas sem fundamento em boas práticas.
-- Não ignorar acessibilidade — é frequentemente também questão legal.
+- Não ignorar acessibilidade — na UE é **obrigação legal** (EAA / EN 301 549 → WCAG 2.1 AA), não opcional. Uma falha de AA é um bloqueante.
 - Não assumir que o utilizador sabe o que o developer sabe.
 - Não fechar uma auditoria sem verificar empty states, estados de erro, e o comportamento em PT **e** EN.

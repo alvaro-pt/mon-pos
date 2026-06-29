@@ -64,7 +64,6 @@ window.POS = window.POS || {};
     { key: "sale",     href: "sale.html",            label: "nav.sale" },
     { key: "register", href: "register-close.html",  label: "nav.register" },
     { key: "docs",     href: "docs.html",            label: "nav.docs" },
-    { key: "tables",   href: "tables.html",          label: "nav.tables" },
   ];
 
   POS.mountDevNav = function (activeKey) {

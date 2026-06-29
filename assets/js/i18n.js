@@ -18,7 +18,6 @@ window.POS = window.POS || {};
     "nav.sale":        { pt: "Venda",            en: "Sell" },
     "nav.register":    { pt: "Caixa",            en: "Register" },
     "nav.docs":        { pt: "Docs",             en: "Docs" },
-    "nav.tables":      { pt: "Mesas",            en: "Tables" },
     "nav.options":     { pt: "Opções",           en: "Options" },
     "nav.settings":    { pt: "Definições",       en: "Settings" },
     "ph.soon":         { pt: "Em construção",     en: "Coming soon" },
