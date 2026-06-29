@@ -323,6 +323,44 @@ window.POS = window.POS || {};
     return n;
   }
   POS.sales = function () { return readSales(); };
+  POS.appendSale = function (sale) { var l = readSales(); l.push(sale); writeSales(l); return sale; };   // doc imutável (ex. NC)
+
+  /* ---- Consolidação multi-terminal, segmentada por LOJA (camada de gestão) ----
+     Funde vendas reais (pos_sales, deste terminal) + demoSales (outros terminais).
+     Deriva tudo a partir das vendas — não duplica saldos. */
+  function saleTotal(s) { return (s.totals && typeof s.totals.totalCents === "number") ? s.totals.totalCents : 0; }
+  POS.report = {
+    consolidated: function (opts) {
+      opts = opts || {};
+      var all = readSales().concat(POS.demoSales || []);
+      if (opts.sinceTs) all = all.filter(function (s) { return s.ts >= opts.sinceTs; });
+      var stores = (POS.stores || []).map(function (st) {
+        var terms = (POS.terminals || []).filter(function (t) { return t.storeId === st.id; }).map(function (t) {
+          var rows = all.filter(function (s) { return (s.terminalId || "T1") === t.id; });
+          var byMethod = {}, ops = {};
+          rows.forEach(function (s) {
+            (s.payments || []).forEach(function (p) { byMethod[p.method] = (byMethod[p.method] || 0) + p.amountCents; });
+            var on = s.operatorName || "—"; ops[on] = (ops[on] || 0) + saleTotal(s);
+          });
+          return {
+            terminalId: t.id, label: t.label, isCurrent: t.id === (POS.terminal ? POS.terminal().terminalId : "T1"),
+            count: rows.length, totalCents: rows.reduce(function (n, s) { return n + saleTotal(s); }, 0),
+            byMethod: byMethod, operators: Object.keys(ops).map(function (k) { return { name: k, totalCents: ops[k] }; }),
+          };
+        });
+        var byMethod = {};
+        terms.forEach(function (t) { Object.keys(t.byMethod).forEach(function (m) { byMethod[m] = (byMethod[m] || 0) + t.byMethod[m]; }); });
+        return {
+          storeId: st.id, name: st.name, nif: st.nif, terminals: terms,
+          count: terms.reduce(function (n, t) { return n + t.count; }, 0),
+          totalCents: terms.reduce(function (n, t) { return n + t.totalCents; }, 0), byMethod: byMethod,
+        };
+      });
+      var totalCents = stores.reduce(function (n, s) { return n + s.totalCents; }, 0);
+      var count = stores.reduce(function (n, s) { return n + s.count; }, 0);
+      return { stores: stores, totalCents: totalCents, count: count, avgCents: count ? Math.round(totalCents / count) : 0 };
+    },
+  };
 
   /* ---- última venda concluída (para sobreviver a refresh no ecrã de sucesso/troco) ---- */
   POS.lastSale = function () { try { return JSON.parse(sessionStorage.getItem("pos_last_sale") || "null"); } catch (e) { return null; } };

@@ -850,3 +850,26 @@ body.osk-open .modal { max-height:calc(58vh); }
   .rail__spacer { display:none; }
   .cart, :root[data-layout="b"] .cart { border-left:none; border-right:none; border-top:1px solid var(--line); max-height:50vh; }
 }
+
+/* ---------- Consolidação multi-terminal por loja (gestão) ---------- */
+.cons-kpis { display:flex; gap:var(--sp-2); margin-bottom:var(--sp-4); }
+.cons-kpi { flex:1; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--r-lg); padding:var(--sp-3); text-align:center; }
+.cons-kpi__v { display:block; font-size:var(--fs-2xl); font-weight:800; font-variant-numeric:tabular-nums; }
+.cons-kpi__l { display:block; font-size:var(--fs-xs); color:var(--ink-500); margin-top:2px; }
+.cons-store { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); padding:var(--sp-3); margin-bottom:var(--sp-3); }
+.cons-store__head { display:flex; align-items:flex-start; justify-content:space-between; gap:var(--sp-2); }
+.cons-store__head h4 { margin:0; font-size:var(--fs-lg); }
+.cons-store__tot { font-size:var(--fs-lg); font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.cons-store__tot small, .cons-term__tot small { font-weight:500; color:var(--ink-500); }
+.cons-methods { display:flex; flex-wrap:wrap; gap:6px; margin-top:var(--sp-2); }
+.cons-pill { display:inline-flex; align-items:center; gap:6px; background:var(--surface-2); border:1px solid var(--line); border-radius:999px; padding:3px 10px; font-size:var(--fs-xs); }
+.cons-pill b { font-variant-numeric:tabular-nums; }
+.cons-terms { margin-top:var(--sp-3); display:flex; flex-direction:column; gap:var(--sp-2); }
+.cons-term { background:var(--surface-2); border:1px solid var(--line); border-left:3px solid var(--line); border-radius:var(--r-md); padding:var(--sp-2) var(--sp-3); }
+.cons-term.is-current { border-left-color:var(--brand-500); }
+.cons-term__head { display:flex; align-items:center; justify-content:space-between; gap:var(--sp-2); }
+.cons-term__no { font-weight:600; }
+.cons-term__tot { font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+.cons-tag { display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--brand-600); background:color-mix(in srgb, var(--brand-500) 14%, var(--surface)); border-radius:4px; padding:1px 6px; margin-left:6px; }
+.cons-ops { display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:6px; font-size:var(--fs-xs); color:var(--ink-500); }
+.cons-ops b { color:var(--ink-800); font-variant-numeric:tabular-nums; }

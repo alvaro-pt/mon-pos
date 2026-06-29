@@ -247,6 +247,17 @@ window.POS = window.POS || {};
     "auth.hintManager":  { pt: "PIN de gerente",         en: "Manager PIN" },
     "auth.discount":     { pt: "Desconto acima do limite do operador.", en: "Discount above the operator limit." },
     "auth.granted":      { pt: "Autorizado por",         en: "Authorized by" },
+    "report.open":       { pt: "Consolidação (lojas)",   en: "Consolidation (stores)" },
+    "report.title":      { pt: "Consolidação por loja",  en: "Store consolidation" },
+    "report.sub":        { pt: "Vendas de todos os terminais, agrupadas por loja", en: "Sales across all terminals, grouped by store" },
+    "report.total":      { pt: "Total",                  en: "Total" },
+    "report.sales":      { pt: "Vendas",                 en: "Sales" },
+    "report.avg":        { pt: "Ticket médio",           en: "Avg. ticket" },
+    "report.terminal":   { pt: "Terminal",               en: "Terminal" },
+    "report.thisTerm":   { pt: "Este terminal",          en: "This terminal" },
+    "report.byMethod":   { pt: "Por método",             en: "By method" },
+    "report.operators":  { pt: "Operadores",             en: "Operators" },
+    "report.noData":     { pt: "Sem vendas registadas",  en: "No sales recorded" },
 
     // Ações (coluna central / barra inferior — estilo Moloni)
     "act.parkedSales":   { pt: "Vendas suspensas",      en: "Parked sales" },

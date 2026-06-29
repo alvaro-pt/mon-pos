@@ -175,21 +175,26 @@ window.POS = window.POS || {};
   POS.docCode = function (type) { return DOC_CODE[type] || "DOC"; };
   POS.docLabel = function (doc) { return docNo(doc); };   // TIPO série/número (ex. FS 2026/1042)
   POS.canCreditNote = function (doc) { var t = doc.docType || doc.type; return t === "simplified" || t === "invoiceReceipt" || t === "invoice" || t === "receipt"; };
-  // emite uma Nota de Crédito (documento novo, imutável) que referencia o original
+  // emite uma Nota de Crédito (transação imutável em pos_sales) que referencia o original.
+  // Valores NEGATIVOS: desconta no Z e na caixa; devolve numerário (reembolso em dinheiro).
   POS.emitCreditNote = function (doc, opts) {
     opts = opts || {};
-    var ncCount = POS.documents.filter(function (d) { return (d.type || d.docType) === "creditNote"; }).length;
+    var ncCount = POS.sales().concat(POS.documents).filter(function (d) { return (d.type || d.docType) === "creditNote"; }).length;
+    var tot = computeTotals(doc.lines || []);
+    var negTax = (tot.taxBreakdown || []).map(function (g) { return { rate: g.rate, base: -g.base, tax: -g.tax, gross: -g.gross }; });
     var nc = {
-      id: "nc" + Date.now(), type: "creditNote", number: ncCount + 1, seriesId: "2026",
+      id: "nc" + Date.now(), docType: "creditNote", number: ncCount + 1, seriesId: "2026",
       customerId: doc.customerId, nif: doc.nif,
       operatorName: (POS.terminal ? POS.terminal().operatorName : doc.operatorName),
       terminalId: doc.terminalId || (POS.terminal ? POS.terminal().terminalId : ""),
       certified: true, ts: Date.now(),
       lines: JSON.parse(JSON.stringify(doc.lines || [])),
-      payments: doc.payments ? JSON.parse(JSON.stringify(doc.payments)) : null,
+      totals: { totalCents: -tot.totalCents, taxBreakdown: negTax },
+      payments: [{ method: "cash", amountCents: -tot.totalCents }],   // reembolso em numerário (sai da gaveta)
+      changeCents: 0,
       relatedLabel: POS.docLabel(doc), relatedId: doc.id, reason: opts.reason || "",
     };
-    POS.documents.unshift(nc);
+    POS.appendSale(nc);   // entra no turno: Z e esperado em caixa descem
     return nc;
   };
   POS.docCodeColor = function (type) { return CODE_COLOR[POS.docCode(type)] || "var(--ink-500)"; };
