@@ -423,7 +423,7 @@
       var grid = $("#grid"); grid.innerHTML = ""; grid.className = "grid" + (viewMode === "list" ? " grid--list" : "");
 
       if (query) { return renderProducts(searchProducts()); }
-      if (nav.cat === "__all__") { return renderProducts(POS.products); }
+      if (nav.cat === "__all__") { return renderProducts(POS.products.slice().sort(function (a, b) { return POS.t(a.name).localeCompare(POS.t(b.name), POS.lang); })); }
       if (!nav.cat) {  // raiz: tiles de família para seleção
         POS.categories.forEach(function (cat) { grid.appendChild(familyTile(cat, false)); });
         return;
