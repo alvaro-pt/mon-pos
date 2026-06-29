@@ -15,23 +15,19 @@
       <div class="topbar__logo">
         <svg viewBox="0 0 500 500" fill="currentColor" role="img" aria-label="moloni ON"><path d="M493.6 394.7v94.34H159.58C74.62 489.04 5.5 419.92 5.5 334.96V95.46h94.34v239.49c0 32.95 26.79 59.75 59.75 59.75H493.6Z"/><path d="M493.6 155.08v333.95h-94.34V155.08c0-32.95-26.79-59.75-59.75-59.75H99.96V1h239.55c84.97 0 154.08 69.12 154.08 154.08Z"/><path d="M194.85 190.34H304.2v109.35H194.85z"/></svg>
       </div>
-      <span class="topbar__store">Mercearia Avenida</span>
-      <div class="topbar__meta">
-        <span class="topbar__chip"><span data-s="header.terminal">Terminal</span> <b>#1</b></span>
-        <span class="topbar__chip is-date"><span id="topDate"></span><span class="topbar__dot">·</span><span id="topClock" class="num">--:--</span></span>
+      <div class="topbar__brand">
+        <span class="topbar__store">Mercearia Avenida</span>
+        <span class="topbar__terminal"><span id="topTerminalId">Terminal 1</span><span class="topbar__dot"> · </span><span id="topClock" class="num">--:--</span></span>
       </div>
-      <nav class="topbar__tabs" aria-label="Modo">
-        <span class="topbar__tab" aria-current="page" data-s="header.mode.sales">Vendas</span>
-      </nav>
       <span class="topbar__spacer"></span>
       <div class="topbar__actions row">
-        <button class="topbar__btn" id="tbBell" type="button" aria-label="Notificações"></button>
-        <button class="topbar__btn" id="tbMsg" type="button" aria-label="Mensagens"></button>
-        <button class="topbar__btn" id="tbTheme" type="button" aria-label="Aspeto"></button>
-        <button class="topbar__user" id="tbUser" type="button" aria-haspopup="menu" aria-expanded="false">
-          <span class="topbar__avatar">AS</span><span>Ana Sousa</span><span class="topbar__chev" id="tbUserChev" aria-hidden="true"></span>
-        </button>
-        <button class="topbar__btn" id="tbLock" type="button" aria-label="Bloquear terminal"></button>
+        <div class="topbar__op-group">
+          <button class="topbar__user" id="tbUser" type="button" aria-haspopup="menu" aria-expanded="false">
+            <span class="topbar__avatar">AS</span><span>Ana Sousa</span><span class="topbar__chev" id="tbUserChev" aria-hidden="true"></span>
+          </button>
+          <span class="topbar__op-sep" aria-hidden="true"></span>
+          <button class="topbar__btn topbar__btn--lock" id="tbLock" type="button" aria-label="Bloquear terminal"></button>
+        </div>
       </div>
     </header>
 
@@ -49,6 +45,7 @@
         </div>
         <button class="kbd-toggle" id="kbdToggle" type="button" aria-pressed="false" aria-label="Teclado no ecrã"></button>
       </div>
+      <div class="cat-nav" id="catNav" role="navigation" aria-label="Navegar por categoria"></div>
       <nav class="crumb" id="crumb" aria-label="Navegação de categorias"></nav>
       <div class="grid-scroll"><div class="grid" id="grid"></div></div>
     </section>
@@ -61,20 +58,12 @@
     <!-- Talão -->
     <aside class="cart" aria-label="Venda atual">
       <div class="cart__head">
-        <div class="cart__toprow">
-          <div class="docsel" id="docsel">
-            <button class="docsel__btn" id="docBtn" type="button" aria-haspopup="true" aria-expanded="false"></button>
-          </div>
-        </div>
+        <button class="cart__more" id="btnMore" type="button" aria-label="Mais ações"></button>
         <button class="customer" id="btnCustomer" type="button">
           <span class="customer__ava" id="custAva" aria-hidden="true"></span>
           <span class="customer__txt"><b id="custName">Consumidor Final</b><span id="custSub">Cliente</span></span>
           <span class="customer__chev" id="custChev" aria-hidden="true"></span>
         </button>
-        <div class="cart__meta">
-          <span class="cart__doc" id="docMeta"></span>
-          <span class="cart__doc"><span data-s="cart.soldBy">Operador</span>: <b id="cartOp">Ana Sousa</b></span>
-        </div>
       </div>
 
       <div class="lines" id="lines"></div>
@@ -98,8 +87,9 @@
     var ic = POS.icon, cart = POS.cart;
 
     // estado de navegação do catálogo
-    var nav = { cat: null, sub: null };   // null/null = raiz (famílias)
+    var nav = { cat: "favorites", sub: null };   // favoritos por defeito
     var query = "";
+    var viewMode = localStorage.getItem("pos_view_mode") || "grid";
     var selectedLine = null;              // linha selecionada p/ desconto
 
     var DOC_TYPES = ["doc.simplified", "doc.receipt", "doc.invoiceReceipt"];
@@ -108,7 +98,6 @@
     function tick() {
       var d = new Date(), loc = POS.lang === "pt" ? "pt-PT" : "en-IE";
       $("#topClock").textContent = d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" });
-      $("#topDate").textContent = d.toLocaleDateString(loc, { day: "2-digit", month: "short", year: "numeric" });
     }
 
     /* ---------- Ícones estáticos ---------- */
@@ -116,11 +105,9 @@
       $("#searchIcon").innerHTML = ic("search", { size: 20 });
       $("#searchClear").innerHTML = ic("x", { size: 18 });
       $("#kbdToggle").innerHTML = ic("keyboard", { size: 22 });
-      $("#tbBell").innerHTML = ic("bell", { size: 20 });
-      $("#tbMsg").innerHTML = ic("message", { size: 20 });
-      $("#tbTheme").innerHTML = ic("palette", { size: 20 });
       $("#tbUserChev").innerHTML = ic("chevron-down", { size: 16 });
       $("#tbLock").innerHTML = ic("lock", { size: 18 });
+      $("#btnMore").innerHTML = ic("more", { size: 20 });
       $("#custAva").innerHTML = ic("user", { size: 18 });
       $("#custChev").innerHTML = ic("chevron-right", { size: 18 });
     }
@@ -134,10 +121,11 @@
 
     /* ---------- Rail ---------- */
     var RAIL = [
-      { key: "sale", href: "sale.html", icon: "cart", label: "nav.sale", active: true },
-      { key: "register", href: "register-close.html", icon: "register", label: "nav.register" },
-      { key: "docs", href: "docs.html", icon: "file", label: "nav.docs" },
-      { key: "tables", href: "tables.html", icon: "utensils", label: "nav.tables" },
+      { key: "sale",      icon: "cart",      label: "nav.sale",      active: true },
+      { key: "register",  icon: "register",  label: "nav.register" },
+      { key: "docs",      icon: "file",      label: "nav.docs" },
+      { key: "tables",    icon: "utensils",  label: "nav.tables" },
+      { key: "customers", icon: "users",     label: "nav.customers" },
     ];
     var currentSection = "sale";
     function renderRail() {
@@ -169,7 +157,7 @@
       updateRailActive();
     }
     function openSectionScreen(key) {
-      var titleKey = key === "register" ? "nav.register" : key === "docs" ? "nav.docs" : "nav.tables";
+      var titleKey = key === "register" ? "nav.register" : key === "docs" ? "nav.docs" : key === "customers" ? "nav.customers" : "nav.tables";
       var wrap = document.createElement("div"); wrap.className = "settings";
       wrap.innerHTML = '<div class="set-head"><h3>' + POS.s(titleKey) + "</h3>" +
         '<button class="set-close" id="scClose" type="button" aria-label="' + POS.s("act.close") + '">' + ic("x", { size: 22 }) + "</button></div>" +
@@ -178,8 +166,64 @@
       var body = wrap.querySelector("#scBody");
       if (key === "register") buildCaixaPlaceholder(body);
       else if (key === "docs") buildDocsPlaceholder(body);
+      else if (key === "customers") buildCustomersScreen(body);
       else body.innerHTML = '<div class="set-sec"><p class="muted">' + POS.s("ph.soon") + "</p></div>";
       showScreen(wrap, POS.s(titleKey), function () { openSectionScreen(key); });
+    }
+    function buildCustomersScreen(body) {
+      body.classList.add("set-body--customers");
+      var customers = (POS.customers || []).slice();
+      var q = "";
+      function filtered() {
+        if (!q) return customers;
+        var lq = q.toLowerCase();
+        return customers.filter(function (c) {
+          return (c.name || "").toLowerCase().includes(lq) ||
+                 (c.nif || "").includes(lq) ||
+                 (c.phone || "").includes(lq);
+        });
+      }
+      function renderList() {
+        var list = filtered();
+        var activeCust = cart.customer();
+        var rows = list.length ? list.map(function (c) {
+          var isActive = activeCust && activeCust.id === c.id;
+          return '<div class="cust-row' + (isActive ? " is-active" : "") + '">' +
+            '<div class="cust-avatar">' + ic("user", { size: 20 }) + '</div>' +
+            '<div class="cust-info">' +
+              '<span class="cust-name">' + POS.t(c.name) + '</span>' +
+              '<span class="cust-meta">' +
+                (c.nif ? '<span>' + POS.s("cust.nif") + ' ' + c.nif + '</span>' : '') +
+                (c.phone ? '<span>' + c.phone + '</span>' : '') +
+                (c.email ? '<span>' + c.email + '</span>' : '') +
+              '</span>' +
+            '</div>' +
+            '<button class="btn btn--sm' + (isActive ? " btn--primary" : "") + '" data-id="' + c.id + '" type="button">' +
+              (isActive ? ic("check", { size: 16 }) + " " : "") + POS.s("cust.select") +
+            '</button>' +
+          '</div>';
+        }).join("") : '<p class="muted cust-empty">' + POS.s("cust.empty") + '</p>';
+        host.innerHTML = rows;
+        host.querySelectorAll("button[data-id]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            cart.setCustomer(btn.dataset.id);
+            goSection("sale");
+          });
+        });
+      }
+      var host = document.createElement("div"); host.className = "cust-list";
+      var search = '<div class="cust-search">' +
+        '<div class="cust-search__wrap">' + ic("search", { size: 18 }) +
+          '<input class="cust-search__input" type="search" placeholder="' + POS.s("cust.search") + '" autocomplete="off">' +
+        '</div>' +
+      '</div>';
+      body.innerHTML = search;
+      body.appendChild(host);
+      renderList();
+      body.querySelector(".cust-search__input").addEventListener("input", function (e) {
+        q = e.target.value.trim();
+        renderList();
+      });
     }
     function buildCaixaPlaceholder(body) {
       var open = POS.cash.isOpen();
@@ -209,67 +253,179 @@
     /* ---------- Breadcrumb ---------- */
     function renderCrumb() {
       var c = $("#crumb"); c.innerHTML = "";
+
       if (query) {
         c.innerHTML = '<span class="crumb__here">' + POS.s("cat.products") +
           ' <span class="crumb__count">· "' + query + '"</span></span>';
-        return;
-      }
-      var root = document.createElement("button");
-      root.className = "crumb__btn"; root.type = "button";
-      root.innerHTML = ic("folder", { size: 18 }) + "<span>" + POS.s("cat.categories") + "</span>";
-      root.addEventListener("click", function () { goRoot(); });
-
-      if (!nav.cat) { // raiz
-        c.appendChild(asHere(POS.s("cat.categories")));
-        return;
-      }
-      var hasFavs = POS.productsByCategory("favorites").length > 0;
-      // dentro de Favoritos: Categorias (link) › Favoritos (aqui)
-      if (nav.cat === "favorites") {
-        c.appendChild(root); c.appendChild(sep());
-        c.appendChild(asHere(POS.t(POS.getCategory("favorites").name)));
-        return;
-      }
-      // link de Favoritos SEMPRE antes de Categorias (se existirem favoritos)
-      if (hasFavs) {
-        var favB = document.createElement("button"); favB.className = "crumb__btn"; favB.type = "button";
-        favB.innerHTML = ic("star", { size: 16 }) + "<span>" + POS.t(POS.getCategory("favorites").name) + "</span>";
-        favB.addEventListener("click", function () { nav = { cat: "favorites", sub: null }; renderCatalog(); });
-        c.appendChild(favB); c.appendChild(sep());
-      }
-      c.appendChild(root);
-      c.appendChild(sep());
-      var catObj = POS.getCategory(nav.cat);
-      if (!nav.sub) {
-        c.appendChild(asHere(POS.t(catObj.name)));
       } else {
-        var fb = document.createElement("button");
-        fb.className = "crumb__btn"; fb.type = "button"; fb.textContent = POS.t(catObj.name);
-        fb.addEventListener("click", function () { nav = { cat: catObj.id, sub: null }; renderCatalog(); });
-        c.appendChild(fb);
-        c.appendChild(sep());
-        c.appendChild(asHere(POS.t(POS.getSubcategory(nav.sub).name)));
+        var root = document.createElement("button");
+        root.className = "crumb__btn"; root.type = "button";
+        root.innerHTML = ic("folder", { size: 18 }) + "<span>" + POS.s("cat.categories") + "</span>";
+        root.addEventListener("click", function () { goRoot(); });
+
+        if (nav.cat && nav.cat !== "__all__") {
+          var hasFavs = POS.productsByCategory("favorites").length > 0;
+          if (nav.cat === "favorites") {
+            // Categorias › Favoritos
+            c.appendChild(root); c.appendChild(sep());
+            c.appendChild(asHere(POS.t(POS.getCategory("favorites").name)));
+          } else {
+            // link de Favoritos SEMPRE antes de Categorias (se existirem favoritos)
+            if (hasFavs) {
+              var favB = document.createElement("button"); favB.className = "crumb__btn"; favB.type = "button";
+              favB.innerHTML = ic("star", { size: 16 }) + "<span>" + POS.t(POS.getCategory("favorites").name) + "</span>";
+              favB.addEventListener("click", function () { nav = { cat: "favorites", sub: null }; renderCatalog(); });
+              c.appendChild(favB); c.appendChild(sep());
+            }
+            c.appendChild(root);
+            c.appendChild(sep());
+            var catObj = POS.getCategory(nav.cat);
+            if (!nav.sub) {
+              c.appendChild(asHere(POS.t(catObj.name)));
+            } else {
+              var fb = document.createElement("button");
+              fb.className = "crumb__btn"; fb.type = "button"; fb.textContent = POS.t(catObj.name);
+              fb.addEventListener("click", function () { nav = { cat: catObj.id, sub: null }; renderCatalog(); });
+              c.appendChild(fb);
+              c.appendChild(sep());
+              c.appendChild(asHere(POS.t(POS.getSubcategory(nav.sub).name)));
+            }
+          }
+        }
       }
+
+      // toggle de vista — sempre presente no canto direito do crumb
+      var spacer = document.createElement("span"); spacer.className = "crumb__spacer";
+      var tog = document.createElement("button");
+      tog.className = "crumb__view-tog"; tog.type = "button";
+      tog.setAttribute("aria-label", viewMode === "grid" ? POS.s("cat.viewList") : POS.s("cat.viewGrid"));
+      tog.setAttribute("aria-pressed", viewMode === "list" ? "true" : "false");
+      tog.innerHTML = ic(viewMode === "grid" ? "list" : "grid-2x2", { size: 18 });
+      tog.addEventListener("click", function () {
+        viewMode = viewMode === "grid" ? "list" : "grid";
+        localStorage.setItem("pos_view_mode", viewMode);
+        renderCatalog();
+      });
+      c.appendChild(spacer);
+      c.appendChild(tog);
+
       function asHere(txt) { var s = document.createElement("span"); s.className = "crumb__here"; s.textContent = txt; return s; }
       function sep() { var s = document.createElement("span"); s.className = "crumb__sep"; s.innerHTML = ic("chevron-right", { size: 16 }); return s; }
     }
 
     function goRoot() { nav = { cat: null, sub: null }; query = ""; $("#search").value = ""; $("#searchWrap").classList.remove("has-value"); renderCatalog(); }
 
+    /* ---------- Cat-nav (tabs fixos + carousel) ---------- */
+    var _catNavReady = false;
+    function buildCatNav() {
+      var container = $("#catNav");
+      if (_catNavReady) { updateCatNavTabs(); return; }
+      _catNavReady = true;
+
+      // Tab Favoritos
+      var favTab = document.createElement("button");
+      favTab.className = "cat-tab"; favTab.id = "catTabFav"; favTab.type = "button";
+      favTab.setAttribute("aria-label", POS.s("cat.favorites") || "Favoritos");
+      favTab.innerHTML = ic("star", { size: 20 });
+      favTab.addEventListener("click", function () {
+        query = "";
+        nav = (nav.cat === "favorites") ? { cat: "__all__", sub: null } : { cat: "favorites", sub: null };
+        renderCatalog();
+      });
+
+      // Tab Todas as categorias
+      var allTab = document.createElement("button");
+      allTab.className = "cat-tab"; allTab.id = "catTabAll"; allTab.type = "button";
+      allTab.setAttribute("aria-label", POS.s("cat.categories") || "Categorias");
+      allTab.innerHTML = ic("grid-2x2", { size: 20 });
+      allTab.addEventListener("click", function () { query = ""; goRoot(); });
+
+      // Separador visual
+      var sep = document.createElement("span");
+      sep.className = "cat-nav__sep"; sep.setAttribute("aria-hidden", "true");
+
+      // Setas + rail
+      var prevBtn = document.createElement("button");
+      prevBtn.className = "famstrip__arrow famstrip__arrow--prev"; prevBtn.type = "button";
+      prevBtn.setAttribute("aria-label", "Anterior"); prevBtn.tabIndex = -1;
+      prevBtn.innerHTML = ic("chevron-left", { size: 16 });
+
+      var railEl = document.createElement("div");
+      railEl.className = "famstrip__rail";
+
+      var nextBtn = document.createElement("button");
+      nextBtn.className = "famstrip__arrow famstrip__arrow--next"; nextBtn.type = "button";
+      nextBtn.setAttribute("aria-label", "Seguinte"); nextBtn.tabIndex = -1;
+      nextBtn.innerHTML = ic("chevron-right", { size: 16 });
+
+      POS.categories.filter(function (c) { return c.id !== "favorites"; }).forEach(function (cat) { railEl.appendChild(famChip(cat)); });
+
+      requestAnimationFrame(function () {
+        var chips = railEl.querySelectorAll(".famchip");
+        var maxW = 0;
+        chips.forEach(function (ch) { maxW = Math.max(maxW, ch.offsetWidth); });
+        if (maxW > 0) chips.forEach(function (ch) { ch.style.width = maxW + "px"; ch.style.flex = "0 0 " + maxW + "px"; });
+      });
+
+      function scrollStep(dir) {
+        var chip = railEl.querySelector(".famchip");
+        var step = chip ? chip.offsetWidth + 8 : 160;
+        railEl.scrollBy({ left: dir * step * 2, behavior: "smooth" });
+      }
+      function updateArrows() {
+        var atStart = railEl.scrollLeft <= 2;
+        var atEnd = railEl.scrollLeft + railEl.clientWidth >= railEl.scrollWidth - 2;
+        prevBtn.disabled = atStart;
+        nextBtn.disabled = atEnd;
+        prevBtn.style.opacity = atStart ? "0" : "1";
+        nextBtn.style.opacity = atEnd ? "0" : "1";
+        prevBtn.style.pointerEvents = atStart ? "none" : "";
+        nextBtn.style.pointerEvents = atEnd ? "none" : "";
+      }
+      prevBtn.addEventListener("click", function () { scrollStep(-1); });
+      nextBtn.addEventListener("click", function () { scrollStep(1); });
+      railEl.addEventListener("scroll", updateArrows, { passive: true });
+      requestAnimationFrame(updateArrows);
+
+      // Wrap: rail + setas sobrepostas com fade
+      var railWrap = document.createElement("div");
+      railWrap.className = "famstrip__wrap";
+      railWrap.appendChild(prevBtn);
+      railWrap.appendChild(railEl);
+      railWrap.appendChild(nextBtn);
+
+      container.appendChild(favTab);
+      container.appendChild(allTab);
+      container.appendChild(sep);
+      container.appendChild(railWrap);
+
+      updateCatNavTabs();
+    }
+    function updateCatNavTabs() {
+      var favTab = document.getElementById("catTabFav");
+      var allTab = document.getElementById("catTabAll");
+      if (!favTab || !allTab) return;
+      var isFavs = !query && nav.cat === "favorites";
+      var isAll  = !query && !nav.cat;
+      favTab.setAttribute("aria-selected", isFavs ? "true" : "false");
+      allTab.setAttribute("aria-selected", isAll ? "true" : "false");
+      // chips do carousel — activo quando na categoria correspondente (não fav, não __all__, não raiz)
+      document.querySelectorAll(".famchip[data-cat]").forEach(function (chip) {
+        var active = !query && nav.cat === chip.dataset.cat;
+        chip.setAttribute("aria-selected", active ? "true" : "false");
+      });
+    }
+
     /* ---------- Grelha ---------- */
-    function renderCatalog() { renderCrumb(); renderGrid(); }
+    function renderCatalog() { buildCatNav(); renderCrumb(); renderGrid(); }
 
     function renderGrid() {
-      var grid = $("#grid"); grid.innerHTML = ""; grid.className = "grid";
+      var grid = $("#grid"); grid.innerHTML = ""; grid.className = "grid" + (viewMode === "list" ? " grid--list" : "");
 
       if (query) { return renderProducts(searchProducts()); }
-      if (!nav.cat) {  // raiz: FAMÍLIAS numa faixa horizontal no topo (colapsável) + FAVORITOS como grelha principal
-        grid.appendChild(buildFamStrip());
-        var favs = POS.productsByCategory("favorites");
-        if (favs.length) {
-          grid.appendChild(gridSec(POS.t(POS.getCategory("favorites").name)));
-          favs.forEach(function (p) { grid.appendChild(productTile(p)); });
-        }
+      if (nav.cat === "__all__") { return renderProducts(POS.products); }
+      if (!nav.cat) {  // raiz: tiles de família para seleção
+        POS.categories.forEach(function (cat) { grid.appendChild(familyTile(cat, false)); });
         return;
       }
       if (nav.cat === "favorites") return renderProducts(POS.productsByCategory("favorites"));
@@ -288,41 +444,23 @@
           "<h3>" + POS.s("cat.empty.title") + "</h3><p>" + POS.s("cat.empty.body") + "</p></div>";
         return;
       }
-      list.forEach(function (p) { grid.appendChild(productTile(p)); });
+      list.forEach(function (p) { grid.appendChild(viewMode === "list" ? productListRow(p) : productTile(p)); });
     }
 
-    var FAM_OPEN_KEY = "pos_fam_open";
-    function famStripOpen() { return sessionStorage.getItem(FAM_OPEN_KEY) !== "0"; }   // aberta por defeito
-    function buildFamStrip() {
-      var open = famStripOpen();
-      var wrap = document.createElement("div");
-      wrap.className = "famstrip"; wrap.dataset.open = open ? "1" : "0";
-      wrap.innerHTML =
-        '<div class="famstrip__head">' +
-          '<span class="famstrip__label">' + ic("folder", { size: 18 }) + "<span>" + POS.s("cat.families") + "</span></span>" +
-          '<button class="famstrip__toggle" type="button" aria-expanded="' + (open ? "true" : "false") +
-            '" aria-label="' + POS.s(open ? "cat.familiesHide" : "cat.familiesShow") + '">' + ic("chevron-down", { size: 20 }) + "</button>" +
-        "</div>" +
-        '<div class="famstrip__rail"></div>';
-      var railEl = wrap.querySelector(".famstrip__rail");
-      POS.categories.filter(function (c) { return c.id !== "favorites"; }).forEach(function (cat) { railEl.appendChild(famChip(cat)); });
-      wrap.querySelector(".famstrip__toggle").addEventListener("click", function () {
-        var now = wrap.dataset.open === "1" ? "0" : "1";
-        wrap.dataset.open = now; sessionStorage.setItem(FAM_OPEN_KEY, now);
-        this.setAttribute("aria-expanded", now === "1" ? "true" : "false");
-        this.setAttribute("aria-label", POS.s(now === "1" ? "cat.familiesHide" : "cat.familiesShow"));
-      });
-      return wrap;
-    }
     function famChip(cat) {
       var count = POS.productsByCategory(cat.id).length;
       var b = document.createElement("button"); b.className = "famchip"; b.type = "button";
+      b.dataset.cat = cat.id;
+      b.setAttribute("aria-selected", "false");
       b.style.setProperty("--fam-color", cat.color || "var(--brand-600)");
       b.innerHTML =
         '<span class="famchip__disc">' + ic(cat.icon || "folder", { size: 22 }) + "</span>" +
         '<span class="famchip__txt"><span class="famchip__name">' + POS.t(cat.name) + "</span>" +
           '<span class="famchip__count">' + count + " " + POS.s(count === 1 ? "tot.item" : "tot.items") + "</span></span>";
-      b.addEventListener("click", function () { nav = { cat: cat.id, sub: null }; renderCatalog(); });
+      b.addEventListener("click", function () {
+        nav = (nav.cat === cat.id) ? { cat: "favorites", sub: null } : { cat: cat.id, sub: null };
+        renderCatalog();
+      });
       return b;
     }
 
@@ -352,23 +490,53 @@
       var addLbl = out ? (POS.t(p.name) + " — " + POS.s("pd.outStock"))
         : (POS.s("pd.add") + ": " + POS.t(p.name) + ", " + POS.money(p.priceCents) + (inCart ? " (" + inCart + ")" : ""));
       var tile = document.createElement("div");
-      tile.className = "tile" + (out ? " is-out" : "");
+      tile.className = "tile" + (out ? " is-out" : "") + (inCart ? " has-qty" : "");
       tile.style.setProperty("--tile-color", color);
       tile.innerHTML =
         '<button class="tile__add" type="button"' + (out ? ' disabled aria-label="' : ' aria-label="') + addLbl + '">' +
-          '<span class="tile__media">' + ic(p.icon || (cat && cat.icon) || "tag", { size: 40, stroke: 1.6 }) +
+          '<span class="tile__media">' + ic(p.icon || (cat && cat.icon) || "tag", { size: 32, stroke: 1.6 }) +
             (inCart ? '<span class="tile__badge" aria-hidden="true">' + inCart + "</span>" : "") +
             (out ? '<span class="tile__out">' + POS.s("pd.outStock") + "</span>" : "") +
           "</span>" +
-          '<span class="tile__body"><span class="tile__name">' + POS.t(p.name) + "</span>" +
-            '<span class="tile__price">' + POS.money(p.priceCents) + (p.weighable ? ' <small>' + POS.s("cat.weighable") + "</small>" : "") + "</span>" +
-          "</span>" +
+          '<span class="tile__name">' + POS.t(p.name) + "</span>" +
         "</button>" +
-        '<button class="tile__info" type="button" aria-label="' + POS.s("cat.details") + ": " + POS.t(p.name) + '">' + ic("info", { size: 18 }) + "</button>";
+        '<div class="tile__foot">' +
+          '<span class="tile__price">' + POS.money(p.priceCents) + (p.weighable ? ' <small>' + POS.s("cat.weighable") + "</small>" : "") + "</span>" +
+          '<button class="tile__info" type="button" aria-label="' + POS.s("cat.details") + ": " + POS.t(p.name) + '">' + ic("info", { size: 20 }) + "</button>" +
+        "</div>";
       var add = tile.querySelector(".tile__add");
       add.addEventListener("click", function () { addProduct(p, add); });
       tile.querySelector(".tile__info").addEventListener("click", function (e) { e.stopPropagation(); openDetails(p); });
       return tile;
+    }
+
+    function productListRow(p) {
+      var cat = POS.getCategory(p.cat);
+      var color = (cat && cat.color) || "#888";
+      var inCart = cart.lines.filter(function (l) { return l.productId === p.id; })
+        .reduce(function (n, l) { return n + (l.weighable ? 1 : l.qty); }, 0);
+      var out = p.stock <= 0;
+      var row = document.createElement("div");
+      row.className = "list-row" + (out ? " is-out" : "");
+      row.style.setProperty("--tile-color", color);
+      row.innerHTML =
+        '<button class="list-row__add" type="button"' +
+          (out ? ' disabled aria-label="' + POS.t(p.name) + " — " + POS.s("pd.outStock") + '"'
+               : ' aria-label="' + POS.s("pd.add") + ": " + POS.t(p.name) + '"') + ">" +
+          '<span class="list-row__disc">' + ic(p.icon || (cat && cat.icon) || "tag", { size: 20 }) + "</span>" +
+          '<span class="list-row__name">' + POS.t(p.name) +
+            (inCart ? ' <span class="list-row__badge" aria-label="' + inCart + ' no carrinho">' + inCart + "</span>" : "") +
+          "</span>" +
+          '<span class="list-row__price">' + POS.money(p.priceCents) +
+            (p.weighable ? "<small>/kg</small>" : "") +
+          "</span>" +
+        "</button>" +
+        '<button class="list-row__info" type="button" aria-label="' + POS.s("cat.details") + ": " + POS.t(p.name) + '">' +
+          ic("info", { size: 16 }) +
+        "</button>";
+      row.querySelector(".list-row__add").addEventListener("click", function () { addProduct(p, row.querySelector(".list-row__add")); });
+      row.querySelector(".list-row__info").addEventListener("click", function (e) { e.stopPropagation(); openDetails(p); });
+      return row;
     }
 
     function searchProducts() {
@@ -485,10 +653,7 @@
     /* ---------- Talão ---------- */
     function renderDoc() {
       var t = cart.state.docType || "receipt";
-      var key = "doc." + (t === "simplified" ? "simplified" : t === "invoiceReceipt" ? "invoiceReceipt" : "receipt");
-      $("#docBtn").innerHTML = "<span>" + POS.s(key) + "</span>" + ic("chevron-down", { size: 18 });
-      var prefix = POS.docCode(t);   // fonte única (FS/VD/FR…), coerente com a lista de documentos
-      $("#docMeta").innerHTML = ic("check-circle", { size: 16 }) + " <b>" + prefix + " " + (POS.terminal().seriesId || "2026") + "/" + cart.state.saleNo + "</b>";
+      var prefix = POS.docCode(cart.state.docType || "receipt");   // estado mantido; seleção move para o checkout
     }
 
     function renderCustomer() {
@@ -512,31 +677,43 @@
         var qtyLabel = l.weighable ? POS.weight(l.qty) : l.qty;
         var row = document.createElement("div"); row.className = "line" + (l.key === selectedLine ? " is-selected" : "");
         row.innerHTML =
-          '<div class="stepper">' +
-            '<button type="button" data-act="dec" aria-label="−">' + ic("minus", { size: 18 }) + "</button>" +
-            '<button type="button" class="qty" data-act="edit" aria-label="' + POS.s("cart.qty") + '">' + qtyLabel + "</button>" +
-            '<button type="button" data-act="inc" aria-label="+">' + ic("plus", { size: 18 }) + "</button>" +
-          "</div>" +
           '<button class="line__info" data-act="select" style="background:none;text-align:left">' +
             '<span class="line__name">' + (l.nameOverride || POS.t(p.name)) + "</span>" +
             '<span class="line__sub"><small>' + POS.money(l.unitPriceCents) + (l.weighable ? "/kg" : "") + " · " + POS.getTax(p.tax).rate + "%</small>" +
               (disc ? '<span class="disc-badge">−' + (l.discount.type === "pct" ? l.discount.value + "%" : POS.money(disc)) + "</span>" : "") +
             "</span>" +
           "</button>" +
+          '<div class="stepper">' +
+            '<button type="button" data-act="dec" aria-label="' + (l.qty <= 1 ? POS.s("cart.remove") : "−") + '" class="' + (l.qty <= 1 ? "stepper__del" : "") + '">' + (l.qty <= 1 ? ic("trash", { size: 16 }) : ic("minus", { size: 18 })) + "</button>" +
+            '<button type="button" class="qty" data-act="edit" aria-label="' + POS.s("cart.qty") + '">' + qtyLabel + "</button>" +
+            '<button type="button" data-act="inc" aria-label="+">' + ic("plus", { size: 18 }) + "</button>" +
+          "</div>" +
           '<div class="line__right"><div class="line__amt">' +
             '<span class="line__price">' + POS.money(tot) + "</span>" +
             (disc ? '<span class="line__was">' + POS.money(gross) + "</span>" : "") +
-          "</div>" +
-          '<button class="line__del" type="button" data-act="del" aria-label="' + POS.s("cart.remove") + '">' + ic("trash", { size: 18 }) + "</button></div>";
-        row.querySelector('[data-act="dec"]').addEventListener("click", function () { cart.changeQty(l.key, -1); });
+          "</div></div>";
+        row.querySelector('[data-act="dec"]').addEventListener("click", function () { l.qty <= 1 ? confirmRemove(l) : cart.changeQty(l.key, -1); });
         row.querySelector('[data-act="inc"]').addEventListener("click", function () { cart.changeQty(l.key, +1); });
         row.querySelector('[data-act="edit"]').addEventListener("click", function () { openQty(l); });
         row.querySelector('[data-act="select"]').addEventListener("click", function () { selectLine(l); });
-        row.querySelector('[data-act="del"]').addEventListener("click", function () { removeLine(l); });
         host.appendChild(row);
       });
     }
 
+    function confirmRemove(l) {
+      var p = POS.getProduct(l.productId);
+      var wrap = document.createElement("div");
+      wrap.innerHTML =
+        '<p style="padding:var(--sp-4) var(--sp-5) var(--sp-3);font-size:var(--fs-base);color:var(--ink-700)">' +
+          POS.t(p.name) + '</p>' +
+        '<div class="pd__foot">' +
+          '<button class="btn" data-k="cancel">' + POS.s("act.cancel") + '</button>' +
+          '<button class="btn btn--danger-solid" data-k="confirm">' + ic("trash", { size: 16 }) + " " + POS.s("cart.remove") + '</button>' +
+        '</div>';
+      var close = POS.openModal(wrap, { label: POS.s("cart.removeConfirm") });
+      wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
+      wrap.querySelector('[data-k="confirm"]').addEventListener("click", function () { close(); removeLine(l); });
+    }
     function removeLine(l) {
       var snap = cart.remove(l.key);
       if (selectedLine === l.key) selectedLine = null;
@@ -550,50 +727,38 @@
     function renderSummary() {
       var t = cart.totals(), host = $("#summary");
       var itemsWord = t.itemCount === 1 ? POS.s("tot.item") : POS.s("tot.items");
-      var taxRows = "";
-      t.taxBreakdown.forEach(function (g) { taxRows += sumRow(POS.s("tot.tax") + " " + g.rate + "%", POS.money(g.tax)); });
-      taxRows += sumRow(POS.s("tot.subtotal"), POS.money(t.subtotalCents));
+      var vatCents = t.totalCents - t.subtotalCents;
 
       host.innerHTML =
         '<div class="summary__rows">' +
+          (t.itemCount ? sumRow(POS.s("tot.subtotal"), POS.money(t.subtotalCents)) : "") +
+          (t.itemCount && vatCents > 0 ? sumRow(POS.s("tot.tax"), POS.money(vatCents)) : "") +
           (t.discountCents > 0 ? sumRow(POS.s("tot.discount"), "−" + POS.money(t.discountCents), "summary__disc") : "") +
-          (t.itemCount ? '<button class="summary__toggle" id="taxToggle" type="button">' + ic("chevron-down", { size: 16 }) + " " + POS.s("tot.taxBreakdown") + "</button>" +
-            '<div class="summary__taxes">' + taxRows + "</div>" : "") +
-        "</div>" +
-        '<div class="summary__total"><span class="lbl">' + POS.s("cart.totalDue") + '</span><span class="amount">' + POS.money(t.totalCents) + "</span></div>" +
-        '<div class="actbar">' +
-          '<button class="btn btn--sm btn--icon" id="btnMore" type="button" aria-label="' + POS.s("cart.more") + '">' + ic("more", { size: 20 }) + "</button>" +
-          '<button class="btn btn--sm btn--danger" id="btnCancel" type="button"' + (t.itemCount ? "" : " disabled") + ">" + POS.s("act.cancel") + "</button>" +
-          '<button class="btn btn--sm" id="btnSuspend" type="button"' + (t.itemCount ? "" : " disabled") + ">" + POS.s("act.suspend") + "</button>" +
         "</div>" +
         '<button class="pay" id="btnPay" type="button"' + (t.itemCount && POS.cash.isOpen() ? "" : " disabled") + ">" +
           '<span class="pay__left">' + POS.s("act.pay") + ' <span class="pay__count">' + t.itemCount + " " + itemsWord + "</span></span>" +
           '<span class="pay__amount">' + POS.money(t.totalCents) + "</span></button>";
 
-      if (t.itemCount) {
-        var tg = $("#taxToggle");
-        tg.addEventListener("click", function () { host.classList.toggle("show-tax"); });
-        $("#btnCancel").addEventListener("click", confirmClear);
-        $("#btnSuspend").addEventListener("click", function () { if (cart.park()) POS.toast(POS.s("park.parked"), { variant: "success", duration: 1800 }); });
-      }
-      $("#btnMore").addEventListener("click", openMoreMenu);
       $("#btnPay").addEventListener("click", pay);
     }
     function sumRow(l, v, cls) { return '<div class="summary__row"><span>' + l + '</span><span class="val ' + (cls || "") + '">' + v + "</span></div>"; }
 
     /* ---------- Menus / modais ---------- */
     function openMoreMenu() {
+      var hasItems = cart.lines.length > 0;
       var items = [
         { icon: "rotate-ccw", label: "act.parkedSales", action: openParked },
         { icon: "register", label: "act.movements", action: openCashMovements },
         { icon: "file", label: "act.documents", action: openDocuments },
-        { icon: "percent", label: "act.addDisc", action: openDiscountChooser },
-        { icon: "trash", label: "cart.clear", danger: true, action: confirmClear },
+        { icon: "percent", label: "act.addDisc", action: openDiscountChooser, disabled: !hasItems },
+        { icon: "pause", label: "act.suspend", action: function () { if (cart.park()) POS.toast(POS.s("park.parked"), { variant: "success", duration: 1800 }); }, disabled: !hasItems },
+        { icon: "trash", label: "cart.clear", danger: true, action: confirmClear, disabled: !hasItems },
       ];
       var wrap = document.createElement("div"); wrap.className = "menu";
       items.forEach(function (it) {
         var b = document.createElement("button"); b.type = "button";
         b.className = "menu__item" + (it.danger ? " danger" : "");
+        if (it.disabled) b.disabled = true;
         b.innerHTML = ic(it.icon, { size: 20 }) + "<span>" + POS.s(it.label) + "</span>";
         b.addEventListener("click", function () { close(); if (it.action) it.action(); else POS.toast(POS.s(it.label) + " · demo", { duration: 1500 }); });
         wrap.appendChild(b);
@@ -1955,8 +2120,8 @@
       var t = POS.terminal();
       var av = document.querySelector(".topbar__user .topbar__avatar"); if (av) av.textContent = initials(t.operatorName);
       var nm = document.querySelector(".topbar__user > span:not(.topbar__avatar):not(.topbar__chev)"); if (nm) nm.textContent = t.operatorName;
-      var co = $("#cartOp"); if (co) co.textContent = t.operatorName;   // operador no talão acompanha a troca
       var st = document.querySelector(".topbar__store"); if (st) st.textContent = (POS.store && POS.store.name) || st.textContent;
+      var ti = $("#topTerminalId"); if (ti) ti.textContent = (t.terminalId || "T1").replace(/^T(\d+)$/, "Terminal $1");
     }
     // troca de operador SEM fechar a caixa; regista handover e carimba as próximas vendas
     /* ---------- Autorização por PIN (governança a morder no fluxo) ---------- */
@@ -2092,13 +2257,9 @@
     });
     $("#searchClear").addEventListener("click", function () { query = ""; $("#search").value = ""; $("#searchWrap").classList.remove("has-value"); $("#search").focus(); renderCatalog(); });
     $("#kbdToggle").addEventListener("click", function () { $("#search").focus(); POS.osk.toggle(); $("#kbdToggle").setAttribute("aria-pressed", String(POS.osk.isOpen())); });
+    $("#btnMore").addEventListener("click", openMoreMenu);
     $("#btnCustomer").addEventListener("click", openCustomer);
-    $("#docBtn").addEventListener("click", openDocMenu);
-    [["#tbBell","Notificações"],["#tbMsg","Mensagens"]].forEach(function (x) {
-      $(x[0]).addEventListener("click", function () { POS.toast(x[1] + " · demo", { duration: 1400 }); });
-    });
     $("#tbLock").addEventListener("click", lockTerminal);
-    $("#tbTheme").addEventListener("click", function () { openAppearance(); });
     $("#tbUser").addEventListener("click", function () { openUserMenu($("#tbUser")); });
 
     function renderCart() { renderDoc(); renderCustomer(); renderLines(); renderSummary(); }
