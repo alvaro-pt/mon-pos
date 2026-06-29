@@ -704,6 +704,16 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .docsum__secbtn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; min-height:62px; min-width:0; padding:8px 6px; font-size:var(--fs-xs); font-weight:700; text-align:center; line-height:1.15; }
 .docsum__secbtn .ic-svg { color:var(--ink-600); flex:none; }
 .docsum__secbtn span { display:block; }
+/* Converter para NC — ação fiscal distinta (outline danger), separada das de impressão */
+.docsum__nc { min-height:48px; margin-top:var(--sp-1); font-weight:700; color:var(--danger-600);
+  background:var(--surface); border:1.5px solid color-mix(in srgb, var(--danger-500) 40%, var(--surface)); }
+.docsum__nc:hover { background:color-mix(in srgb, var(--danger-500) 8%, var(--surface)); }
+.docsum__nc .ic-svg { color:var(--danger-600); }
+/* chips de motivo da NC */
+.nc-reasons { display:flex; flex-wrap:wrap; gap:var(--sp-2); margin-top:var(--sp-2); }
+.nc-chip { padding:8px 13px; border-radius:var(--r-pill); border:1.5px solid var(--line); background:var(--surface); color:var(--ink-700); font-weight:600; font-size:var(--fs-sm); }
+.nc-chip:hover { border-color:var(--brand-400); }
+.nc-chip.is-on { background:var(--brand-50); border-color:var(--brand-500); color:var(--brand-700); }
 
 /* troca de operador */
 .op-list { display:flex; flex-direction:column; gap:6px; margin:var(--sp-2) 0 var(--sp-3); max-height:42vh; overflow-y:auto; }
@@ -750,7 +760,7 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .lock-op { display:flex; align-items:center; justify-content:center; gap:12px; margin:12px 0 4px; }
 .lock-op .op-ava { width:48px; height:48px; font-size:16px; }
 .lock-opname { font-size:var(--fs-xl); font-weight:700; color:var(--ink-900); }
-.lock-pinhint { text-align:center; color:var(--ink-600); font-size:var(--fs-sm); margin-bottom:8px; }
+.lock-pinhint { text-align:center; color:var(--ink-600); font-size:var(--fs-base); margin-bottom:8px; }
 .lk-dots { display:flex; justify-content:center; gap:12px; margin:14px 0 18px; }
 .lk-dot { width:13px; height:13px; border-radius:50%; border:2px solid var(--line-strong); transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
 .lk-dot.is-on { background:var(--brand-600); border-color:var(--brand-600); }

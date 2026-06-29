@@ -111,6 +111,8 @@ window.POS = window.POS || {};
         '<div class="doc-row"><span>' + docNo(sale) + "</span><span>" + dt + "</span></div>" +
         '<div class="doc-row"><span>' + s("set.operator") + ": " + (operatorName || "—") + "</span><span>" + s("z.terminal") + " " + (terminalId || "—") + "</span></div>" +
         (showClient ? '<div class="doc-row"><span>' + s("doc.client") + ": " + POS.t(cust.name) + "</span>" + (sale.nif ? "<span>" + s("doc.nif") + " " + sale.nif + "</span>" : "") + "</div>" : "") +
+        (docType === "creditNote" && sale.relatedLabel ? '<div class="doc-row"><span>' + s("nc.origin") + ": " + sale.relatedLabel + "</span></div>" +
+          (sale.reason ? '<div class="doc-row"><span>' + s("nc.reason") + ": " + sale.reason + "</span></div>" : "") : "") +
       "</div>";
 
     var lines = (sale.lines || []).map(function (l) {
@@ -172,6 +174,24 @@ window.POS = window.POS || {};
   };
   POS.docCode = function (type) { return DOC_CODE[type] || "DOC"; };
   POS.docLabel = function (doc) { return docNo(doc); };   // TIPO série/número (ex. FS 2026/1042)
+  POS.canCreditNote = function (doc) { var t = doc.docType || doc.type; return t === "simplified" || t === "invoiceReceipt" || t === "invoice" || t === "receipt"; };
+  // emite uma Nota de Crédito (documento novo, imutável) que referencia o original
+  POS.emitCreditNote = function (doc, opts) {
+    opts = opts || {};
+    var ncCount = POS.documents.filter(function (d) { return (d.type || d.docType) === "creditNote"; }).length;
+    var nc = {
+      id: "nc" + Date.now(), type: "creditNote", number: ncCount + 1, seriesId: "2026",
+      customerId: doc.customerId, nif: doc.nif,
+      operatorName: (POS.terminal ? POS.terminal().operatorName : doc.operatorName),
+      terminalId: doc.terminalId || (POS.terminal ? POS.terminal().terminalId : ""),
+      certified: true, ts: Date.now(),
+      lines: JSON.parse(JSON.stringify(doc.lines || [])),
+      payments: doc.payments ? JSON.parse(JSON.stringify(doc.payments)) : null,
+      relatedLabel: POS.docLabel(doc), relatedId: doc.id, reason: opts.reason || "",
+    };
+    POS.documents.unshift(nc);
+    return nc;
+  };
   POS.docCodeColor = function (type) { return CODE_COLOR[POS.docCode(type)] || "var(--ink-500)"; };
 
   /** Imprime o documento (isola via .doc-print + @media print). */

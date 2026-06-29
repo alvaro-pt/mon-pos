@@ -773,9 +773,11 @@
         tot.taxBreakdown.map(function (g) { return '<div class="kv"><span>' + POS.s(TAX_NAME[g.rate] || "tax.normal") + '</span><span class="num">' + POS.money(g.tax) + "</span></div>"; }).join("");
 
       var wrap = document.createElement("div"); wrap.className = "docsum" + (opts.inline ? " docsum--inline" : "");
+      var isNC = (d.type || d.docType) === "creditNote";
       wrap.innerHTML =
         '<div class="docsum__head"><h3>' + POS.s("doc.summaryOf") + " " + POS.docLabel(d) + "</h3>" +
-          '<div class="docsum__sub">' + POS.s("doc.contributor") + ": " + POS.t(cust.name) + "</div></div>" +
+          '<div class="docsum__sub">' + POS.s("doc.contributor") + ": " + POS.t(cust.name) + "</div>" +
+          (isNC && d.relatedLabel ? '<div class="docsum__sub">' + POS.s("nc.origin") + ": " + d.relatedLabel + (d.reason ? " · " + POS.s("nc.reason") + ": " + d.reason : "") + "</div>" : "") + "</div>" +
         '<div class="docsum__body"></div>' +
         '<div class="docsum__total"><span>' + POS.s("doc.grandTotal") + '</span><span class="num">' + POS.money(tot.totalCents) + "</span></div>" +
         '<div class="docsum__foot">' +
@@ -785,6 +787,7 @@
             '<button class="btn docsum__secbtn" data-a="email">' + ic("mail", { size: 20 }) + "<span>" + POS.s("doc.email") + "</span></button>" +
             '<button class="btn docsum__secbtn" data-a="gift">' + ic("ticket", { size: 20 }) + "<span>" + POS.s("doc.giftReceipt") + "</span></button>" +
           "</div>" +
+          (POS.canCreditNote(d) ? '<button class="btn btn--block docsum__nc" data-a="nc">' + ic("corner-up-left", { size: 18 }) + " " + POS.s("doc.toNc") + "</button>" : "") +
         "</div>";
       // monta os blocos na ordem pedida
       var body = wrap.querySelector(".docsum__body");
@@ -800,7 +803,42 @@
       wrap.querySelector('[data-a="gift"]').addEventListener("click", function () { POS.printDoc(d, { format: "oferta" }); POS.toast(POS.s("doc.giftPrinted"), { duration: 1500 }); });
       wrap.querySelector('[data-a="talao"]').addEventListener("click", function () { POS.printDoc(d, { format: "talao" }); POS.toast(POS.s("doc.printed"), { variant: "success", duration: 1500 }); });
       wrap.querySelector('[data-a="email"]').addEventListener("click", function () { emailDoc(d); });
+      var ncBtn = wrap.querySelector('[data-a="nc"]');
+      if (ncBtn) ncBtn.addEventListener("click", function () { convertToNC(d); });
       return wrap;
+    }
+    // Converter para Nota de Crédito — motivo + confirmação irreversível (Onda B)
+    function convertToNC(d) {
+      var reason = "";
+      var REASONS = ["nc.reason.return", "nc.reason.cancel", "nc.reason.error"];
+      var wrap = document.createElement("div"); wrap.className = "sheet";
+      wrap.innerHTML = "<h3>" + POS.s("nc.title") + "</h3>" +
+        "<div class='sheet__sub'>" + POS.s("nc.hint") + " · " + POS.s("nc.origin") + ": " + POS.docLabel(d) + "</div>" +
+        '<div class="nc-reasons">' + REASONS.map(function (r) { return '<button class="nc-chip" type="button" data-r="' + r + '">' + POS.s(r) + "</button>"; }).join("") + "</div>" +
+        '<label class="ff" style="margin-top:var(--sp-3)"><span>' + POS.s("nc.reason") + '</span>' +
+          '<textarea id="ncNote" class="ff__in" rows="2" style="height:auto;padding:10px 12px" placeholder="' + POS.s("nc.reasonPick") + '"></textarea></label>' +
+        '<div class="sheet__foot"><button class="btn" data-k="cancel">' + POS.s("act.cancel") + "</button>" +
+        '<button class="btn btn--danger-solid" data-k="ok" disabled>' + POS.s("nc.emit") + "</button></div>";
+      var close = POS.openModal(wrap, { label: POS.s("nc.title"), noClose: true, onClose: function () { POS.osk.close(); } });
+      var note = wrap.querySelector("#ncNote"), ok = wrap.querySelector('[data-k="ok"]');
+      function sync() { reason = note.value.trim(); ok.disabled = !reason; }
+      note.addEventListener("focus", function () { POS.osk.open(); });
+      note.addEventListener("input", sync);
+      wrap.querySelectorAll(".nc-chip").forEach(function (b) {
+        b.addEventListener("click", function () {
+          wrap.querySelectorAll(".nc-chip").forEach(function (x) { x.classList.remove("is-on"); });
+          b.classList.add("is-on"); note.value = POS.s(b.dataset.r); sync();
+        });
+      });
+      wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
+      var emitting = false;
+      ok.addEventListener("click", function () {
+        if (emitting || !reason) return; emitting = true; ok.disabled = true; POS.osk.close();
+        var nc = POS.emitCreditNote(d, { reason: reason });
+        close();
+        POS.toast(POS.s("nc.emitted") + " · " + POS.docLabel(nc), { variant: "success", duration: 2000 });
+        openDocPreview(nc);   // mostra a NC emitida
+      });
     }
     function openDocPreview(d) { POS.openDrawer(buildDocPreview(d), { label: POS.s("doc.preview"), onClose: function () { POS.osk.close(); } }); }
     function emailDoc(d) {
