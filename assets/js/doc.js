@@ -13,7 +13,7 @@ window.POS = window.POS || {};
 
   function money(c) { return POS.money(c); }
   function s(k) { return POS.s(k); }
-  function lineQty(l) { return l.weighable ? l.weight : l.qty; }
+  function lineQty(l) { return l.qty; }   // o carrinho guarda a qty/peso em l.qty (não há l.weight)
   function lineGross(l) {
     var g = Math.round(lineQty(l) * l.unitPriceCents);
     if (l.discount) {

@@ -115,10 +115,10 @@ window.POS = window.POS || {};
 
   /* ---- Operadores do terminal (roster; PIN simulado p/ protótipo) ---- */
   POS.operators = [
-    { id: "op1", name: "Ana Sousa",     role: { pt: "Operadora",  en: "Operator" },   pin: "1234" },
-    { id: "op2", name: "João Pereira",  role: { pt: "Operador",   en: "Operator" },   pin: "2345" },
-    { id: "op3", name: "Rita Marques",  role: { pt: "Supervisora", en: "Supervisor" }, pin: "3456" },
-    { id: "op4", name: "Carlos Dias",   role: { pt: "Gerente",    en: "Manager" },    pin: "9999" },
+    { id: "op1", name: "Ana Sousa",     role: { pt: "Operadora",  en: "Operator" },   pin: "1234", tier: "operator" },
+    { id: "op2", name: "João Pereira",  role: { pt: "Operador",   en: "Operator" },   pin: "2345", tier: "operator" },
+    { id: "op3", name: "Rita Marques",  role: { pt: "Supervisora", en: "Supervisor" }, pin: "3456", tier: "supervisor" },
+    { id: "op4", name: "Carlos Dias",   role: { pt: "Gerente",    en: "Manager" },    pin: "9999", tier: "manager" },
   ];
 
   /* ---- Mesas (preparado p/ restauração) ---- */
