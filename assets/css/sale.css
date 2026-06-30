@@ -68,6 +68,8 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
   color:#fff; font-weight:600; font-size:var(--fs-sm); height:44px;
   transition:background var(--t-fast) var(--ease);
 }
+.topbar__user-info { display:flex; flex-direction:column; align-items:flex-start; gap:0; line-height:1.2; }
+.topbar__user-terminal { font-size:10px; font-weight:500; color:var(--shell-muted); }
 .topbar__user:hover { background:rgba(255,255,255,.1); }
 .topbar__chev { color:var(--shell-muted); display:inline-grid; transition:transform var(--t-fast) var(--ease); }
 .topbar__user[aria-expanded="true"] .topbar__chev { transform:rotate(180deg); }
@@ -455,22 +457,104 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 
 /* rodapé / totais (sticky) */
 .summary { border-top:1px solid var(--line); padding:var(--sp-2) var(--sp-4) var(--sp-3); background:var(--surface); }
-.summary__rows { margin-bottom:var(--sp-1); }
+.summary__rows { margin-top:var(--sp-1); }
 .summary__row { display:flex; align-items:center; justify-content:space-between; font-size:var(--fs-sm); color:var(--ink-700); padding:3px 0; }
 .summary__row .val { font-variant-numeric:tabular-nums; font-weight:600; }
 .summary__disc { color:var(--brand-700); font-weight:700; }
+/* Grupo de descontos com label */
+.summary__disc-group { margin-top:var(--sp-1); }
+.summary__disc-group-label {
+  display:block; font-size:10px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.07em; color:var(--ink-400); padding:var(--sp-1) 0 2px;
+}
+/* Linhas de desconto removível */
+.summary__disc-row { gap:0; }
+.summary__disc-del {
+  display:grid; place-items:center; flex-shrink:0;
+  width:44px; height:44px; margin-left:calc(-1 * var(--sp-2));
+  border-radius:var(--r-md); border:none; background:transparent;
+  color:var(--ink-400); cursor:pointer;
+  transition:background var(--t-fast), color var(--t-fast);
+}
+.summary__disc-del:hover { background:var(--danger-50,#fef2f2); color:var(--danger-500); }
+.summary__disc-del:focus-visible { outline:2px solid var(--brand-400); outline-offset:2px; }
+.summary__disc-name { flex:1; }
+.summary__disc-btn {
+  display:flex; align-items:center; gap:6px; width:100%;
+  padding:7px var(--sp-1); border-radius:var(--r-md);
+  font-size:var(--fs-sm); font-weight:600; color:var(--ink-500);
+  border:1px dashed var(--line); background:transparent;
+  transition:color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.summary__disc-btn:hover { color:var(--brand-600); border-color:var(--brand-400); background:var(--brand-50); }
 
-/* barra de ações inferior (estilo Moloni) */
+/* barra de ações inferior — fast payment */
+.pay-fast { display:flex; flex-direction:column; gap:var(--sp-2); margin-top:var(--sp-3); }
+.pay-fast__total {
+  display:flex; align-items:baseline; justify-content:space-between;
+  padding:0 2px; color:var(--ink-700);
+}
+.pay-fast__total span:first-child { font-size:var(--fs-sm); color:var(--ink-500); }
+.pay-fast__amount { font-size:var(--fs-2xl); font-weight:900; font-variant-numeric:tabular-nums; color:var(--ink-900); }
+.pay-fast__btns { display:flex; gap:var(--sp-2); }
+.pay-fast__btn {
+  flex:1; min-height:64px; border-radius:var(--r-lg);
+  display:flex; align-items:center; justify-content:center; gap:var(--sp-2);
+  font-size:var(--fs-base); font-weight:800;
+  border:none; color:#fff; box-shadow:var(--sh-md);
+  transition:filter var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+}
+.pay-fast__btn:hover { filter:brightness(1.08); }
+.pay-fast__btn:active { transform:scale(.97); box-shadow:var(--sh-sm); }
+.pay-fast__btn:disabled { opacity:.4; pointer-events:none; box-shadow:none; }
+#btnPayCash { background:var(--shell-700,#374151); }
+#btnPayCash:hover { background:var(--shell-800,#1f2937); filter:none; }
+#btnPayCard { background:var(--brand-600); }
+#btnPayCard:hover { background:var(--brand-700); filter:none; }
+.pay-fast__more {
+  display:flex; align-items:center; justify-content:center; gap:var(--sp-2); width:100%;
+  min-height:44px; border-radius:var(--r-lg);
+  border:1px solid var(--line); background:transparent;
+  font-size:var(--fs-sm); font-weight:600; color:var(--ink-600);
+  cursor:pointer; transition:border-color var(--t-fast), background var(--t-fast), color var(--t-fast);
+}
+.pay-fast__more:hover { border-color:var(--ink-400); background:var(--surface-2); color:var(--ink-900); }
+.pay-fast__more:active { transform:scale(.98); }
 
-.pay { width:100%; min-height:72px; border-radius:var(--r-lg); display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3);
-  padding:0 var(--sp-5); background:var(--brand-600); color:#fff; font-size:var(--fs-lg); font-weight:800; box-shadow:var(--sh-md);
-  transition:transform var(--t-fast) var(--ease), background var(--t-fast) var(--ease); }
-.pay:hover { background:var(--brand-700); }
-.pay:active { transform:scale(.98); }
-.pay:disabled { background:var(--surface-3); color:var(--ink-300); box-shadow:none; opacity:1; }
-.pay__left { display:flex; align-items:center; gap:var(--sp-3); }
-.pay__count { font-size:var(--fs-sm); font-weight:600; opacity:.9; }
-.pay__amount { font-variant-numeric:tabular-nums; font-size:var(--fs-xl); }
+/* Modal pós-venda rápida */
+.postsale { width:100%; padding:var(--sp-5); display:flex; flex-direction:column; gap:var(--sp-4); }
+.postsale__head { display:flex; flex-direction:column; align-items:center; gap:var(--sp-2); text-align:center; padding:var(--sp-2) 0; }
+.postsale__badge { width:64px; height:64px; border-radius:50%; background:var(--pay-50,#f0fdf4); color:var(--pay-600,#16a34a); display:grid; place-items:center; }
+.postsale__head h3 { font-size:var(--fs-xl); font-weight:800; }
+.postsale__ref { font-size:var(--fs-sm); color:var(--ink-500); }
+.postsale__actions { display:flex; gap:var(--sp-2); }
+.postsale__act {
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:var(--sp-2);
+  padding:var(--sp-4) var(--sp-2); border-radius:var(--r-lg);
+  border:2px solid var(--line); background:var(--surface-2); cursor:pointer;
+  font-size:var(--fs-xs); font-weight:600; color:var(--ink-700); line-height:1.3; text-align:center;
+  transition:border-color var(--t-fast), background var(--t-fast), color var(--t-fast);
+}
+.postsale__act:hover { border-color:var(--brand-300); background:var(--brand-50); color:var(--brand-700); }
+.postsale__act[aria-pressed="true"] { border-color:var(--brand-500); background:var(--brand-50); color:var(--brand-700); }
+.postsale__panel { display:flex; flex-direction:column; gap:var(--sp-3); }
+/* E-mail */
+.ps-email { display:flex; flex-direction:column; gap:var(--sp-2); }
+.ps-email__label { font-size:var(--fs-xs); font-weight:600; color:var(--ink-500); text-transform:uppercase; letter-spacing:.05em; }
+.ps-email__row { display:flex; gap:var(--sp-2); }
+.ps-email__row .ff__in { flex:1; }
+/* Talão de oferta */
+.ps-offer { display:flex; flex-direction:column; gap:var(--sp-3); }
+.ps-offer__hint { font-size:var(--fs-sm); color:var(--ink-500); }
+.ps-offer__list { display:flex; flex-direction:column; gap:2px; }
+.ps-offer__row {
+  display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-2) var(--sp-3);
+  border-radius:var(--r-md); cursor:pointer; transition:background var(--t-fast);
+}
+.ps-offer__row:hover { background:var(--surface-2); }
+.ps-offer__chk { width:18px; height:18px; accent-color:var(--brand-600); flex-shrink:0; cursor:pointer; }
+.ps-offer__name { flex:1; font-size:var(--fs-sm); font-weight:500; }
+.ps-offer__qty { font-size:var(--fs-xs); color:var(--ink-500); font-variant-numeric:tabular-nums; }
 
 /* ---------- Dialog de detalhes do produto ---------- */
 .pd { width:min(560px,100%); }
@@ -499,6 +583,14 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .varopt[aria-pressed="true"] { border-color:var(--brand-400); background:var(--brand-50); color:var(--brand-700); }
 .pd__foot { padding:var(--sp-4) var(--sp-5); border-top:1px solid var(--line); display:flex; gap:var(--sp-2); }
 .pd__foot .btn { flex:1; }
+.pd__fav-btn {
+  flex:0 0 44px !important; width:44px; padding:0;
+  color:var(--ink-400); border-color:transparent; background:transparent;
+}
+.pd__fav-btn svg { transition:fill var(--t-fast), stroke var(--t-fast), color var(--t-fast); }
+.pd__fav-btn:hover { color:var(--ink-600); background:var(--surface-2); }
+.pd__fav-btn[aria-pressed="true"] { color:#f59e0b; }
+.pd__fav-btn[aria-pressed="true"] svg { fill:#f59e0b; stroke:#f59e0b; }
 
 /* ---------- Keypad / sheets (reaproveitado) ---------- */
 .sheet { padding:var(--sp-5); }
@@ -732,6 +824,21 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .cust-name { display:block; font-size:var(--fs-base); font-weight:600; color:var(--ink-900); }
 .cust-meta { display:flex; gap:var(--sp-3); flex-wrap:wrap; font-size:var(--fs-sm); color:var(--ink-500); margin-top:2px; }
 .cust-empty { padding:var(--sp-5) 0; text-align:center; }
+
+/* Terminal switcher */
+.term-group { padding:0 var(--sp-5) var(--sp-3); }
+.term-group + .term-group { border-top:1px solid var(--line); padding-top:var(--sp-3); }
+.term-group__label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-400); padding:var(--sp-2) 0 var(--sp-1); }
+.term-row { display:flex; align-items:center; gap:var(--sp-3); width:100%; padding:12px var(--sp-3); border-radius:var(--r-md); border:none; background:transparent; cursor:pointer; text-align:left; transition:background var(--t-fast); }
+.term-row:not(.term-row--active):hover { background:var(--surface-2); }
+.term-row--active { background:var(--brand-50); cursor:default; }
+.term-row__ic { width:40px; height:40px; border-radius:var(--r-md); background:var(--surface-3); display:grid; place-items:center; flex-shrink:0; color:var(--ink-500); }
+.term-row--active .term-row__ic { background:var(--brand-100); color:var(--brand-600); }
+.term-row__info { flex:1; min-width:0; }
+.term-row__info b { display:block; font-size:var(--fs-base); font-weight:700; color:var(--ink-900); }
+.term-row__info span { font-size:var(--fs-sm); color:var(--ink-500); }
+.term-row__check { color:var(--brand-600); display:grid; place-items:center; }
+
 
 /* secção Docs (rail) — master-detail: lista clicável + detalhe inline que troca */
 .set-body--docs { max-width:none; padding:var(--sp-5); }

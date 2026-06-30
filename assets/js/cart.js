@@ -18,6 +18,7 @@ window.POS = window.POS || {};
     customerId: "final",
     docType: "receipt", // receipt | invoice
     discount: null,     // desconto GLOBAL do documento: {type:'pct'|'abs', value} (abs em cêntimos)
+    vouchers: [],       // talões de desconto aplicados: [{ code, type, value, valueCents, label }]
     saleNo: 1,
     payments: [],       // { method:'cash'|'card'|'mbway', amountCents, ts }
     attempts: [],       // tentativas de cartão recusadas/canceladas (preparado): { method, amountCents, result, ts }
@@ -34,6 +35,7 @@ window.POS = window.POS || {};
         state = JSON.parse(raw);
         if (!Array.isArray(state.payments)) state.payments = [];
         if (!Array.isArray(state.attempts)) state.attempts = [];
+        if (!Array.isArray(state.vouchers)) state.vouchers = [];
         state.lines.forEach(function (l) { if (l.key >= seq) seq = l.key + 1; });
       }
     } catch (e) {}
@@ -132,12 +134,24 @@ window.POS = window.POS || {};
       emit();
     },
 
-    clear: function () { state.lines = []; state.discount = null; state.payments = []; state.attempts = []; emit(); },
+    clear: function () { state.lines = []; state.discount = null; state.vouchers = []; state.payments = []; state.attempts = []; emit(); },
 
     setCustomer: function (id) { state.customerId = id; emit(); },
     setDocType: function (t) { state.docType = t; emit(); },
     setDiscount: function (d) { state.discount = d; emit(); },         // desconto global do documento
     applyDiscountToAllLines: function (d) { state.lines.forEach(function (l) { l.discount = d ? { type: d.type, value: d.value } : null; }); emit(); },
+
+    addVoucher: function (code) {
+      var v = (POS.vouchers || []).find(function (x) { return x.code.toUpperCase() === code.toUpperCase(); });
+      if (!v) return "invalid";
+      if (state.vouchers.find(function (x) { return x.code === v.code; })) return "duplicate";
+      state.vouchers.push({ code: v.code, type: v.type, value: v.value || 0, valueCents: v.valueCents || 0, label: v.label });
+      emit(); return "ok";
+    },
+    removeVoucher: function (code) {
+      state.vouchers = state.vouchers.filter(function (x) { return x.code !== code; });
+      emit();
+    },
 
     /* ---- pagamentos da venda atual (módulo puro, React-friendly) ----
        payments[] = lista de pagamentos CONFIRMADOS (split). Derivamos pago/falta/troco
@@ -194,11 +208,13 @@ window.POS = window.POS || {};
         customerId: state.customerId,
         nif: cust && cust.nif ? cust.nif : null,
         lines: JSON.parse(JSON.stringify(state.lines)),
+        vouchers: state.vouchers.slice(),
         totals: {
           totalCents: t.totalCents,
           taxCents: t.taxCents,
           subtotalCents: t.subtotalCents,
           discountCents: t.discountCents,
+          vouchersCents: t.vouchersCents,
           taxBreakdown: JSON.parse(JSON.stringify(t.taxBreakdown)),
         },
         payments: JSON.parse(JSON.stringify(state.payments)),
@@ -219,6 +235,7 @@ window.POS = window.POS || {};
         lines: JSON.parse(JSON.stringify(state.lines)),
         customerId: state.customerId, docType: state.docType,
         discount: state.discount ? { type: state.discount.type, value: state.discount.value } : null,
+        vouchers: state.vouchers.slice(),
         payments: JSON.parse(JSON.stringify(state.payments)),
         saleNo: state.saleNo, ts: Date.now(),
       };
@@ -229,6 +246,7 @@ window.POS = window.POS || {};
       state.customerId = snap.customerId || "final";
       state.docType = snap.docType || "receipt";
       state.discount = snap.discount || null;
+      state.vouchers = snap.vouchers || [];
       state.payments = Array.isArray(snap.payments) ? JSON.parse(JSON.stringify(snap.payments)) : [];
       state.attempts = [];
       state.lines.forEach(function (l) { if (l.key >= seq) seq = l.key + 1; });
@@ -283,24 +301,36 @@ window.POS = window.POS || {};
         if (state.discount.type === "pct") globalDisc = Math.round(totalGross * Math.min(100, state.discount.value) / 100);
         else globalDisc = Math.min(totalGross, Math.round(state.discount.value)); // value em cêntimos
       }
-      // distribui o desconto global proporcionalmente por cada escalão de IVA (resto na última)
+      // vouchers: aplicados sobre o total após desconto global
+      var voucherDisc = 0;
+      if (state.vouchers.length && totalGross > 0) {
+        var base = totalGross - globalDisc;
+        state.vouchers.forEach(function (v) {
+          if (v.type === "pct") voucherDisc += Math.round(base * Math.min(100, v.value) / 100);
+          else voucherDisc += v.valueCents;
+        });
+        voucherDisc = Math.min(voucherDisc, Math.max(0, base));
+      }
+      var totalAllDisc = globalDisc + voucherDisc;
+      // distribui o desconto total (global + vouchers) proporcionalmente por cada escalão de IVA (resto na última)
       var keys = Object.keys(groups).sort(function (a, b) { return groups[b].rate - groups[a].rate; });
       var distributed = 0;
       var taxBreakdown = keys.map(function (k, i) {
         var g = groups[k];
-        var gd = (i === keys.length - 1) ? (globalDisc - distributed) : Math.round(globalDisc * g.gross / totalGross);
+        var gd = (i === keys.length - 1) ? (totalAllDisc - distributed) : Math.round(totalAllDisc * g.gross / totalGross);
         distributed += gd;
         var net = g.gross - gd;
-        var base = Math.round(net / (1 + g.rate / 100));
-        return { rate: g.rate, base: base, tax: net - base, gross: net };
+        var taxBase = Math.round(net / (1 + g.rate / 100));
+        return { rate: g.rate, base: taxBase, tax: net - taxBase, gross: net };
       });
 
       var taxTotal = taxBreakdown.reduce(function (s, g) { return s + g.tax; }, 0);
-      var total = totalGross - globalDisc;
+      var total = totalGross - totalAllDisc;
       return {
         itemCount: POS.cart.itemCount(),
-        discountCents: totalDiscount + globalDisc,
+        discountCents: totalDiscount + totalAllDisc,
         globalDiscountCents: globalDisc,
+        vouchersCents: voucherDisc,
         subtotalCents: total - taxTotal, // base tributável
         taxCents: taxTotal,
         totalCents: total,

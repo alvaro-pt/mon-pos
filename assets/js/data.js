@@ -104,6 +104,14 @@ window.POS = window.POS || {};
     { id: "c3", name: { pt: "Café Central, Lda", en: "Café Central, Lda" }, nif: "509871234" },
   ];
 
+  /* ---- Vouchers / talões de desconto ---- */
+  POS.vouchers = [
+    { code: "DESC10",  type: "pct",  value: 10,   label: { pt: "10% de desconto",  en: "10% off" } },
+    { code: "PROMO5",  type: "abs",  valueCents: 500, label: { pt: "5 € de desconto",   en: "€5 off" } },
+    { code: "MOLONI2", type: "abs",  valueCents: 200, label: { pt: "2 € de desconto",   en: "€2 off" } },
+    { code: "VIP20",   type: "pct",  value: 20,   label: { pt: "20% VIP",           en: "20% VIP" } },
+  ];
+
   /* ---- Emitente (loja) — dados para o documento fiscal ---- */
   POS.store = {
     name: "Mercearia Avenida",
