@@ -88,8 +88,8 @@ assets/
     i18n.js           Strings PT/EN. Toda a UI tem chave PT e EN.
     icons.js          Set de ícones SVG inline (Tabler Icons, MIT, inlined). POS.icon('nome', {size}). SEM emojis na UI.
     ui.js             dev-nav, idioma, toasts, POS.money, POS.keypad (numérico; opção mask p/ PIN), POS.osk (QWERTY on-screen), modais (foco + inert).
-    cart.js           Estado da venda + POS.cash (estado da caixa) + persistência + commitSale.
-    doc.js            Render do DOCUMENTO de venda (POS.buildSaleDoc: talão/A4/oferta) + POS.printDoc + ATCUD/QR simulados. Lógica pura.
+    cart.js           Estado da venda + POS.cash (estado da caixa) + POS.policy/opPrefs (governança) + POS.appendSale + POS.report (consolidação multi-terminal) + persistência + commitSale.
+    doc.js            Render do DOCUMENTO de venda (POS.buildSaleDoc: talão/A4/oferta) + POS.printDoc + POS.emitCreditNote (NC como transação negativa) + ATCUD/QR simulados. Lógica pura.
 ```
 
 > **Tema visual: Grafite & Índigo.** Chrome escuro (topbar/rail) em grafite (`--shell-*`); acento de marca índigo-violeta (`--brand-*`). Verde **sóbrio** (`--pay-*`) reservado ao Pagar/sucesso — não usar como "positivo genérico". Destrutivos irreversíveis (cancelar/limpar venda, confirmar eliminação) a **vermelho sólido + texto branco** (`.btn--danger-solid`); ações que só abrem confirmação ou têm desfazer ficam subtis. Cor de família = **tinta suave** (`color-mix`), não saturada. Tokens em `base.css` — não mudar a paleta por hardcode.
@@ -105,7 +105,9 @@ assets/
 - **Namespace global `POS`** (em `data.js`). Para mudar produtos/preços/IVA, edita `data.js`, **nunca** no HTML.
 - **i18n obrigatório:** toda a string visível passa por `POS.s('chave')` (UI) ou `POS.t({pt,en})` (dados). Nada de texto hardcoded que não traduz. PT é a língua primária.
 - **Moeda e números:** formata **sempre** via helper (`POS.money(cents)`), nunca concatenando `€` à mão. Trabalha em **cêntimos (inteiros)** internamente para evitar erros de vírgula flutuante; só formata na fronteira de apresentação.
-- **Estado partilhado via `sessionStorage`:** `pos_lang` (`pt`/`en`), `pos_cart` (venda atual), `pos_payment` (payload para o ecrã de pagamento). Chaves com prefixo `pos_`. **Exceção persistente (`localStorage`):** `pos_sales` (transações imutáveis) e `pos_cash_<terminalId>` (estado da caixa) — o turno transcende a sessão do browser (ver §5.1).
+- **Estado partilhado via `sessionStorage`:** `pos_lang` (`pt`/`en`), `pos_cart` (venda atual), `pos_payment` (payload para o ecrã de pagamento). Chaves com prefixo `pos_`. **Exceção persistente (`localStorage`):** `pos_sales` (transações imutáveis), `pos_cash_<terminalId>` (estado da caixa), `pos_store_policy` (política da loja, `POS.policy`) e `pos_op_prefs_<id>` (preferências do operador) — transcendem a sessão (ver §5.1 e §5.2).
+- **Governança (§5.2):** níveis Plataforma > Gerente > Terminal > Operador. `POS.policy` (fonte única da política da loja) + `tier` no roster (`operator`/`supervisor`/`manager`) + `POS.policy.can(opId, ação)`. Definições trancadas mostram cadeado "Controlado pelo gerente"; **Modo Gerência** (tab Definições) abre com PIN de gerente. Idioma/tema viajam com o operador (`POS.opPrefs`). **As permissões MORDEM no fluxo** via `requirePermission(ação, onGranted)`/`requireTier`: desconto > `discountMaxPct`, emitir NC, sangria/entrada (`cashInOut`) e anular venda com artigos (`voidSale`) pedem **PIN de supervisor/gerente** na hora (passa direto se o operador já tiver tier). **Falta (decisão):** a NC ainda não é transação em `pos_sales` (não entra no Z nem na reconciliação de caixa) — ver §6.
+- **Documentos = fonte fundida:** a lista de Documentos lê `POS.sales()` (vendas reais emitidas) **+** `POS.documents` (histórico seed + NCs), recentes em cima. Vendas concluídas aparecem logo.
 - **Padrão de render:** cada página tem `render()` que injeta HTML nos contentores e re-renderiza em `POS.onLangChange` (e em mudanças do carrinho via `POS.onCartChange`). Segue este padrão; não espalhes manipulação de DOM avulsa.
 - **`dev-nav`** no topo é andaime de protótipo (atalho entre ecrãs para a demo). Mantém-na funcional ao adicionar páginas; é ignorada na avaliação de UX do *produto*.
 - **Não duplicar** nav, toasts, formatação, gestão de modal — reutiliza os helpers de `ui.js`.
@@ -136,7 +138,8 @@ Ordem de construção (cada um navegável e demo-ready antes do seguinte):
 3. **Documento de venda (talão/recibo)** — ✅ Onda A. Na lista de **Documentos**, tocar abre **preview no drawer** com blocos colapsáveis (Clientes · Artigos · Impostos · Pagamentos · Resumo) + ações **E-mail · Imprimir PDF (A4) · Talão de troca (oferta) · Talão de venda (80mm)**. Render partilhado `POS.buildSaleDoc` (talão/A4/oferta) com ATCUD/QR simulados. No fim da venda, o talão sai **direto** (toast) se a definição "Imprimir talão automaticamente" estiver ligada (Definições › Terminal). **Converter para NC** disponível no preview (ver item 6). NOTA: não há "ecrã de recibo" no funil — o documento sai da venda; preview/reimpressão vivem em Documentos.
 4. **Mesas** (`tables.html`) — **adiado** (ativa a vertente restauração): mapa de mesas, abrir/transferir/dividir conta. Stub de dados comentado em `data.js`; reativar = descomentar `POS.tables` + religar nav (rail/dev-nav) + i18n `nav.tables`.
 5. **Estado da caixa (máquina de estados)** — ✅ v1 + **resumo Z no fecho**. Fonte única `POS.cash` (`cart.js`), **persistente por terminal** em `localStorage` (`pos_cash_<terminalId>`). Ver regras dedicadas em **§5.1**. Falta: ecrã dedicado `register-close.html`, multi-TPA, histórico de turnos, permissões por perfil. Cliente: modal com pesquisa + formulário expansível (nome/NIF/morada/CP/localidade/país/telefone), com teclado on-screen.
-6. **Devoluções / nota de crédito** — ✅ v1 (Onda B): no preview de um documento convertível (FT/FS/FR/VD), **Converter para NC** pede **motivo** (chips + nota) e emite uma **NC** (`POS.emitCreditNote`) — documento novo imutável que referencia o original (`relatedLabel`/`reason`), com código AT **NC**, série 2026, à frente da lista de Documentos, imprimível (talão mostra "Documento de origem" + motivo). **Falta:** seleção de linhas (devolução parcial); persistência (hoje a NC vive em `POS.documents` em memória).
+6. **Devoluções / nota de crédito** — ✅ v2 (Onda B): no preview de um documento convertível (FT/FS/FR/VD), **Converter para NC** (gated por `creditNote` — pede PIN de supervisor se preciso) pede **motivo** (chips + nota) e emite uma **NC** (`POS.emitCreditNote`) — **transação imutável em `pos_sales`** que referencia o original (`relatedLabel`/`reason`), código AT **NC**, série 2026. **Valores negativos:** desconta no Z e na caixa e **devolve numerário** (reembolso em dinheiro → `payments:[{cash, −total}]`). Aparece na lista de Documentos (com total negativo) e é imprimível. **Falta:** seleção de linhas (devolução parcial).
+7. **Consolidação multi-terminal por loja** — ✅ v1 (gestão): `POS.stores` + `POS.terminals` (cada terminal pertence a uma loja) + `POS.report.consolidated()` que funde vendas reais (`pos_sales`, deste terminal) com `POS.demoSales` (outros terminais) e agrega **por loja → terminal → método/operador** (total, nº vendas, ticket médio). Vista em **Modo Gerência** (`openConsolidation`). **Falta:** fecho do dia consolidado da loja; venda suspensa entre terminais; propagação de preços.
 
 Fluxo nuclear da demo: `index → sale → payment → recibo` (e regresso a `sale` para nova venda).
 
@@ -169,6 +172,7 @@ Não implementamos certificação real, mas o protótipo tem de **transmitir con
 - **Marcas de certificação** (simuladas no recibo): **ATCUD**, **QR code**, indicação "Processado por programa certificado".
 - **Arredondamento:** trabalha em cêntimos; arredonda só na apresentação. IVA calculado de forma consistente para o total bater certo.
 - **Documento imutável após emissão (PT):** depois de emitido, um documento **não pode ser alterado** — nem o NIF/cliente. Não existe "NIF tardio". O NIF é capturado **antes** de emitir (cliente da venda); corrigir = **anular o documento e emitir um novo**. O fecho regista a transação em `pos_sales` (imutável).
+- **Nota de crédito = transação negativa:** corrigir/devolver faz-se emitindo uma **NC** (não se mexe no original). A NC é gravada em `pos_sales` com **totais e pagamentos negativos** → desconta no Z e no esperado da caixa e **devolve numerário** (reembolso em dinheiro). Sinal negativo visível na lista/preview/talão.
 
 ---
 
@@ -184,6 +188,10 @@ Não implementamos certificação real, mas o protótipo tem de **transmitir con
 ### Agentes
 - **`ui-prototyper`** — constrói/refina ecrãs e craft visual.
 - **`ux-reviewer`** — audita usabilidade/acessibilidade/fluxos antes de uma demo (não escreve código).
+- **`pos-product-manager`** / **`pos-operator`** / **`pos-store-manager`** — personas para validar produto, ótica de balcão e ótica de gestão.
+
+### Auditorias (tracking obrigatório)
+Sempre que se faça uma **auditoria** (global ou focada) com os agentes, **regista o resultado** num ficheiro em `.claude/agents/auditorias/` (nome `AAAA-MM-DD-<âmbito>.md`). O ficheiro organiza os achados **por agente** e **por grau de importância** (🔴 crítico / 🟠 alta / 🟡 média) e mantém o **estado de cada um** (✅ resolvido · ⏳ deferido · ↪️ decisão tomada), para haver tracking ao longo do tempo. Ao corrigir achados em rondas seguintes, **atualiza o estado** no respetivo ficheiro (não criar duplicados para a mesma auditoria). Termina sempre com a lista de **pendentes priorizados**.
 
 ---
 

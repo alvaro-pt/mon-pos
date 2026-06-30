@@ -323,6 +323,44 @@ window.POS = window.POS || {};
     return n;
   }
   POS.sales = function () { return readSales(); };
+  POS.appendSale = function (sale) { var l = readSales(); l.push(sale); writeSales(l); return sale; };   // doc imutável (ex. NC)
+
+  /* ---- Consolidação multi-terminal, segmentada por LOJA (camada de gestão) ----
+     Funde vendas reais (pos_sales, deste terminal) + demoSales (outros terminais).
+     Deriva tudo a partir das vendas — não duplica saldos. */
+  function saleTotal(s) { return (s.totals && typeof s.totals.totalCents === "number") ? s.totals.totalCents : 0; }
+  POS.report = {
+    consolidated: function (opts) {
+      opts = opts || {};
+      var all = readSales().concat(POS.demoSales || []);
+      if (opts.sinceTs) all = all.filter(function (s) { return s.ts >= opts.sinceTs; });
+      var stores = (POS.stores || []).map(function (st) {
+        var terms = (POS.terminals || []).filter(function (t) { return t.storeId === st.id; }).map(function (t) {
+          var rows = all.filter(function (s) { return (s.terminalId || "T1") === t.id; });
+          var byMethod = {}, ops = {};
+          rows.forEach(function (s) {
+            (s.payments || []).forEach(function (p) { byMethod[p.method] = (byMethod[p.method] || 0) + p.amountCents; });
+            var on = s.operatorName || "—"; ops[on] = (ops[on] || 0) + saleTotal(s);
+          });
+          return {
+            terminalId: t.id, label: t.label, isCurrent: t.id === (POS.terminal ? POS.terminal().terminalId : "T1"),
+            count: rows.length, totalCents: rows.reduce(function (n, s) { return n + saleTotal(s); }, 0),
+            byMethod: byMethod, operators: Object.keys(ops).map(function (k) { return { name: k, totalCents: ops[k] }; }),
+          };
+        });
+        var byMethod = {};
+        terms.forEach(function (t) { Object.keys(t.byMethod).forEach(function (m) { byMethod[m] = (byMethod[m] || 0) + t.byMethod[m]; }); });
+        return {
+          storeId: st.id, name: st.name, nif: st.nif, terminals: terms,
+          count: terms.reduce(function (n, t) { return n + t.count; }, 0),
+          totalCents: terms.reduce(function (n, t) { return n + t.totalCents; }, 0), byMethod: byMethod,
+        };
+      });
+      var totalCents = stores.reduce(function (n, s) { return n + s.totalCents; }, 0);
+      var count = stores.reduce(function (n, s) { return n + s.count; }, 0);
+      return { stores: stores, totalCents: totalCents, count: count, avgCents: count ? Math.round(totalCents / count) : 0 };
+    },
+  };
 
   /* ---- última venda concluída (para sobreviver a refresh no ecrã de sucesso/troco) ---- */
   POS.lastSale = function () { try { return JSON.parse(sessionStorage.getItem("pos_last_sale") || "null"); } catch (e) { return null; } };
@@ -352,8 +390,45 @@ window.POS = window.POS || {};
   POS.lastMethod = function () { try { return sessionStorage.getItem("pos_last_method") || "cash"; } catch (e) { return "cash"; } };
   POS.setLastMethod = function (m) { try { sessionStorage.setItem("pos_last_method", m); } catch (e) {} };
 
-  /* ---- Definição do terminal: imprimir talão automaticamente no fim da venda (default ON) ---- */
-  POS.autoPrint = function () { try { return sessionStorage.getItem("pos_auto_print") !== "0"; } catch (e) { return true; } };
+  /* =======================================================================
+     GOVERNANÇA — política da loja (gerente) + preferências do operador
+     Níveis: Plataforma > Gerente (pos_store_policy) > Terminal > Operador.
+     ======================================================================= */
+  var POLICY_KEY = "pos_store_policy";
+  var DEFAULT_POLICY = {
+    autoPrintForced: true, autoPrintLocked: true,   // talão sempre impresso (política), trancado
+    discountMaxPct: 10,                              // teto de desconto do operador
+    perm: {                                          // tier mínimo por ação
+      voidSale: "supervisor", creditNote: "supervisor", cashInOut: "operator",
+      nosale: "operator", openCash: "operator", closeCash: "operator",
+      manageRoster: "manager", managerMode: "manager",
+    },
+  };
+  function readPolicy() {
+    try { var raw = localStorage.getItem(POLICY_KEY); if (raw) { var p = JSON.parse(raw); p.perm = Object.assign({}, DEFAULT_POLICY.perm, p.perm || {}); return Object.assign({}, DEFAULT_POLICY, p); } } catch (e) {}
+    return JSON.parse(JSON.stringify(DEFAULT_POLICY));
+  }
+  function writePolicy(p) { try { localStorage.setItem(POLICY_KEY, JSON.stringify(p)); } catch (e) {} }
+  var TIER_RANK = { operator: 0, supervisor: 1, manager: 2 };
+  function opTier(id) { var o = (POS.operators || []).find(function (x) { return x.id === id; }); return (o && o.tier) ? o.tier : "operator"; }
+  POS.policy = {
+    read: readPolicy,
+    get: function (k) { return readPolicy()[k]; },
+    set: function (k, v) { var p = readPolicy(); p[k] = v; writePolicy(p); },
+    isLocked: function (k) { return k === "autoPrint" ? !!readPolicy().autoPrintLocked : false; },
+    can: function (id, action) { var p = readPolicy(); var need = (p.perm && p.perm[action]) || "manager"; return TIER_RANK[opTier(id)] >= TIER_RANK[need]; },
+    tier: opTier,
+  };
+
+  /* ---- Preferências pessoais do operador (viajam com o login): idioma, tema ---- */
+  POS.opPrefs = function (id) { try { return JSON.parse(localStorage.getItem("pos_op_prefs_" + id) || "null"); } catch (e) { return null; } };
+  POS.setOpPrefs = function (id, patch) { try { var cur = POS.opPrefs(id) || {}; localStorage.setItem("pos_op_prefs_" + id, JSON.stringify(Object.assign(cur, patch || {}))); } catch (e) {} };
+
+  /* ---- Definição: imprimir talão auto. Respeita a política da loja (se trancada, manda a política) ---- */
+  POS.autoPrint = function () {
+    var p = readPolicy(); if (p.autoPrintLocked) return !!p.autoPrintForced;
+    try { return sessionStorage.getItem("pos_auto_print") !== "0"; } catch (e) { return true; }
+  };
   POS.setAutoPrint = function (v) { try { sessionStorage.setItem("pos_auto_print", v ? "1" : "0"); } catch (e) {} };
 
   /* =======================================================================

@@ -73,7 +73,7 @@
         </button>
         <div class="cart__meta">
           <span class="cart__doc" id="docMeta"></span>
-          <span class="cart__doc"><span data-s="cart.soldBy">Operador</span>: <b>Ana S.</b></span>
+          <span class="cart__doc"><span data-s="cart.soldBy">Operador</span>: <b id="cartOp">Ana Sousa</b></span>
         </div>
       </div>
 
@@ -103,7 +103,6 @@
     var selectedLine = null;              // linha selecionada p/ desconto
 
     var DOC_TYPES = ["doc.simplified", "doc.receipt", "doc.invoiceReceipt"];
-    var DOC_PREFIX = { "doc.simplified": "FS", "doc.receipt": "TL", "doc.invoiceReceipt": "FR" };
 
     /* ---------- Relógio + data ---------- */
     function tick() {
@@ -487,8 +486,8 @@
       var t = cart.state.docType || "receipt";
       var key = "doc." + (t === "simplified" ? "simplified" : t === "invoiceReceipt" ? "invoiceReceipt" : "receipt");
       $("#docBtn").innerHTML = "<span>" + POS.s(key) + "</span>" + ic("chevron-down", { size: 18 });
-      var prefix = DOC_PREFIX[key] || "TL";
-      $("#docMeta").innerHTML = ic("check-circle", { size: 16 }) + " <b>" + prefix + " " + cart.state.saleNo + "</b>";
+      var prefix = POS.docCode(t);   // fonte única (FS/VD/FR…), coerente com a lista de documentos
+      $("#docMeta").innerHTML = ic("check-circle", { size: 16 }) + " <b>" + prefix + " " + (POS.terminal().seriesId || "2026") + "/" + cart.state.saleNo + "</b>";
     }
 
     function renderCustomer() {
@@ -621,7 +620,7 @@
       var time = new Date(s.ts).toLocaleString(POS.lang === "pt" ? "pt-PT" : "en-IE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
       var rows = s.lines.map(function (l) {
         var p = POS.getProduct(l.productId);
-        return "<tr><td>" + (p ? POS.t(p.name) : "—") + '</td><td class="r">' + (l.weighable ? l.weight : l.qty) + '</td><td class="r">' + POS.money(cart.lineTotal(l)) + "</td></tr>";
+        return "<tr><td>" + (p ? POS.t(p.name) : "—") + '</td><td class="r">' + l.qty + '</td><td class="r">' + POS.money(cart.lineTotal(l)) + "</td></tr>";
       }).join("");
       var wrap = document.createElement("div"); wrap.className = "docsum docsum--inline";
       wrap.innerHTML =
@@ -661,21 +660,23 @@
     var DOC_DT = { simplified: "doc.simplified", receipt: "doc.receipt", invoiceReceipt: "doc.invoiceReceipt", creditNote: "doc.creditNote" };
     // item de documento (disco código AT + TIPO série/número + total) — toque abre o preview
     function docItemEl(d, onClick) {
+      var dt = d.type || d.docType;   // seed usa `type`, vendas reais (pos_sales) usam `docType`
       var cust = POS.customers.find(function (c) { return c.id === d.customerId; }) || POS.customers[0];
       var time = new Date(d.ts).toLocaleString(POS.lang === "pt" ? "pt-PT" : "en-IE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-      var sub = POS.s(DOC_DT[d.type]) + " · " + POS.t(cust.name) + (d.nif ? " · " + d.nif : "") + " · " + time;
+      var sub = POS.s(DOC_DT[dt] || "doc.receipt") + " · " + POS.t(cust.name) + (d.nif ? " · " + d.nif : "") + " · " + time;
       var b = document.createElement("button"); b.type = "button"; b.className = "clist__item doc-item"; b.dataset.docId = d.id;
-      b.innerHTML = '<span class="doc-code" style="--code-c:' + POS.docCodeColor(d.type) + '">' + POS.docCode(d.type) + "</span>" +
+      b.innerHTML = '<span class="doc-code" style="--code-c:' + POS.docCodeColor(dt) + '">' + POS.docCode(dt) + "</span>" +
         '<span class="doc-item__main"><span class="doc-item__no">' + POS.docLabel(d) + "</span>" +
           '<span class="doc-item__sub">' + sub + "</span></span>" +
-        '<span class="doc-item__total num">' + POS.money(POS.docTotals(d.lines).totalCents) + "</span>";
+        '<span class="doc-item__total num">' + POS.money((d.totals && d.totals.taxBreakdown) ? d.totals.totalCents : POS.docTotals(d.lines).totalCents) + "</span>";
       b.addEventListener("click", function () { if (onClick) onClick(d, b); else openDocPreview(d); });
       return b;
     }
     // lista de documentos com pesquisa + paginação (mesma lógica da lista de movimentos)
     function renderDocList(host, opts) {
       opts = opts || {};
-      var all = POS.documents.slice().sort(function (a, b) { return b.ts - a.ts; });
+      // funde vendas reais emitidas (pos_sales) com o histórico seed, recentes em cima
+      var all = POS.sales().concat(POS.documents).sort(function (a, b) { return b.ts - a.ts; });
       var st = { q: "", size: opts.size || 25, page: 1 };
       host.innerHTML =
         '<div class="cd-search"><input id="dlSearch" type="search" autocomplete="off" placeholder="' + POS.s("doc.search") + '" aria-label="' + POS.s("doc.search") + '" /></div>' +
@@ -690,7 +691,7 @@
         var q = st.q.trim().toLowerCase(); if (!q) return all;
         return all.filter(function (d) {
           var cust = POS.customers.find(function (c) { return c.id === d.customerId; }) || POS.customers[0];
-          var hay = (POS.docLabel(d) + " " + POS.s(DOC_DT[d.type]) + " " + POS.t(cust.name) + " " + (d.nif || "") + " " + POS.money(POS.docTotals(d.lines).totalCents)).toLowerCase();
+          var hay = (POS.docLabel(d) + " " + POS.s(DOC_DT[d.type || d.docType] || "doc.receipt") + " " + POS.t(cust.name) + " " + (d.nif || "") + " " + POS.money(POS.docTotals(d.lines).totalCents)).toLowerCase();
           return hay.indexOf(q) >= 0;
         });
       }
@@ -734,7 +735,7 @@
     function buildDocPreview(d, opts) {
       opts = opts || {};
       var cust = POS.customers.find(function (c) { return c.id === d.customerId; }) || POS.customers[0];
-      var tot = POS.docTotals(d.lines || []);
+      var tot = (d.totals && d.totals.taxBreakdown) ? d.totals : POS.docTotals(d.lines || []);
       function acc(id, titleKey, bodyHtml, open) {
         return '<section class="acc' + (open ? " is-open" : "") + '" data-acc="' + id + '">' +
           '<button class="acc__hd" type="button" aria-expanded="' + (open ? "true" : "false") + '">' +
@@ -747,11 +748,11 @@
       // Artigos — 4 colunas (Designação/Qt/PVP/Total); IVA e Desc na sub-linha (cabe no drawer)
       var artRows = (d.lines || []).map(function (l) {
         var p = POS.getProduct(l.productId); var rate = p ? POS.getTax(p.tax).rate : 0;
-        var gross = Math.round((l.weighable ? l.weight : l.qty) * l.unitPriceCents);
+        var gross = Math.round(l.qty * l.unitPriceCents);
         if (l.discount) gross -= l.discount.type === "pct" ? Math.round(gross * Math.min(100, l.discount.value) / 100) : Math.min(gross, Math.round(l.discount.value));
         var meta = POS.s("doc.vatLetter") + " " + rate + "%" + (l.discount ? " · " + POS.s("doc.disc") + " " + (l.discount.type === "pct" ? l.discount.value + "%" : POS.money(l.discount.value)) : "");
         return '<tr><td><div class="doc-dname">' + (p ? POS.t(p.name) : "—") + '</div><div class="doc-dmeta">' + meta + "</div></td>" +
-          '<td class="r">' + (l.weighable ? l.weight : l.qty) + '</td><td class="r">' + POS.money(l.unitPriceCents) + '</td><td class="r">' + POS.money(gross) + "</td></tr>";
+          '<td class="r">' + l.qty + '</td><td class="r">' + POS.money(l.unitPriceCents) + '</td><td class="r">' + POS.money(gross) + "</td></tr>";
       }).join("");
       var artHtml = '<table class="doc-tbl"><thead><tr><th>' + POS.s("doc.designation") + '</th><th class="r">' + POS.s("doc.qty") +
         '</th><th class="r">' + POS.s("doc.pvpUnit") + '</th><th class="r">' + POS.s("doc.lineTotal") + "</th></tr></thead><tbody>" + artRows + "</tbody></table>";
@@ -806,8 +807,9 @@
       if (ncBtn) ncBtn.addEventListener("click", function () { convertToNC(d); });
       return wrap;
     }
-    // Converter para Nota de Crédito — motivo + confirmação irreversível (Onda B)
-    function convertToNC(d) {
+    // Converter para Nota de Crédito — exige permissão (creditNote), depois motivo + confirmação
+    function convertToNC(d) { requirePermission("creditNote", function () { ncDialog(d); }); }
+    function ncDialog(d) {
       var reason = "";
       var REASONS = ["nc.reason.return", "nc.reason.cancel", "nc.reason.error"];
       var wrap = document.createElement("div"); wrap.className = "sheet";
@@ -834,7 +836,7 @@
       ok.addEventListener("click", function () {
         if (emitting || !reason) return; emitting = true; ok.disabled = true; POS.osk.close();
         var nc = POS.emitCreditNote(d, { reason: reason });
-        close();
+        close(); afterCashChange();   // a NC desconta na caixa (reembolso) — refresca saldo/Z
         POS.toast(POS.s("nc.emitted") + " · " + POS.docLabel(nc), { variant: "success", duration: 2000 });
         openDocPreview(nc);   // mostra a NC emitida
       });
@@ -928,9 +930,13 @@
         POS.toast(POS.s("cash.drawerOpened"), { variant: "success", duration: 1600 });
       });
     }
-    function cashForm(kind) {
+    function cashForm(kind, authorized) {
       if (kind === "open" && POS.cash.isOpen()) { POS.toast(POS.s("cash.alreadyOpen"), { variant: "danger", duration: 1600 }); return; }
       if (kind !== "open" && !POS.cash.isOpen()) { POS.toast(POS.s("cash.notOpen"), { variant: "danger", duration: 1600 }); return; }
+      // entradas/saídas exigem permissão (política da loja)
+      if ((kind === "in" || kind === "out") && !authorized && !POS.policy.can(POS.terminal().operatorId, "cashInOut")) {
+        requirePermission("cashInOut", function () { cashForm(kind, true); }); return;
+      }
       var titleKey = kind === "open" ? "cash.open" : "cash." + kind;
       var hintKey = kind === "open" ? "cash.fundHint" : "cash." + kind + "Hint";
       var valLabelKey = kind === "open" ? "cash.fund" : "cash.value";
@@ -1256,6 +1262,11 @@
 
     function confirmClear() {
       if (!cart.lines.length) return;
+      // anular uma venda com artigos exige permissão (voidSale)
+      if (!POS.policy.can(POS.terminal().operatorId, "voidSale")) { requirePermission("voidSale", confirmClearGo); return; }
+      confirmClearGo();
+    }
+    function confirmClearGo() {
       var wrap = document.createElement("div"); wrap.className = "sheet";
       wrap.innerHTML = "<h3>" + POS.s("cart.clearConfirm") + "</h3><div class='sheet__sub'>" + POS.s("cart.clearBody") + "</div>" +
         '<div class="sheet__foot"><button class="btn" data-k="no">' + POS.s("act.cancel") + "</button>" +
@@ -1312,7 +1323,11 @@
       wrap.querySelector('[data-k="cancel"]').addEventListener("click", close);
       wrap.querySelector('[data-k="ok"]').addEventListener("click", function () {
         var v = parseFloat(buf || "0"); close();
-        o.onApply(v > 0 ? { type: mode, value: mode === "abs" ? Math.round(v * 100) : Math.min(100, v) } : null);
+        var d = v > 0 ? { type: mode, value: mode === "abs" ? Math.round(v * 100) : Math.min(100, v) } : null;
+        // teto de desconto do operador: % acima do limite exige PIN de supervisor
+        if (d && d.type === "pct" && d.value > POS.policy.get("discountMaxPct")) {
+          requireTier("supervisor", function () { o.onApply(d); }, "auth.discount");
+        } else { o.onApply(d); }
       });
     }
 
@@ -1417,7 +1432,7 @@
       function saveCustomer(d) {
         var nif = (d.nif || "").trim().replace(/\s/g, "");
         if (!d.quick && !d.name) { POS.toast(POS.s("cust.nameRequired"), { variant: "danger", duration: 1800 }); return; }
-        if (nif && !/^\d{9}$/.test(nif)) { POS.toast("NIF inválido", { variant: "danger", duration: 1600 }); return; }
+        if (nif && !/^\d{9}$/.test(nif)) { POS.toast(POS.s("cust.nifInvalid"), { variant: "danger", duration: 1600 }); return; }
         var id = "c" + Date.now();
         var name = d.name || (nif ? "Cliente c/ NIF " + nif : POS.s("cart.customer"));
         var c = { id: id, name: { pt: name, en: name }, nif: nif || null,
@@ -1463,6 +1478,7 @@
     var SET_TABS = [
       { id: "appearance", icon: "palette", label: "set.appearance" },
       { id: "terminal", icon: "register", label: "set.terminal" },
+      { id: "manager", icon: "lock", label: "set.manager" },
       { id: "about", icon: "info", label: "set.about" },
     ];
     var reopenScreen = null;   // re-render do ecrã atual (ex. ao mudar idioma)
@@ -1512,6 +1528,7 @@
       function renderTab() {
         if (activeTab === "appearance") return renderAppearanceTab(body);
         if (activeTab === "terminal") return renderTerminalTab(body);
+        if (activeTab === "manager") return renderManagerTab(body);
         return renderAboutTab(body);
       }
       renderTab();
@@ -1557,7 +1574,7 @@
       function row(k, v) { return '<div class="pd__cell"><div class="k">' + POS.s(k) + '</div><div class="v">' + v + "</div></div>"; }
       var term = POS.terminal();
       body.innerHTML = '<div class="set-sec"><div class="pd__grid">' +
-          row("set.store", "Mercearia Avenida") + row("set.terminalNo", "#1") +
+          row("set.store", (POS.store && POS.store.name) || "—") + row("set.terminalNo", "#" + (term.terminalId || "1").replace(/^T/, "")) +
           row("set.operator", term.operatorName) + row("cart.soldBy", term.operatorName) + "</div></div>" +
         '<div class="set-sec"><h4>' + POS.s("set.options") + "</h4>" +
           '<button class="set-toggle" id="toggleSummary" type="button" role="switch" aria-checked="' + (POS.showSummary() ? "true" : "false") + '">' +
@@ -1565,9 +1582,9 @@
             '<span class="set-toggle__hint">' + POS.s("set.showSummaryHint") + "</span></span>" +
             '<span class="set-toggle__track" aria-hidden="true"><span class="set-toggle__thumb"></span></span>' +
           "</button>" +
-          '<button class="set-toggle" id="toggleAutoPrint" type="button" role="switch" aria-checked="' + (POS.autoPrint() ? "true" : "false") + '">' +
+          '<button class="set-toggle' + (POS.policy.isLocked("autoPrint") ? " is-locked" : "") + '" id="toggleAutoPrint" type="button" role="switch" aria-checked="' + (POS.autoPrint() ? "true" : "false") + '"' + (POS.policy.isLocked("autoPrint") ? ' aria-disabled="true"' : "") + ">" +
             '<span class="set-toggle__text"><span class="set-toggle__lbl">' + POS.s("doc.autoPrint") + "</span>" +
-            '<span class="set-toggle__hint">' + POS.s("doc.autoPrintHint") + "</span></span>" +
+            '<span class="set-toggle__hint">' + (POS.policy.isLocked("autoPrint") ? ic("lock", { size: 13 }) + " " + POS.s("mgr.controlledBy") : POS.s("doc.autoPrintHint")) + "</span></span>" +
             '<span class="set-toggle__track" aria-hidden="true"><span class="set-toggle__thumb"></span></span>' +
           "</button></div>";
       function bindToggle(id, get, set) {
@@ -1575,13 +1592,109 @@
         tg.addEventListener("click", function () { var next = tg.getAttribute("aria-checked") !== "true"; set(next); tg.setAttribute("aria-checked", String(next)); });
       }
       bindToggle("toggleSummary", POS.showSummary, POS.setShowSummary);
-      bindToggle("toggleAutoPrint", POS.autoPrint, POS.setAutoPrint);
+      if (POS.policy.isLocked("autoPrint")) {
+        body.querySelector("#toggleAutoPrint").addEventListener("click", function () { POS.toast(POS.s("mgr.controlledBy"), { duration: 1600 }); });
+      } else {
+        bindToggle("toggleAutoPrint", POS.autoPrint, POS.setAutoPrint);
+      }
     }
     function renderAboutTab(body) {
       body.innerHTML = '<div class="set-sec"><div class="pd__grid">' +
         '<div class="pd__cell"><div class="k">' + POS.s("set.version") + '</div><div class="v">Protótipo 0.4</div></div>' +
         '<div class="pd__cell"><div class="k">Moloni POS</div><div class="v">Visma</div></div></div>' +
         '<p class="muted" style="margin-top:var(--sp-4);font-size:var(--fs-sm)">' + POS.s("pay.cert") + "</p></div>";
+    }
+    var managerUnlocked = false;   // sessão de gerência (re-tranca ao sair/recarregar)
+    function renderManagerTab(body) {
+      if (!managerUnlocked) {   // porteiro: PIN de gerente (pad inline mascarado)
+        body.innerHTML = '<div class="set-sec mgr-gate"><div class="mgr-gate__ic">' + ic("lock", { size: 30 }) + "</div>" +
+          "<h4>" + POS.s("mgr.locked") + '</h4><p class="muted">' + POS.s("mgr.lockedHint") + "</p>" +
+          '<div class="lk-dots" id="mgrDots"></div><div class="lk-pad op-pad" id="mgrPad"></div></div>';
+        var pin = "", dotsEl = body.querySelector("#mgrDots"), pad = body.querySelector("#mgrPad"), gate = body.querySelector(".mgr-gate");
+        function dots() { var h = ""; for (var i = 0; i < 4; i++) h += '<span class="lk-dot' + (i < pin.length ? " is-on" : "") + '"></span>'; dotsEl.innerHTML = h; }
+        function check() {
+          var ok = POS.operators.some(function (o) { return o.tier === "manager" && o.pin === pin; });
+          if (ok) { managerUnlocked = true; renderManagerTab(body); return; }
+          gate.classList.remove("shake"); void gate.offsetWidth; gate.classList.add("shake");
+          pin = ""; dots(); POS.toast(POS.s("op.wrongPin"), { variant: "danger", duration: 1400 });
+        }
+        ["1", "2", "3", "4", "5", "6", "7", "8", "9", "blank", "0", "back"].forEach(function (k) {
+          if (k === "blank") { var sp = document.createElement("span"); sp.className = "lk-key lk-key--blank"; pad.appendChild(sp); return; }
+          var b = document.createElement("button"); b.type = "button"; b.className = "lk-key";
+          if (k === "back") { b.className += " lk-key--ico"; b.innerHTML = ic("backspace", { size: 22 }); }
+          else b.textContent = k;
+          b.addEventListener("click", function () {
+            if (k === "back") { pin = pin.slice(0, -1); dots(); return; }
+            if (pin.length >= 4) return; pin += k; dots(); if (pin.length === 4) setTimeout(check, 120);
+          });
+          pad.appendChild(b);
+        });
+        dots(); return;
+      }
+      // desbloqueado: políticas da loja
+      var p = POS.policy.read();
+      function toggle(id, lblKey, hintKey, on) {
+        return '<button class="set-toggle" id="' + id + '" type="button" role="switch" aria-checked="' + (on ? "true" : "false") + '">' +
+          '<span class="set-toggle__text"><span class="set-toggle__lbl">' + POS.s(lblKey) + "</span>" +
+          '<span class="set-toggle__hint">' + POS.s(hintKey) + "</span></span>" +
+          '<span class="set-toggle__track" aria-hidden="true"><span class="set-toggle__thumb"></span></span></button>';
+      }
+      function permRow(lblKey, action) {
+        var tier = (p.perm && p.perm[action]) || "manager";
+        return '<div class="mgr-perm"><span>' + POS.s(lblKey) + '</span><span class="mgr-tier">' + POS.s("tier." + tier) + "</span></div>";
+      }
+      body.innerHTML = '<div class="set-sec"><h4>' + POS.s("mgr.title") + "</h4>" +
+        toggle("mgrForced", "mgr.autoPrintForced", "mgr.autoPrintHint", p.autoPrintForced) +
+        toggle("mgrLocked", "mgr.lockSetting", "mgr.lockHint", p.autoPrintLocked) +
+        '<label class="ff" style="margin-top:var(--sp-3)"><span>' + POS.s("mgr.discountCap") + '</span>' +
+          '<button class="ff__in cash-valbtn is-set" id="mgrDisc" type="button">' + p.discountMaxPct + '%</button>' +
+          '<small class="ff__hint">' + POS.s("mgr.discountHint") + "</small></label></div>" +
+        '<div class="set-sec"><h4>' + POS.s("mgr.permTitle") + "</h4>" +
+          permRow("mgr.permVoid", "voidSale") + permRow("mgr.permCash", "cashInOut") + "</div>" +
+        '<div class="set-sec"><button class="btn btn--block" id="mgrReport" type="button">' + ic("register", { size: 18 }) + " " + POS.s("report.open") + "</button></div>" +
+        '<div class="set-sec"><button class="btn btn--block" id="mgrExit" type="button">' + ic("log-out", { size: 18 }) + " " + POS.s("mgr.exit") + "</button></div>";
+      body.querySelector("#mgrReport").addEventListener("click", openConsolidation);
+      function bindT(id, key) { var tg = body.querySelector("#" + id); tg.addEventListener("click", function () { var next = tg.getAttribute("aria-checked") !== "true"; POS.policy.set(key, next); tg.setAttribute("aria-checked", String(next)); POS.toast(POS.s("mgr.saved"), { duration: 1200 }); }); }
+      bindT("mgrForced", "autoPrintForced"); bindT("mgrLocked", "autoPrintLocked");
+      body.querySelector("#mgrDisc").addEventListener("click", function () {
+        var self = this;
+        POS.keypad({ title: POS.s("mgr.discountCap"), decimal: false, initial: p.discountMaxPct, maxInt: 3, suffix: "%",
+          onConfirm: function (v) { var pct = Math.min(100, Math.max(0, Math.round(v))); POS.policy.set("discountMaxPct", pct); self.textContent = pct + "%"; POS.toast(POS.s("mgr.saved"), { duration: 1200 }); } });
+      });
+      body.querySelector("#mgrExit").addEventListener("click", function () { managerUnlocked = false; renderManagerTab(body); });
+    }
+
+    // Consolidação multi-terminal segmentada por loja (vista de gestão)
+    function openConsolidation() {
+      var r = POS.report.consolidated();
+      var wrap = document.createElement("div"); wrap.className = "settings";
+      function kpi(lbl, val) { return '<div class="cons-kpi"><span class="cons-kpi__v num">' + val + '</span><span class="cons-kpi__l">' + POS.s(lbl) + "</span></div>"; }
+      function methodPills(by) {
+        var keys = Object.keys(by).filter(function (m) { return by[m]; });
+        if (!keys.length) return "";
+        return '<div class="cons-methods">' + keys.map(function (m) {
+          return '<span class="cons-pill"><span>' + methodLabel(m) + '</span><b class="num">' + POS.money(by[m]) + "</b></span>";
+        }).join("") + "</div>";
+      }
+      var storesHtml = r.stores.map(function (s) {
+        var terms = s.terminals.map(function (t) {
+          var ops = t.operators.length ? '<div class="cons-ops">' + t.operators.map(function (o) { return "<span>" + o.name + ' · <b class="num">' + POS.money(o.totalCents) + "</b></span>"; }).join("") + "</div>" : "";
+          return '<div class="cons-term' + (t.isCurrent ? " is-current" : "") + '">' +
+            '<div class="cons-term__head"><span class="cons-term__no">' + POS.s("report.terminal") + " " + t.label + (t.isCurrent ? ' <span class="cons-tag">' + POS.s("report.thisTerm") + "</span>" : "") + "</span>" +
+              '<span class="cons-term__tot num">' + POS.money(t.totalCents) + ' <small>· ' + t.count + " " + POS.s("report.sales").toLowerCase() + "</small></span></div>" +
+            methodPills(t.byMethod) + ops + "</div>";
+        }).join("");
+        return '<div class="cons-store"><div class="cons-store__head"><div><h4>' + s.name + '</h4><span class="muted">NIF ' + s.nif + "</span></div>" +
+          '<div class="cons-store__tot num">' + POS.money(s.totalCents) + ' <small>· ' + s.count + " " + POS.s("report.sales").toLowerCase() + "</small></div></div>" +
+          methodPills(s.byMethod) + '<div class="cons-terms">' + terms + "</div></div>";
+      }).join("");
+      wrap.innerHTML = '<div class="set-head"><h3>' + POS.s("report.title") + "</h3>" +
+        '<button class="set-close" id="consClose" type="button" aria-label="' + POS.s("act.close") + '">' + ic("x", { size: 22 }) + "</button></div>" +
+        '<div class="set-body"><p class="muted" style="margin-top:0">' + POS.s("report.sub") + "</p>" +
+        '<div class="cons-kpis">' + kpi("report.total", POS.money(r.totalCents)) + kpi("report.sales", String(r.count)) + kpi("report.avg", POS.money(r.avgCents)) + "</div>" +
+        (r.count ? storesHtml : '<div class="empty">' + ic("register", { size: 44, stroke: 1.5 }) + "<h3>" + POS.s("report.noData") + "</h3></div>") + "</div>";
+      wrap.querySelector("#consClose").addEventListener("click", function () { hideScreen(); });
+      showScreen(wrap, POS.s("report.title"), openConsolidation);
     }
 
     /* ---------- Pagar ---------- */
@@ -1748,7 +1861,7 @@
       '<path d="M194.85 190.34H304.2v109.35H194.85z"/></svg>';
     function lockTerminal() {
       if (document.querySelector(".lockscreen")) return;
-      try { sessionStorage.setItem("pos_locked", "1"); } catch (e) {}
+      try { localStorage.setItem("pos_locked", "1"); } catch (e) {}
       var target = currentOp(), pin = "", fromId = currentOp().id;
       var node = document.createElement("div"); node.className = "lockscreen"; node.setAttribute("role", "dialog"); node.setAttribute("aria-modal", "true");
       node.innerHTML = '<div class="lk-stars" id="lkStars" aria-hidden="true"></div><div class="lk-wrap" id="lkWrap"></div>';
@@ -1815,13 +1928,14 @@
         card.appendChild(list);
       }
       function unlock() {
-        try { sessionStorage.removeItem("pos_locked"); } catch (e) {}
+        try { localStorage.removeItem("pos_locked"); } catch (e) {}
         document.removeEventListener("keydown", onKey, true);
+        var app = $(".app"); if (app) { app.removeAttribute("inert"); app.removeAttribute("aria-hidden"); }   // devolve o fundo
         node.remove();
         if (target.id !== fromId) {
           POS.setTerminal({ operatorId: target.id, operatorName: target.name });
           if (POS.cash.isOpen()) POS.cash.movement("handover", 0, currentOp().name);
-          renderUser(); afterCashChange();
+          renderUser(); afterCashChange(); applyOpPrefs();
           POS.toast(POS.s("op.switched") + " · " + target.name, { variant: "success", duration: 1600 });
         }
       }
@@ -1830,7 +1944,9 @@
         else if (e.key === "Backspace") { e.preventDefault(); press("back"); }
       }
       shell();
+      var app = $(".app"); if (app) { app.setAttribute("inert", ""); app.setAttribute("aria-hidden", "true"); }   // bloqueio real: foco/SR não passam por baixo
       document.body.appendChild(node);
+      var firstKey = node.querySelector(".lk-key"); if (firstKey) firstKey.focus();
       document.addEventListener("keydown", onKey, true);
     }
     function opRole(t) { var o = POS.operators.find(function (x) { return x.id === t.operatorId; }); return o ? POS.t(o.role) : POS.s("user.role"); }
@@ -1838,8 +1954,44 @@
       var t = POS.terminal();
       var av = document.querySelector(".topbar__user .topbar__avatar"); if (av) av.textContent = initials(t.operatorName);
       var nm = document.querySelector(".topbar__user > span:not(.topbar__avatar):not(.topbar__chev)"); if (nm) nm.textContent = t.operatorName;
+      var co = $("#cartOp"); if (co) co.textContent = t.operatorName;   // operador no talão acompanha a troca
+      var st = document.querySelector(".topbar__store"); if (st) st.textContent = (POS.store && POS.store.name) || st.textContent;
     }
     // troca de operador SEM fechar a caixa; regista handover e carimba as próximas vendas
+    /* ---------- Autorização por PIN (governança a morder no fluxo) ---------- */
+    var TIER_RANK = { operator: 0, supervisor: 1, manager: 2 };
+    function curTier() { return POS.policy.tier(POS.terminal().operatorId); }
+    // pede PIN de um operador com tier >= minTier; se o atual já tem, passa direto (zero toques)
+    function requireTier(minTier, onGranted, hintKey) {
+      if (TIER_RANK[curTier()] >= TIER_RANK[minTier]) { onGranted(POS.terminal().operatorName); return; }
+      var pin = "", wrap = document.createElement("div"); wrap.className = "sheet op-switch auth-pad";
+      wrap.innerHTML = "<h3>" + POS.s("auth.title") + "</h3><div class='sheet__sub'>" + POS.s(hintKey || (minTier === "manager" ? "auth.hintManager" : "auth.hintSupervisor")) + "</div>" +
+        '<div class="op-pin" style="border:none;padding-top:0"><div class="lk-dots" id="authDots"></div><div class="lk-pad op-pad" id="authPad"></div></div>' +
+        '<div class="sheet__foot"><button class="btn btn--block" data-k="cancel">' + POS.s("act.cancel") + "</button></div>";
+      var dotsEl = wrap.querySelector("#authDots"), pad = wrap.querySelector("#authPad");
+      function dots() { var h = ""; for (var i = 0; i < 4; i++) h += '<span class="lk-dot' + (i < pin.length ? " is-on" : "") + '"></span>'; dotsEl.innerHTML = h; }
+      function check() {
+        var who = POS.operators.find(function (o) { return TIER_RANK[o.tier || "operator"] >= TIER_RANK[minTier] && o.pin === pin; });
+        if (who) { close(); onGranted(who.name); return; }
+        wrap.classList.remove("shake"); void wrap.offsetWidth; wrap.classList.add("shake"); pin = ""; dots(); POS.toast(POS.s("op.wrongPin"), { variant: "danger", duration: 1400 });
+      }
+      ["1", "2", "3", "4", "5", "6", "7", "8", "9", "blank", "0", "back"].forEach(function (k) {
+        if (k === "blank") { var sp = document.createElement("span"); sp.className = "lk-key lk-key--blank"; pad.appendChild(sp); return; }
+        var b = document.createElement("button"); b.type = "button"; b.className = "lk-key";
+        if (k === "back") { b.className += " lk-key--ico"; b.innerHTML = ic("backspace", { size: 22 }); } else b.textContent = k;
+        b.addEventListener("click", function () { if (k === "back") { pin = pin.slice(0, -1); dots(); return; } if (pin.length >= 4) return; pin += k; dots(); if (pin.length === 4) setTimeout(check, 120); });
+        pad.appendChild(b);
+      });
+      var close = POS.openModal(wrap, { label: POS.s("auth.title") });
+      wrap.querySelector('[data-k="cancel"]').addEventListener("click", function () { close(); });
+      dots();
+    }
+    function requirePermission(action, onGranted) {
+      var opId = POS.terminal().operatorId;
+      if (POS.policy.can(opId, action)) { onGranted(POS.terminal().operatorName); return; }
+      var need = (POS.policy.read().perm || {})[action] || "manager";
+      requireTier(need, onGranted);
+    }
     function switchOperator() {
       var t = POS.terminal();
       var sel = null, pin = "", close = null;
@@ -1879,6 +2031,7 @@
         POS.setTerminal({ operatorId: sel.id, operatorName: sel.name });
         if (POS.cash.isOpen()) POS.cash.movement("handover", 0, from + " → " + sel.name);
         if (close) close(); renderUser(); afterCashChange();
+        applyOpPrefs();   // aplica idioma/tema do novo operador (se tiver preferências)
         POS.toast(POS.s("op.switched") + " · " + sel.name, { variant: "success", duration: 1800 });
       }
       POS.operators.forEach(function (o) {
@@ -1955,11 +2108,17 @@
     POS.onLangChange(renderAll);
     POS.onLangChange(function () { if (reopenScreen && !$("#screen").hidden) reopenScreen(); });
 
+    // preferências pessoais do operador (idioma/tema viajam com o login)
+    function saveOpPrefs() { POS.setOpPrefs(POS.terminal().operatorId, { lang: POS.lang, theme: POS.theme }); }
+    function applyOpPrefs() { var pr = POS.opPrefs(POS.terminal().operatorId); if (!pr) return; if (pr.lang && pr.lang !== POS.lang) POS.setLang(pr.lang); if (pr.theme && pr.theme !== POS.theme) POS.setTheme(pr.theme); }
+    POS.onLangChange(saveOpPrefs); POS.onThemeChange(saveOpPrefs);
+
     POS.mountDevNav("sale");
     renderAll();
+    applyOpPrefs();   // aplica as prefs do operador atual ao arrancar
     tick(); setInterval(tick, 1000 * 20);
     $("#search").focus();
-    try { if (sessionStorage.getItem("pos_locked") === "1") lockTerminal(); } catch (e) {}   // mantém bloqueado entre recargas
+    try { if (localStorage.getItem("pos_locked") === "1") lockTerminal(); } catch (e) {}   // mantém bloqueado entre recargas/abas
     cashStartupPrompt();   // convida a abrir a caixa se estiver fechada (dispensável)
   })();
   </script>

@@ -169,8 +169,11 @@ window.POS = window.POS || {};
       if (opts.onClose) opts.onClose();
     }
     function onKey(e) {
+      // só o modal do TOPO responde (evita Esc em cascata em modais empilhados)
+      var stack = document.querySelectorAll(".modal-backdrop");
+      if (stack.length && stack[stack.length - 1] !== backdrop) return;
       // noClose => diálogo persistente: sem Esc (e sem X, sem backdrop). Só Tab faz trap.
-      if (e.key === "Escape" && opts.noClose !== true) { e.preventDefault(); close(); }
+      if (e.key === "Escape" && opts.noClose !== true) { e.preventDefault(); e.stopPropagation(); close(); }
       if (e.key === "Tab") trapFocus(e, modal);
     }
     // Botão de fechar (X) — padrão em todos os diálogos. NÃO fechamos por toque fora

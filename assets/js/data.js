@@ -113,12 +113,37 @@ window.POS = window.POS || {};
     certNumber: "0000/AT",   // nº de certificação do programa (simulado)
   };
 
+  /* ---- Multi-terminal segmentado por LOJA (consolidação de gestão) ----
+     Cada terminal pertence a uma loja. O terminal atual é o T1 (Mercearia Avenida). */
+  POS.stores = [
+    { id: "s1", name: "Mercearia Avenida", nif: "500 000 000" },
+    { id: "s2", name: "Padaria Central",   nif: "501 234 567" },
+  ];
+  POS.terminals = [
+    { id: "T1", storeId: "s1", label: "#1" },
+    { id: "T2", storeId: "s1", label: "#2" },
+    { id: "T3", storeId: "s2", label: "#1" },
+  ];
+  POS.storeOfTerminal = function (tid) {
+    var t = POS.terminals.find(function (x) { return x.id === tid; });
+    return POS.stores.find(function (s) { return s.id === (t && t.storeId); }) || POS.stores[0];
+  };
+  // Vendas de OUTROS terminais (T2/T3) p/ demonstrar a consolidação — o T1 usa pos_sales real.
+  var H = 1000 * 60 * 60;
+  POS.demoSales = [
+    { id: "d-t2-1", ts: Date.now() - 2 * H, terminalId: "T2", operatorName: "João Pereira",  docType: "simplified", totals: { totalCents: 1840 }, payments: [{ method: "card", amountCents: 1840 }] },
+    { id: "d-t2-2", ts: Date.now() - 1 * H, terminalId: "T2", operatorName: "João Pereira",  docType: "simplified", totals: { totalCents: 760 },  payments: [{ method: "cash", amountCents: 760 }] },
+    { id: "d-t2-3", ts: Date.now() - 30 * 60000, terminalId: "T2", operatorName: "Rita Marques", docType: "invoiceReceipt", totals: { totalCents: 4250 }, payments: [{ method: "mbway", amountCents: 4250 }] },
+    { id: "d-t3-1", ts: Date.now() - 3 * H, terminalId: "T3", operatorName: "Carlos Dias",   docType: "simplified", totals: { totalCents: 990 },  payments: [{ method: "cash", amountCents: 990 }] },
+    { id: "d-t3-2", ts: Date.now() - 90 * 60000, terminalId: "T3", operatorName: "Carlos Dias", docType: "simplified", totals: { totalCents: 2330 }, payments: [{ method: "card", amountCents: 2330 }] },
+  ];
+
   /* ---- Operadores do terminal (roster; PIN simulado p/ protótipo) ---- */
   POS.operators = [
-    { id: "op1", name: "Ana Sousa",     role: { pt: "Operadora",  en: "Operator" },   pin: "1234" },
-    { id: "op2", name: "João Pereira",  role: { pt: "Operador",   en: "Operator" },   pin: "2345" },
-    { id: "op3", name: "Rita Marques",  role: { pt: "Supervisora", en: "Supervisor" }, pin: "3456" },
-    { id: "op4", name: "Carlos Dias",   role: { pt: "Gerente",    en: "Manager" },    pin: "9999" },
+    { id: "op1", name: "Ana Sousa",     role: { pt: "Operadora",  en: "Operator" },   pin: "1234", tier: "operator" },
+    { id: "op2", name: "João Pereira",  role: { pt: "Operador",   en: "Operator" },   pin: "2345", tier: "operator" },
+    { id: "op3", name: "Rita Marques",  role: { pt: "Supervisora", en: "Supervisor" }, pin: "3456", tier: "supervisor" },
+    { id: "op4", name: "Carlos Dias",   role: { pt: "Gerente",    en: "Manager" },    pin: "9999", tier: "manager" },
   ];
 
   /* ---- Mesas (RESERVADO p/ vertente restauração — desativado no retalho) ----
