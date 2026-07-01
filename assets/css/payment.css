@@ -39,7 +39,7 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 /* Seletor de cliente (pill compacto) */
 .pay-top__cust {
   display:flex; align-items:center; gap:5px;
-  flex:0 1 180px; min-width:0;
+  flex:0 1 200px; min-width:0;
   height:36px; padding:0 10px;
   border-radius:var(--r-pill);
   border:1.5px solid rgba(255,255,255,.18);
@@ -48,6 +48,8 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
   white-space:nowrap;
   transition:background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
 }
+/* Cliente empurrado para a direita quando é o último elemento da topbar */
+.pay-top__cust--right { margin-left:auto; }
 .pay-top__cust:hover { background:rgba(255,255,255,.15); border-color:rgba(255,255,255,.3); }
 .pay-top__cust:focus-visible { outline:none; box-shadow:0 0 0 2px var(--brand-400); }
 .pay-top__cust-ic { flex:none; color:var(--shell-muted); }
@@ -205,6 +207,16 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
   border-right:1px solid var(--line);
 }
 
+/* Logo como link de regresso */
+.topbar__logo--back {
+  cursor:pointer;
+  border-radius:var(--r-sm);
+  transition:opacity var(--t-fast) var(--ease);
+  text-decoration:none;
+}
+.topbar__logo--back:hover       { opacity:.7; }
+.topbar__logo--back:focus-visible { outline:2px solid var(--brand-400); outline-offset:3px; }
+
 /* =========================================================================
    LISTA DE PAGAMENTOS — sempre visível
    ========================================================================= */
@@ -269,6 +281,26 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 @keyframes bannerIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:none; } }
 
 /* =========================================================================
+   CLIENTE (card row no topo da coluna de pagamento)
+   ========================================================================= */
+.pay-cust-row {
+  display:flex; align-items:center; gap:var(--sp-3);
+  width:100%; min-height:62px; padding:var(--sp-3) var(--sp-4);
+  background:var(--surface); border-radius:var(--r-lg);
+  border:1.5px solid var(--line); box-shadow:var(--sh-sm);
+  text-align:left; flex:none;
+  transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.pay-cust-row:hover { border-color:var(--brand-400); background:var(--brand-50); }
+.pay-cust-row:focus-visible { outline:none; border-color:var(--brand-500); box-shadow:0 0 0 3px var(--brand-100); }
+.pay-cust-row:active { transform:scale(.99); }
+.pay-cust-row__ic { color:var(--ink-400); flex:none; }
+.pay-cust-row__info { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.pay-cust-row__name { font-weight:700; font-size:var(--fs-base); color:var(--ink-900); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pay-cust-row__label { font-size:var(--fs-xs); font-weight:600; color:var(--ink-500); }
+.pay-cust-row__chev { color:var(--ink-300); flex:none; }
+
+/* =========================================================================
    BARRA DE MODO DE PAGAMENTO
    ========================================================================= */
 .pay-mode-bar {
@@ -293,8 +325,7 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .pay-mode-toggle:hover { border-color:var(--brand-400); color:var(--brand-700); }
 .pay-mode-toggle:focus-visible { outline:none; box-shadow:0 0 0 3px var(--brand-100); border-color:var(--brand-400); }
 .pay-mode-toggle[aria-pressed="true"] {
-  background:var(--brand-50); border-color:var(--brand-400);
-  color:var(--brand-700);
+  background:var(--brand-50); border-color:var(--brand-400); color:var(--brand-700);
 }
 
 /* =========================================================================
@@ -420,7 +451,7 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .quick button:hover { background:var(--surface-3); }
 .quick button:focus-visible { outline:none; border-color:var(--brand-400); box-shadow:0 0 0 3px var(--brand-50); }
 .quick button:active { transform:scale(.96); }
-.quick button.exact { border-color:var(--brand-400); color:var(--brand-700); background:var(--brand-50); }
+.quick button[aria-pressed="true"] { border-color:var(--brand-400); color:var(--brand-700); background:var(--brand-50); }
 .quick button.exact span:first-child { font-size:var(--fs-xs); text-transform:uppercase; letter-spacing:.03em; font-weight:800; }
 .quick button.exact .num { font-size:var(--fs-sm); font-weight:700; }
 
@@ -513,6 +544,60 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 }
 
 /* =========================================================================
+   CARD DADOS DA FATURA
+   ========================================================================= */
+.billing-card {
+  display:flex; align-items:center; gap:var(--sp-3);
+  width:100%; min-height:64px; padding:var(--sp-3) var(--sp-4);
+  border-radius:var(--r-lg); border:1.5px solid var(--line);
+  background:var(--surface); box-shadow:var(--sh-sm);
+  text-align:left; flex:none;
+  transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease),
+             box-shadow var(--t-fast) var(--ease);
+}
+.billing-card:hover { border-color:var(--brand-400); background:var(--brand-50); box-shadow:var(--sh-md); }
+.billing-card:focus-visible { outline:none; border-color:var(--brand-500); box-shadow:0 0 0 3px var(--brand-100); }
+.billing-card:active { transform:scale(.99); }
+.billing-card--warn { border-color:var(--warn-500); background:var(--warn-50); }
+.billing-card--warn:hover { border-color:var(--warn-600); }
+.billing-card__icon { color:var(--brand-500); flex:none; }
+.billing-card--warn .billing-card__icon { color:var(--warn-600); }
+.billing-card__body { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.billing-card__title {
+  font-size:var(--fs-xs); font-weight:700;
+  text-transform:uppercase; letter-spacing:.05em; color:var(--ink-400);
+}
+.billing-card__sub {
+  font-size:var(--fs-sm); font-weight:700; color:var(--ink-900);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.billing-card--warn .billing-card__sub { color:var(--warn-600); }
+.billing-card__chev { color:var(--ink-300); flex:none; }
+
+/* =========================================================================
+   PAGAMENTOS NA COLUNA DO CARRINHO
+   ========================================================================= */
+.cart-pay-sep {
+  height:1px; background:var(--line); margin:var(--sp-2) 0;
+}
+.cart-sumrow--paid {
+  color:var(--ink-600); font-size:var(--fs-sm); font-weight:600;
+}
+.cart-sumrow--paid.cart-sumrow--preview {
+  opacity:.55; font-style:italic;
+}
+.cart-sumrow--due {
+  color:var(--warn-600); font-weight:800; font-size:var(--fs-base);
+  background:var(--warn-50); border-radius:var(--r-md);
+  padding:6px var(--sp-3); margin-top:var(--sp-1);
+}
+.cart-sumrow--change {
+  color:var(--pay-700); font-weight:800; font-size:var(--fs-base);
+  background:var(--pay-50); border-radius:var(--r-md);
+  padding:6px var(--sp-3); margin-top:var(--sp-1);
+}
+
+/* =========================================================================
    DRAWER DE OPÇÕES DO DOCUMENTO
    ========================================================================= */
 .doc-opts {
@@ -524,6 +609,20 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
   font-size:var(--fs-xs); font-weight:700;
   text-transform:uppercase; letter-spacing:.06em;
   color:var(--ink-500);
+}
+.doc-opts__chips {
+  display:flex; gap:var(--sp-2); flex-wrap:wrap;
+}
+.doc-opts__chip {
+  /* herda .top-chip — no drawer os chips ficam sobre fundo claro,
+     por isso sobrescreve as cores para o contexto claro */
+  border-color:var(--line);
+  color:var(--ink-500);
+  background:var(--surface-2);
+}
+.doc-opts__chip:hover { background:var(--surface-3); color:var(--ink-900); border-color:var(--line-strong); }
+.doc-opts__chip[aria-pressed="true"] {
+  background:var(--brand-600); border-color:var(--brand-600); color:#fff;
 }
 
 /* Data de emissão */

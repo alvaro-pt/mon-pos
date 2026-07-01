@@ -1092,7 +1092,12 @@
         h.addEventListener("click", function () { var sec = h.parentNode; var on = sec.classList.toggle("is-open"); h.setAttribute("aria-expanded", on ? "true" : "false"); });
       });
       wrap.querySelector('[data-a="pdf"]').addEventListener("click", function () { POS.printDoc(d, { format: "a4" }); });
-      wrap.querySelector('[data-a="gift"]').addEventListener("click", function () { POS.printDoc(d, { format: "oferta" }); POS.toast(POS.s("doc.giftPrinted"), { duration: 1500 }); });
+      wrap.querySelector('[data-a="gift"]').addEventListener("click", function () {
+        POS.openModal(buildGiftEditor(d, function (filtered) {
+          POS.printDoc(filtered, { format: "oferta" });
+          POS.toast(POS.s("doc.giftPrinted"), { duration: 1500 });
+        }), { label: POS.s("doc.giftReceipt") });
+      });
       wrap.querySelector('[data-a="talao"]').addEventListener("click", function () { POS.printDoc(d, { format: "talao" }); POS.toast(POS.s("doc.printed"), { variant: "success", duration: 1500 }); });
       wrap.querySelector('[data-a="email"]').addEventListener("click", function () { emailDoc(d); });
       var ncBtn = wrap.querySelector('[data-a="nc"]');
@@ -1134,6 +1139,78 @@
       });
     }
     function openDocPreview(d) { POS.openDrawer(buildDocPreview(d), { label: POS.s("doc.preview"), onClose: function () { POS.osk.close(); } }); }
+
+    /* Editor de quantidades para o talão de oferta — reutilizado no pós-venda e no preview de documento */
+    function buildGiftEditor(sale, onPrint) {
+      var lineState = (sale.lines || []).map(function (l) {
+        var p = POS.products.find(function (x) { return x.id === l.productId; });
+        var name = p ? POS.t(p.name) : (l.productId || "—");
+        return { key: l.key, name: name, maxQty: l.weighable ? null : (l.qty || 1), qty: l.weighable ? null : (l.qty || 1), weighable: !!l.weighable, weight: l.weight || 0, included: true, line: l };
+      });
+
+      var wrap = document.createElement("div");
+      var hint = document.createElement("p"); hint.className = "gift-hint"; hint.textContent = POS.s("doc.giftEditorHint");
+      var listEl = document.createElement("div"); listEl.className = "gift-lines";
+      var printBtn = document.createElement("button"); printBtn.type = "button"; printBtn.className = "btn btn--primary btn--block"; printBtn.style.marginTop = "var(--sp-4)";
+      printBtn.innerHTML = ic("printer", { size: 16 }) + " " + POS.s("doc.giftReceipt");
+      wrap.appendChild(hint); wrap.appendChild(listEl); wrap.appendChild(printBtn);
+
+      function syncBtn() { printBtn.disabled = !lineState.some(function (ls) { return ls.included; }); }
+
+      function renderLines() {
+        listEl.innerHTML = "";
+        lineState.forEach(function (ls) {
+          var row = document.createElement("div");
+          row.className = "gift-line" + (ls.included ? "" : " gift-line--excluded");
+
+          var chk = document.createElement("input"); chk.type = "checkbox"; chk.className = "gift-line__chk"; chk.checked = ls.included;
+          chk.addEventListener("change", function () { ls.included = chk.checked; renderLines(); syncBtn(); });
+
+          var nameEl = document.createElement("span"); nameEl.className = "gift-line__name"; nameEl.textContent = ls.name;
+
+          row.appendChild(chk); row.appendChild(nameEl);
+
+          if (ls.weighable) {
+            var wEl = document.createElement("span"); wEl.className = "gift-line__weight"; wEl.textContent = ls.weight + " kg";
+            row.appendChild(wEl);
+          } else {
+            var stepper = document.createElement("div"); stepper.className = "gift-stepper";
+
+            var btnMinus = document.createElement("button"); btnMinus.type = "button"; btnMinus.className = "gift-stepper__btn";
+            btnMinus.innerHTML = ic("minus", { size: 15 }); btnMinus.setAttribute("aria-label", "−");
+            btnMinus.disabled = !ls.included || ls.qty <= 1;
+
+            var qtyDisp = document.createElement("span"); qtyDisp.className = "gift-stepper__val"; qtyDisp.textContent = ls.qty;
+
+            var btnPlus = document.createElement("button"); btnPlus.type = "button"; btnPlus.className = "gift-stepper__btn";
+            btnPlus.innerHTML = ic("plus", { size: 15 }); btnPlus.setAttribute("aria-label", "+");
+            btnPlus.disabled = !ls.included || ls.qty >= ls.maxQty;
+
+            btnMinus.addEventListener("click", function () { if (ls.qty > 1) { ls.qty--; renderLines(); } });
+            btnPlus.addEventListener("click", function () { if (ls.qty < ls.maxQty) { ls.qty++; renderLines(); } });
+
+            stepper.appendChild(btnMinus); stepper.appendChild(qtyDisp); stepper.appendChild(btnPlus);
+
+            row.appendChild(stepper);
+          }
+          listEl.appendChild(row);
+        });
+      }
+
+      renderLines(); syncBtn();
+
+      printBtn.addEventListener("click", function () {
+        var filteredLines = lineState.filter(function (ls) { return ls.included; }).map(function (ls) {
+          var l = Object.assign({}, ls.line);
+          if (!ls.weighable) l.qty = ls.qty;
+          return l;
+        });
+        onPrint(Object.assign({}, sale, { lines: filteredLines }));
+      });
+
+      return wrap;
+    }
+
     function emailDoc(d) {
       var wrap = document.createElement("div"); wrap.className = "sheet";
       wrap.innerHTML = "<h3>" + POS.s("doc.email") + "</h3>" +
@@ -1742,10 +1819,7 @@
           '<input id="custSearch" type="search" autocomplete="off" placeholder="' + POS.s("cust.search") + '" style="padding-left:42px"></div>' +
         "<div class='clist' id='clist'></div>" +
         '<div class="cust-foot">' +
-          '<div class="cust-nifrow">' +
-            '<input id="nifInput" inputmode="numeric" placeholder="' + POS.s("cust.nifPlaceholder") + '" class="ff__in">' +
-            '<button class="btn btn--primary" id="nifUse" type="button">' + POS.s("cust.invoiceNifShort") + "</button></div>" +
-          '<button class="cust-expand" id="custExpand" type="button" aria-expanded="false">' + ic("plus", { size: 18 }) + "<span>" + POS.s("cust.moreFields") + "</span></button>" +
+          '<button class="cust-expand" id="custExpand" type="button" aria-expanded="false" hidden>' + ic("plus", { size: 18 }) + "<span>" + POS.s("cust.moreFields") + "</span></button>" +
           '<div class="cust-form" id="custForm" hidden>' +
             field("cf_name", "cust.name", 'required') +
             '<div class="ff-grid">' + field("cf_nif", "cust.nif", 'inputmode="numeric"') + field("cf_phone", "cust.phone", 'inputmode="tel"') + "</div>" +
@@ -1758,25 +1832,43 @@
       var list = wrap.querySelector("#clist");
       function paint(q) {
         list.innerHTML = "";
+        var trimmed = (q || "").trim();
+        var tl = trimmed.toLowerCase();
         var rows = POS.customers.filter(function (c) {
-          if (!q) return true; q = q.toLowerCase();
-          return POS.t(c.name).toLowerCase().indexOf(q) >= 0 || (c.nif || "").indexOf(q) >= 0;
+          if (!trimmed) return true;
+          return POS.t(c.name).toLowerCase().indexOf(tl) >= 0 || (c.nif || "").indexOf(tl) >= 0;
         });
-        if (!rows.length) { list.innerHTML = '<p class="muted" style="padding:12px">' + POS.s("cust.noResults") + "</p>"; return; }
+        var isNif = /^\d{9}$/.test(trimmed);
+        var nifMode = isNif && !rows.some(function (c) { return c.nif === trimmed; });
+        if (nifMode) {
+          var fastBtn = document.createElement("button");
+          fastBtn.type = "button"; fastBtn.className = "cust-nif-fast";
+          fastBtn.innerHTML =
+            '<span class="cust-nif-fast__ic">' + ic("zap", { size: 20 }) + '</span>' +
+            '<span class="cust-nif-fast__body"><b>NIF ' + trimmed + '</b>' +
+              '<small>' + POS.s("cust.nifFastHint") + '</small></span>' +
+            '<span class="cust-nif-fast__chev">' + ic("chevron-right", { size: 16 }) + '</span>';
+          fastBtn.addEventListener("click", function () { saveCustomer({ nif: trimmed, quick: true }); });
+          list.appendChild(fastBtn);
+        }
+        var expandBtn = wrap.querySelector("#custExpand");
+        if (expandBtn) expandBtn.hidden = !(trimmed && (rows.length === 0 || nifMode));
+        if (!rows.length && !nifMode) { list.innerHTML += '<p class="muted" style="padding:12px">' + POS.s("cust.noResults") + "</p>"; return; }
         rows.forEach(function (c) {
           var nm = POS.t(c.name);
+          var isActive = c.id === cart.state.customerId;
           var b = document.createElement("button"); b.type = "button"; b.className = "clist__item doc-item";
-          b.setAttribute("aria-pressed", String(c.id === cart.state.customerId));
+          b.setAttribute("aria-pressed", String(isActive));
           b.innerHTML = '<span class="doc-code" style="--code-c:' + (c.isDefault ? "var(--ink-500)" : avatarColor(nm)) + '">' + (c.isDefault ? ic("user", { size: 20 }) : initials(nm)) + "</span>" +
             '<span class="doc-item__main"><span class="doc-item__no">' + nm + "</span>" +
-            '<span class="doc-item__sub">' + (c.nif ? "NIF " + c.nif : POS.s("cart.customer")) + "</span></span>";
+            '<span class="doc-item__sub">' + (c.nif ? "NIF " + c.nif : POS.s("cart.customer")) + "</span></span>" +
+            (isActive ? '<span>' + ic("check", { size: 18 }) + '</span>' : '');
           b.addEventListener("click", function () { cart.setCustomer(c.id); close(); });
           list.appendChild(b);
         });
       }
       paint("");
       var close = POS.openModal(wrap, { label: POS.s("cart.customer"), onClose: function () { POS.osk.close(); } });
-      // teclado abre ao focar campos de texto
       wrap.querySelectorAll('input:not([inputmode="numeric"]):not([inputmode="tel"])').forEach(function (inp) {
         inp.addEventListener("focus", function () { POS.osk.open(); });
       });
@@ -1784,9 +1876,14 @@
       var expand = wrap.querySelector("#custExpand"), form = wrap.querySelector("#custForm");
       expand.addEventListener("click", function () {
         var open = form.hidden; form.hidden = !open; expand.setAttribute("aria-expanded", String(open));
-        if (open) wrap.querySelector("#cf_name").focus();
+        if (open) {
+          var searchVal = (wrap.querySelector("#custSearch").value || "").trim();
+          var isNifQ = /^\d{9}$/.test(searchVal);
+          if (isNifQ) { wrap.querySelector("#cf_nif").value = searchVal; }
+          else if (searchVal) { wrap.querySelector("#cf_name").value = searchVal; }
+          wrap.querySelector("#cf_name").focus();
+        }
       });
-      wrap.querySelector("#nifUse").addEventListener("click", function () { saveCustomer({ nif: wrap.querySelector("#nifInput").value, quick: true }); });
       wrap.querySelector("#custSave").addEventListener("click", function () {
         saveCustomer({
           name: wrap.querySelector("#cf_name").value.trim(), nif: wrap.querySelector("#cf_nif").value,
@@ -1799,13 +1896,15 @@
         var nif = (d.nif || "").trim().replace(/\s/g, "");
         if (!d.quick && !d.name) { POS.toast(POS.s("cust.nameRequired"), { variant: "danger", duration: 1800 }); return; }
         if (nif && !/^\d{9}$/.test(nif)) { POS.toast(POS.s("cust.nifInvalid"), { variant: "danger", duration: 1600 }); return; }
+        var existing = nif && POS.customers.find(function (c) { return c.nif === nif; });
+        if (existing && d.quick) { cart.setCustomer(existing.id); POS.osk.close(); close(); return; }
         var id = "c" + Date.now();
-        var name = d.name || (nif ? "Cliente c/ NIF " + nif : POS.s("cart.customer"));
+        var name = d.name || (nif ? "Particular" : POS.s("cart.customer"));
         var c = { id: id, name: { pt: name, en: name }, nif: nif || null,
           phone: d.phone, address: d.address, zip: d.zip, city: d.city, country: d.country };
-        POS.customers.push(c); cart.setCustomer(id);   // passa a ser o destino da venda
+        POS.customers.push(c); cart.setCustomer(id);
         POS.osk.close(); close();
-        POS.toast(POS.s(d.quick ? "cust.created" : "cust.saved"), { variant: "success", duration: 1800 });
+        POS.toast(POS.s(d.quick ? "cust.nifSaved" : "cust.saved"), { variant: "success", duration: 1800 });
       }
     }
 
@@ -2134,25 +2233,11 @@
 
       wrap.querySelector('[data-a="offer"]').addEventListener("click", function () {
         setActive(this);
-        var linesHtml = (sale.lines || []).map(function (l) {
-          var p = POS.products.find(function (x) { return x.id === l.productId; });
-          var name = p ? POS.t(p.name) : l.productId;
-          var qty = l.weighable ? (l.weight + " kg") : ("×" + l.qty);
-          return '<label class="ps-offer__row"><input class="ps-offer__chk" type="checkbox" value="' + l.key + '" checked>' +
-            '<span class="ps-offer__name">' + name + '</span>' +
-            '<span class="ps-offer__qty">' + qty + '</span></label>';
-        }).join("");
-        panel.innerHTML =
-          '<div class="ps-offer">' +
-            '<p class="ps-offer__hint">Seleciona os artigos a incluir no talão:</p>' +
-            '<div class="ps-offer__list">' + linesHtml + '</div>' +
-            '<button class="btn btn--block" id="psOfferPrint" type="button">' + ic("printer", { size: 16 }) + ' Imprimir talão</button>' +
-          '</div>';
-        panel.querySelector("#psOfferPrint").addEventListener("click", function () {
-          var keys = Array.from(panel.querySelectorAll(".ps-offer__chk:checked")).map(function (c) { return c.value; });
-          var filtered = Object.assign({}, sale, { lines: sale.lines.filter(function (l) { return keys.indexOf(l.key) !== -1; }) });
-          POS.printDoc(filtered, { format: "offer" });
-        });
+        panel.innerHTML = "";
+        panel.appendChild(buildGiftEditor(sale, function (filtered) {
+          POS.printDoc(filtered, { format: "oferta" });
+          POS.toast(POS.s("doc.giftPrinted"), { duration: 1500 });
+        }));
       });
 
       var done = false;
@@ -2559,7 +2644,7 @@
     function renderCart() { renderDoc(); renderCustomer(); renderLines(); renderSummary(); }
     function renderAll() { applyStatic(); paintStaticIcons(); renderRail(); renderCatalog(); renderCart(); renderOps(); syncCashUI(); renderUser(); }
 
-    POS.onCartChange(function () { renderLines(); renderSummary(); renderGrid(); renderOps(); });
+    POS.onCartChange(function () { renderCustomer(); renderLines(); renderSummary(); renderGrid(); renderOps(); });
     POS.onLayoutChange(function () { renderOps(); renderLines(); });
     POS.onLangChange(renderAll);
     POS.onLangChange(function () { if (reopenScreen && !$("#screen").hidden) reopenScreen(); });

@@ -10,29 +10,27 @@
   <link rel="stylesheet" href="assets/css/payment.css" />
 </head>
 <body>
-  <!-- Topo grafite: Voltar | Título | Cliente | Chips de doc | Opções -->
-  <header class="pay-top" role="banner">
-    <a class="pay-top__back" href="sale.html" id="back" aria-label="Voltar à venda"></a>
-    <span class="pay-top__title" id="title">Pagamento</span>
-
-    <button class="pay-top__cust" id="btnCust" type="button" aria-label="Selecionar cliente">
-      <span class="pay-top__cust-ic" data-icon="user" aria-hidden="true"></span>
-      <span class="pay-top__cust-name" id="custName">Consumidor Final</span>
-      <span class="pay-top__cust-chev" data-icon="chevron-down" aria-hidden="true"></span>
-    </button>
-
-    <div class="pay-top__doctype" id="docChips" role="group" aria-label="Tipo de documento">
-      <button class="top-chip" type="button" data-dt="receipt" aria-pressed="false">VD</button>
-      <button class="top-chip" type="button" data-dt="simplified" aria-pressed="false">FS</button>
-      <button class="top-chip" type="button" data-dt="invoiceReceipt" aria-pressed="false">FR</button>
-      <button class="top-chip" type="button" data-dt="invoice" aria-pressed="false">FT</button>
-      <button class="top-chip" type="button" data-dt="deliveryNote" aria-pressed="false">GT</button>
+  <!-- Topbar (idêntica à venda) -->
+  <header class="topbar">
+    <a class="topbar__logo topbar__logo--back" href="sale.html" aria-label="Voltar à venda">
+      <svg viewBox="0 0 500 500" fill="currentColor" aria-hidden="true" focusable="false"><path d="M493.6 394.7v94.34H159.58C74.62 489.04 5.5 419.92 5.5 334.96V95.46h94.34v239.49c0 32.95 26.79 59.75 59.75 59.75H493.6Z"/><path d="M493.6 155.08v333.95h-94.34V155.08c0-32.95-26.79-59.75-59.75-59.75H99.96V1h239.55c84.97 0 154.08 69.12 154.08 154.08Z"/><path d="M194.85 190.34H304.2v109.35H194.85z"/></svg>
+    </a>
+    <div class="topbar__brand">
+      <span class="topbar__store">Mercearia Avenida</span>
+      <span class="topbar__terminal"><span id="topDate">--</span><span class="topbar__dot"> · </span><span id="topClock" class="num">--:--</span></span>
     </div>
-
-    <button class="pay-top__opts" id="btnDocOpts" type="button">
-      <span data-icon="settings" aria-hidden="true"></span>
-      <span data-s="pay.docOptions">Opções</span>
-    </button>
+    <span class="topbar__spacer"></span>
+    <div class="topbar__actions row">
+      <div class="topbar__op-group">
+        <button class="topbar__user" id="tbUser" type="button" aria-haspopup="menu" aria-expanded="false">
+          <span class="topbar__avatar" id="tbAvatar">AS</span>
+          <span class="topbar__user-info"><span id="tbUserName">Ana Sousa</span><span class="topbar__user-terminal" id="tbUserTerminal">Terminal 1</span></span>
+          <span class="topbar__chev" id="tbUserChev" aria-hidden="true"></span>
+        </button>
+        <span class="topbar__op-sep" aria-hidden="true"></span>
+        <button class="topbar__btn topbar__btn--lock" id="tbLock" type="button" aria-label="Bloquear terminal"></button>
+      </div>
+    </div>
   </header>
 
   <main class="pay-screen" id="screen">
@@ -40,31 +38,47 @@
 
     <!-- Coluna esquerda: resumo da venda -->
     <section class="pay-left" aria-labelledby="lblCartSummary">
+
+      <!-- Cliente (acima do resumo) -->
+      <button class="pay-cust-row" id="btnCust" type="button" aria-label="Selecionar cliente">
+        <span class="pay-cust-row__ic" data-icon="user" aria-hidden="true"></span>
+        <div class="pay-cust-row__info">
+          <span class="pay-cust-row__name" id="custName">Consumidor Final</span>
+          <span class="pay-cust-row__label" data-s="pay.customer">Cliente</span>
+        </div>
+        <span class="pay-cust-row__chev" data-icon="chevron-right" aria-hidden="true"></span>
+      </button>
+
       <h2 class="pay-left__title" id="lblCartSummary">Resumo da venda</h2>
       <div class="cart-lines" id="cartLines" aria-label="Artigos"></div>
       <div class="cart-totals" id="cartTotals"></div>
+      <div id="cartPayInfo"></div>
     </section>
 
     <!-- Coluna direita: fluxo de pagamento -->
     <aside class="pay-right" aria-label="Pagamento">
 
+      <!-- Dados da Fatura -->
+      <button class="billing-card" id="billingCard" type="button" aria-label="Dados da Fatura">
+        <span class="billing-card__icon" aria-hidden="true" data-icon="file-text"></span>
+        <div class="billing-card__body">
+          <span class="billing-card__title" data-s="pay.billingData">Dados da Fatura</span>
+          <span class="billing-card__sub" id="bcSub">FS — Fatura Simplificada · 01 jul 2026</span>
+        </div>
+        <span class="billing-card__chev" aria-hidden="true" data-icon="chevron-right"></span>
+      </button>
+
       <!-- Barra de modo: título + toggle dividido -->
       <div class="pay-mode-bar">
         <span class="pay-mode-bar__title" id="lblPaySection">Pagamentos</span>
         <button class="pay-mode-toggle" id="btnMultiMode" type="button" aria-pressed="false">
-          <span data-icon="split" aria-hidden="true"></span>
-          <span id="lblSplit">Dividir</span>
+          <span data-icon="columns" aria-hidden="true"></span>
+          <span id="lblSplit" data-s="pay.split.short">Dividir</span>
         </button>
       </div>
 
       <!-- ── MODO SIMPLES ─────────────────────────────── -->
       <div id="singleMode">
-
-        <!-- Lista de pagamentos adicionados (sempre visível) -->
-        <div class="paylist2" aria-label="Pagamentos adicionados">
-          <div id="payListRows"></div>
-          <div id="payBanner" aria-live="polite"></div>
-        </div>
 
         <!-- Métodos de pagamento -->
         <div class="methods" id="methods" role="group" aria-label="Método de pagamento">
@@ -101,7 +115,6 @@
       <!-- ── MODO DIVIDIDO ────────────────────────────── -->
       <div id="multiMode" hidden>
         <div class="multi-methods" id="multiMethodList" aria-label="Métodos de pagamento"></div>
-        <div id="multiBanner" aria-live="polite"></div>
       </div>
 
       <!-- CTA (partilhado pelos dois modos) -->
@@ -179,6 +192,8 @@
         el.innerHTML = ic(name, { size: size, stroke: 1.7 });
         el.removeAttribute("data-icon");
       });
+      $("#tbUserChev").innerHTML = ic("chevron-down", { size: 16 });
+      $("#tbLock").innerHTML = ic("lock", { size: 18 });
     }
 
     /* ---------- i18n estático ---------- */
@@ -186,14 +201,20 @@
       document.querySelectorAll("[data-s]").forEach(function (el) {
         el.textContent = POS.s(el.getAttribute("data-s"));
       });
-      $("#title").textContent = POS.s("pay.title");
-      $("#h1").textContent = POS.s("pay.title");
-      $("#lblReceived").textContent = POS.s("pay.received");
-      $("#lblCartSummary").textContent = POS.s("pay.cartSummary");
-      $("#back").innerHTML = ic("chevron-left", { size: 20 }) + "<span>" + POS.s("act.back") + "</span>";
+      var h1 = $("#h1"); if (h1) h1.textContent = POS.s("pay.title");
+      var lrec = $("#lblReceived"); if (lrec) lrec.textContent = POS.s("pay.received");
+      var lcs = $("#lblCartSummary"); if (lcs) lcs.textContent = POS.s("pay.cartSummary");
     }
 
     /* ---------- Tipo de documento ---------- */
+    var DOC_TYPE_META = {
+      receipt:        { code: "VD", pt: "Venda a Dinheiro",    en: "Cash Sale" },
+      simplified:     { code: "FS", pt: "Fatura Simplificada", en: "Simplified Invoice" },
+      invoiceReceipt: { code: "FR", pt: "Fatura-Recibo",       en: "Invoice Receipt" },
+      invoice:        { code: "FT", pt: "Fatura",              en: "Invoice" },
+      deliveryNote:   { code: "GT", pt: "Guia de Transporte",  en: "Delivery Note" }
+    };
+
     function docTypeLabel(dt) {
       var MAP = {
         receipt: POS.s("doc.receipt"),
@@ -203,6 +224,20 @@
         deliveryNote: POS.s("doc.deliveryNote"),
       };
       return MAP[dt] || dt;
+    }
+
+    function renderBillingCard() {
+      var sub = document.getElementById("bcSub");
+      var card = document.getElementById("billingCard");
+      if (!sub || !card) return;
+      var meta = DOC_TYPE_META[docType] || DOC_TYPE_META.simplified;
+      var label = meta.code + " — " + (POS.lang === "en" ? meta.en : meta.pt);
+      var d = issueDate ? new Date(issueDate + "T00:00:00") : new Date();
+      var dateStr = d.toLocaleDateString(POS.lang === "en" ? "en-GB" : "pt-PT", { day: "2-digit", month: "short", year: "numeric" });
+      sub.textContent = label + " · " + dateStr;
+      // Aviso visual se GT sem dados de transporte obrigatórios
+      var warnGT = docType === "deliveryNote" && (!loadAddr || !loadZip || !loadCity || !unloadAddr || !unloadCity);
+      card.classList.toggle("billing-card--warn", warnGT);
     }
 
     function setDocType(dt) {
@@ -226,58 +261,130 @@
     }
 
     function openCustomerPicker() {
+      function field(id, labelKey, attrs) {
+        return '<label class="ff"><span>' + POS.s(labelKey) + '</span>' +
+          '<input id="' + id + '" class="ff__in" autocomplete="off" ' + (attrs || "") + '></label>';
+      }
       var wrap = document.createElement("div");
-      wrap.className = "sheet";
-      var q = "";
-
-      function filtered() {
-        return POS.customers.filter(function (c) {
-          if (!q) return true;
-          var n = POS.t(c.name).toLowerCase();
-          var nif = (c.nif || "").toLowerCase();
-          return n.indexOf(q) >= 0 || nif.indexOf(q) >= 0;
-        });
-      }
-
-      function renderList() {
-        var list = filtered();
-        var rows = list.map(function (c) {
-          var isActive = c.id === cart.state.customerId;
-          return '<button class="cust-row' + (isActive ? " is-active" : "") + '" type="button" data-id="' + c.id + '">' +
-            '<span class="cust-avatar">' + ic("user", { size: 18 }) + '</span>' +
-            '<span style="flex:1;text-align:left">' +
-              '<span style="display:block;font-weight:700;font-size:var(--fs-sm)">' + POS.t(c.name) + '</span>' +
-              (c.nif ? '<span style="display:block;font-size:var(--fs-xs);color:var(--ink-500)">NIF ' + c.nif + '</span>' : '') +
-            '</span>' +
-            (isActive ? '<span>' + ic("check", { size: 18 }) + '</span>' : '') +
-          '</button>';
-        }).join("") || '<p style="padding:var(--sp-4);color:var(--ink-400);text-align:center">' + POS.s("cust.empty") + '</p>';
-
-        wrap.innerHTML =
-          '<div style="padding:var(--sp-4) var(--sp-5) var(--sp-3)">' +
-            '<input class="ff__in" style="width:100%" type="search" placeholder="' + POS.s("cust.search") + '" value="' + q + '" id="custQ" />' +
+      wrap.className = "sheet cust-sheet";
+      wrap.innerHTML =
+        '<div style="padding:var(--sp-4) var(--sp-5) var(--sp-3)">' +
+          '<input class="ff__in" style="width:100%" type="search" placeholder="' + POS.s("cust.search") + '" id="custQ">' +
+        '</div>' +
+        '<div class="clist" id="clist" style="padding:0 var(--sp-4)"></div>' +
+        '<div class="cust-foot">' +
+          '<button class="cust-expand" id="custExpand" type="button" aria-expanded="false" hidden>' +
+            ic("plus", { size: 18 }) + '<span>' + POS.s("cust.moreFields") + '</span>' +
+          '</button>' +
+          '<div class="cust-form" id="custForm" hidden>' +
+            field("cf_name", "cust.name", "required") +
+            '<div class="ff-grid">' + field("cf_nif", "cust.nif", 'inputmode="numeric"') + field("cf_phone", "cust.phone", 'inputmode="tel"') + '</div>' +
+            field("cf_addr", "cust.address") +
+            '<div class="ff-grid">' + field("cf_zip", "cust.zip") + field("cf_city", "cust.city") + '</div>' +
+            field("cf_country", "cust.country") +
+            '<button class="btn btn--primary btn--block" id="custSave" type="button" style="margin-top:var(--sp-2)">' +
+              ic("check", { size: 18 }) + ' ' + POS.s("cust.save") +
+            '</button>' +
           '</div>' +
-          '<div style="overflow-y:auto;flex:1;padding:0 var(--sp-4) var(--sp-5)">' + rows + '</div>';
+        '</div>';
 
-        wrap.querySelector("#custQ").addEventListener("input", function () {
-          q = this.value.toLowerCase();
-          renderList();
-          var qi = wrap.querySelector("#custQ");
-          if (qi) { qi.focus(); qi.value = q; }
+      var listEl = wrap.querySelector("#clist");
+
+      function paint(q) {
+        listEl.innerHTML = "";
+        var trimmed = (q || "").trim();
+        var tl = trimmed.toLowerCase();
+        var rows = POS.customers.filter(function (c) {
+          if (!trimmed) return true;
+          return POS.t(c.name).toLowerCase().indexOf(tl) >= 0 || (c.nif || "").indexOf(tl) >= 0;
         });
-        wrap.querySelectorAll(".cust-row").forEach(function (btn) {
-          btn.addEventListener("click", function () {
-            var id = btn.dataset.id;
-            cart.setCustomer(id);
-            renderCustomer();
-            renderCart();
-            close();
+        var isNif = /^\d{9}$/.test(trimmed);
+        var nifMode = isNif && !rows.some(function (c) { return c.nif === trimmed; });
+
+        if (nifMode) {
+          var fastBtn = document.createElement("button");
+          fastBtn.type = "button"; fastBtn.className = "cust-nif-fast";
+          fastBtn.innerHTML =
+            '<span class="cust-nif-fast__ic">' + ic("zap", { size: 20 }) + '</span>' +
+            '<span class="cust-nif-fast__body"><b>NIF ' + trimmed + '</b>' +
+              '<small>' + POS.s("cust.nifFastHint") + '</small></span>' +
+            '<span class="cust-nif-fast__chev">' + ic("chevron-right", { size: 16 }) + '</span>';
+          fastBtn.addEventListener("click", function () { saveCustomer({ nif: trimmed, quick: true }); });
+          listEl.appendChild(fastBtn);
+        }
+
+        var expandBtn = wrap.querySelector("#custExpand");
+        if (expandBtn) expandBtn.hidden = !(trimmed && (rows.length === 0 || nifMode));
+
+        if (!rows.length && !nifMode) {
+          listEl.innerHTML += '<p class="muted" style="padding:12px">' + POS.s("cust.noResults") + '</p>';
+          return;
+        }
+
+        rows.forEach(function (c) {
+          var nm = POS.t(c.name);
+          var isActive = c.id === cart.state.customerId;
+          var b = document.createElement("button"); b.type = "button"; b.className = "clist__item doc-item";
+          b.setAttribute("aria-pressed", String(isActive));
+          b.innerHTML =
+            '<span class="doc-code" style="--code-c:' + (c.isDefault ? "var(--ink-500)" : avatarColor(nm)) + '">' +
+              (c.isDefault ? ic("user", { size: 20 }) : initials(nm)) +
+            '</span>' +
+            '<span class="doc-item__main">' +
+              '<span class="doc-item__no">' + nm + '</span>' +
+              '<span class="doc-item__sub">' + (c.nif ? "NIF " + c.nif : POS.s("cart.customer")) + '</span>' +
+            '</span>' +
+            (isActive ? '<span>' + ic("check", { size: 18 }) + '</span>' : '');
+          b.addEventListener("click", function () {
+            cart.setCustomer(c.id); renderCustomer(); renderCart(); close();
           });
+          listEl.appendChild(b);
         });
       }
 
-      renderList();
-      var close = POS.openDrawer(wrap, { label: POS.s("cust.search"), dimmed: false });
+      function saveCustomer(d) {
+        var nif = (d.nif || "").trim().replace(/\s/g, "");
+        if (!d.quick && !d.name) { POS.toast(POS.s("cust.nameRequired"), { variant: "danger", duration: 1800 }); return; }
+        if (nif && !/^\d{9}$/.test(nif)) { POS.toast(POS.s("cust.nifInvalid"), { variant: "danger", duration: 1600 }); return; }
+        var existing = nif && POS.customers.find(function (c) { return c.nif === nif; });
+        if (existing && d.quick) { cart.setCustomer(existing.id); renderCustomer(); renderCart(); close(); return; }
+        var id = "c" + Date.now();
+        var name = d.name || (nif ? "Particular" : POS.s("cart.customer"));
+        var c = { id: id, name: { pt: name, en: name }, nif: nif || null,
+          phone: d.phone, address: d.address, zip: d.zip, city: d.city, country: d.country };
+        POS.customers.push(c);
+        cart.setCustomer(id); renderCustomer(); renderCart(); close();
+        POS.toast(POS.s(d.quick ? "cust.nifSaved" : "cust.saved"), { variant: "success", duration: 1800 });
+      }
+
+      paint("");
+      var close = POS.openModal(wrap, { label: POS.s("cart.customer") });
+
+      wrap.querySelector("#custQ").addEventListener("input", function () { paint(this.value); });
+
+      var expand = wrap.querySelector("#custExpand"), form = wrap.querySelector("#custForm");
+      expand.addEventListener("click", function () {
+        var open = form.hidden; form.hidden = !open; expand.setAttribute("aria-expanded", String(open));
+        if (open) {
+          var searchVal = (wrap.querySelector("#custQ").value || "").trim();
+          var isNifQ = /^\d{9}$/.test(searchVal);
+          if (isNifQ) { wrap.querySelector("#cf_nif").value = searchVal; }
+          else if (searchVal) { wrap.querySelector("#cf_name").value = searchVal; }
+          wrap.querySelector("#cf_name").focus();
+        }
+      });
+      wrap.querySelector("#custSave").addEventListener("click", function () {
+        saveCustomer({
+          name: wrap.querySelector("#cf_name").value.trim(),
+          nif:  wrap.querySelector("#cf_nif").value,
+          phone: wrap.querySelector("#cf_phone").value.trim(),
+          address: wrap.querySelector("#cf_addr").value.trim(),
+          zip: wrap.querySelector("#cf_zip").value.trim(),
+          city: wrap.querySelector("#cf_city").value.trim(),
+          country: wrap.querySelector("#cf_country").value.trim(),
+        });
+      });
+
       setTimeout(function () { var qi = wrap.querySelector("#custQ"); if (qi) qi.focus(); }, 50);
     }
 
@@ -308,18 +415,36 @@
       var wrap = document.createElement("div");
       wrap.className = "doc-opts";
       wrap.innerHTML =
+        // Secção: tipo de documento
+        '<div class="doc-opts__sect">' +
+          '<div class="doc-opts__label">' + POS.s("pay.docType") + '</div>' +
+          '<div class="doc-opts__chips" role="group">' +
+            [
+              { dt: "receipt",        code: "VD" },
+              { dt: "simplified",     code: "FS" },
+              { dt: "invoiceReceipt", code: "FR" },
+              { dt: "invoice",        code: "FT" },
+              { dt: "deliveryNote",   code: "GT" }
+            ].map(function (x) {
+              return '<button class="top-chip doc-opts__chip" type="button" data-dt-inner="' + x.dt + '" aria-pressed="' + (docType === x.dt) + '">' + x.code + '</button>';
+            }).join("") +
+          '</div>' +
+        '</div>' +
+        // Secção: data de emissão
         '<div class="doc-opts__sect">' +
           '<label class="doc-opts__label" for="doDt">' + POS.s("pay.issueDate") + '</label>' +
           '<input class="pay-date" type="date" id="doDt" value="' + issueDate + '" />' +
         '</div>' +
+        // Secção: observações
         '<div class="doc-opts__sect">' +
           '<label class="doc-opts__label" for="doNotes">' + POS.s("pay.notes") + '</label>' +
           '<textarea class="pay-notes" id="doNotes" rows="3" placeholder="' + POS.s("pay.notesPlaceholder") + '">' + notes + '</textarea>' +
         '</div>' +
+        // Dados de transporte
         '<details class="transport" id="doTransport"' + (isGT ? " open" : "") + '>' +
           '<summary class="transport__sum">' +
             '<span class="transport__sum-txt">' + POS.s("pay.transport") + '</span>' +
-            (isGT ? '<span class="transport__badge">' + POS.s("pay.transport.required") + '</span>' : '') +
+            '<span class="transport__badge" style="' + (isGT ? "" : "display:none") + '">' + POS.s("pay.transport.required") + '</span>' +
             '<span class="transport__chev" aria-hidden="true"></span>' +
           '</summary>' +
           '<div class="transport__body">' +
@@ -331,6 +456,24 @@
             '</div>' +
           '</div>' +
         '</details>';
+
+      // Eventos nos chips internos de tipo de documento
+      wrap.querySelectorAll("[data-dt-inner]").forEach(function (c) {
+        c.addEventListener("click", function () {
+          setDocType(c.dataset.dtInner);
+          wrap.querySelectorAll("[data-dt-inner]").forEach(function (x) {
+            x.setAttribute("aria-pressed", String(x.dataset.dtInner === docType));
+          });
+          renderBillingCard();
+          // Abrir/fechar o details de transporte conforme o tipo
+          var transp = wrap.querySelector("#doTransport");
+          if (transp) {
+            transp.open = (docType === "deliveryNote");
+            var badge = transp.querySelector(".transport__badge");
+            if (badge) badge.style.display = (docType === "deliveryNote") ? "" : "none";
+          }
+        });
+      });
 
       function saveOpts() {
         var doDt = wrap.querySelector("#doDt");
@@ -344,6 +487,7 @@
         unloadZip = (wrap.querySelector("#tUnloadZip") || {}).value || "";
         unloadCity = (wrap.querySelector("#tUnloadCity") || {}).value || "";
         transportDt = (wrap.querySelector("#tDt") || {}).value || "";
+        renderBillingCard();
         refreshCTA();
       }
 
@@ -361,6 +505,7 @@
           '<div class="cart-empty">' + ic("shopping-cart", { size: 28, stroke: 1.5 }) +
           '<span>' + POS.s("cart.empty.title") + '</span></div>';
         $("#cartTotals").innerHTML = "";
+        renderCartPayInfo();
         return;
       }
 
@@ -414,68 +559,76 @@
 
       $("#cartLines").innerHTML = linesHtml;
       $("#cartTotals").innerHTML = totHtml;
+      renderCartPayInfo();
     }
 
-    /* ---------- Lista de pagamentos (sempre visível) ---------- */
+    /* ---------- Pagamentos no carrinho (coluna esquerda) ---------- */
     function methodIcon(m) { return m === "cash" ? "banknote" : m === "card" ? "card" : "smartphone"; }
 
-    function renderPayList() {
+    function renderCartPayInfo(opts) {
+      var el = document.getElementById("cartPayInfo");
+      if (!el) return;
+      opts = opts || {};
+      var total = totals().totalCents;
       var pays = cart.payments();
-      var d = due();
-      var change = cart.changeCents();
+      var html = "";
 
-      // Linhas de pagamento
-      var rows = "";
-      if (pays.length === 0) {
-        rows = '<div class="paylist__empty">' +
-          ic("credit-card", { size: 28, stroke: 1.5 }) +
-          '<span>' + POS.s("pay.noPayments") + '</span>' +
-        '</div>';
+      if (multiMode && opts.multiAmounts) {
+        // Preview dos montantes introduzidos no modo dividido
+        var sumM = 0;
+        MULTI_METHODS.forEach(function (m) {
+          var amt = opts.multiAmounts[m.id] || 0;
+          if (amt > 0) {
+            sumM += amt;
+            html += '<div class="cart-sumrow cart-sumrow--paid">' +
+              '<span>' + POS.s("pay.method." + m.id) + '</span>' +
+              '<span class="num">−' + POS.money(amt) + '</span>' +
+            '</div>';
+          }
+        });
+        var changeM = Math.max(0, sumM - total);
+        var dueM = Math.max(0, total - sumM);
+        if (sumM > 0) {
+          if (dueM > 0) {
+            html += '<div class="cart-sumrow cart-sumrow--due"><span>' + POS.s("pay.due") + '</span><span class="num">' + POS.money(dueM) + '</span></div>';
+          } else if (changeM > 0) {
+            html += '<div class="cart-sumrow cart-sumrow--change"><span>' + POS.s("pay.changeDue") + '</span><span class="num">' + POS.money(changeM) + '</span></div>';
+          }
+        }
       } else {
-        pays.forEach(function (p, i) {
-          rows += '<div class="payrow">' +
-            '<span class="payrow__ic">' + ic(methodIcon(p.method), { size: 20, stroke: 1.7 }) + '</span>' +
-            '<span class="payrow__m">' + POS.s("pay.method." + p.method) + '</span>' +
-            '<span class="payrow__v num">' + POS.money(p.amountCents) + '</span>' +
-            '<button class="payrow__rm" type="button" data-i="' + i + '" aria-label="' + POS.s("pay.removePayment") + '">' + ic("x", { size: 18 }) + '</button>' +
+        var liveAmt = opts.liveAmt || 0;
+        var liveMethod2 = opts.liveMethod || method;
+        var paidBase = cart.paidCents();
+        var paidLive = paidBase + liveAmt;
+        var changeLive = Math.max(0, paidLive - total);
+        var dueLive = Math.max(0, total - paidLive);
+
+        pays.forEach(function (p) {
+          html += '<div class="cart-sumrow cart-sumrow--paid">' +
+            '<span>' + POS.s("pay.method." + p.method) + '</span>' +
+            '<span class="num">−' + POS.money(p.amountCents) + '</span>' +
           '</div>';
         });
-      }
-
-      // Banner em falta / troco
-      var banner = "";
-      if (pays.length > 0 && d > 0) {
-        banner = '<div class="paylist__due"><span>' + POS.s("pay.due") + '</span><span class="num">' + POS.money(d) + '</span></div>';
-      } else if (change > 0) {
-        banner = '<div class="paylist__change"><span>' + POS.s("pay.changeDue") + '</span><span class="num">' + POS.money(change) + '</span></div>';
-      }
-
-      $("#payListRows").innerHTML = rows;
-      $("#payBanner").innerHTML = banner;
-
-      // Eventos dos botões de remover
-      document.querySelectorAll(".payrow__rm").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var i = parseInt(btn.dataset.i, 10);
-          var rem = cart.removePayment(i);
-          if (rem) {
-            POS.toast(POS.s("pay.paymentRemoved"), {
-              duration: 1800,
-              action: {
-                label: POS.s("cart.undo"),
-                onClick: function () {
-                  cart.addPayment({ method: rem.payment.method, amountCents: rem.payment.amountCents });
-                  rerender();
-                }
-              }
-            });
+        if (liveAmt > 0 && liveMethod2 === "cash") {
+          html += '<div class="cart-sumrow cart-sumrow--paid cart-sumrow--preview">' +
+            '<span>' + POS.s("pay.method.cash") + '</span>' +
+            '<span class="num">−' + POS.money(liveAmt) + '</span>' +
+          '</div>';
+        }
+        if (paidLive > 0) {
+          if (dueLive > 0) {
+            html += '<div class="cart-sumrow cart-sumrow--due"><span>' + POS.s("pay.due") + '</span><span class="num">' + POS.money(dueLive) + '</span></div>';
+          } else if (changeLive > 0) {
+            html += '<div class="cart-sumrow cart-sumrow--change"><span>' + POS.s("pay.changeDue") + '</span><span class="num">' + POS.money(changeLive) + '</span></div>';
           }
-          if (cart.payments().length === 0) splitMode = false;
-          resetCurrent();
-          rerender();
-        });
-      });
+        }
+      }
+
+      el.innerHTML = html ? '<div class="cart-pay-sep"></div>' + html : "";
     }
+
+    /* ---------- renderPayList: no-op (HTML removido) ---------- */
+    function renderPayList() { /* elementos removidos do DOM — função mantida para compatibilidade */ }
 
     /* ---------- Quick-cash ---------- */
     function renderQuick() {
@@ -491,15 +644,19 @@
       vals = vals.filter(function (v, i, a) { return a.indexOf(v) === i; }).sort(function (a, b) { return a - b; }).slice(0, 6);
       vals.forEach(function (v) {
         var b = document.createElement("button"); b.type = "button";
-        if (v === target) {
-          b.className = "exact";
+        var isExact = v === target;
+        var isSelected = amountTouched && v === amountCents;
+        b.setAttribute("aria-pressed", String(isSelected));
+        if (isExact) {
+          b.className = "exact" + (isSelected ? " is-selected" : "");
           b.innerHTML = '<span>' + POS.s("pay.exact") + '</span><span class="num">' + POS.money(v) + "</span>";
         } else {
+          b.className = isSelected ? "is-selected" : "";
           b.innerHTML = '<span class="num">' + POS.money(v) + "</span>";
         }
         b.addEventListener("click", function () {
           amountCents = v; amountTouched = true;
-          renderCash(); renderPayBannerLive(); refreshCTA();
+          renderQuick(); renderCash(); renderPayBannerLive(); refreshCTA();
         });
         host.appendChild(b);
       });
@@ -510,19 +667,9 @@
       $("#received").classList.toggle("is-set", amountTouched);
     }
 
-    // Banner em tempo real (antes de confirmar o pagamento)
+    // Atualização em tempo real dos pagamentos no carrinho
     function renderPayBannerLive() {
-      var pays = cart.payments();
-      var d = due();
-      var liveChange = Math.max(0, (cart.paidCents() + (amountTouched ? amountCents : 0)) - totals().totalCents);
-      var liveDue = Math.max(0, d - (amountTouched ? amountCents : 0));
-      var banner = "";
-      if (method === "cash" && liveChange > 0) {
-        banner = '<div class="paylist__change"><span>' + POS.s("pay.changeDue") + '</span><span class="num">' + POS.money(liveChange) + '</span></div>';
-      } else if (pays.length > 0 && d > 0 && (cart.paidCents() + (amountTouched ? amountCents : 0)) < totals().totalCents) {
-        banner = '<div class="paylist__due"><span>' + POS.s("pay.due") + '</span><span class="num">' + POS.money(liveDue) + '</span></div>';
-      }
-      $("#payBanner").innerHTML = banner;
+      renderCartPayInfo({ liveAmt: amountTouched ? amountCents : 0, liveMethod: method });
     }
 
     /* ---------- Painel cartão / MB WAY ---------- */
@@ -604,8 +751,11 @@
       });
       $("#cashPanel").hidden = (m !== "cash");
       $("#termPanel").hidden = (m === "cash");
-      if (m === "cash") { renderQuick(); renderCash(); }
-      else renderTerminal();
+      if (m === "cash") {
+        var prefill = due(); if (prefill <= 0) prefill = totals().totalCents;
+        if (prefill > 0) { amountCents = prefill; amountTouched = true; }
+        renderQuick(); renderCash(); renderCartPayInfo();
+      } else renderTerminal();
       refreshCTA();
     }
 
@@ -859,15 +1009,8 @@
 
       document.getElementById("multiMethodList").innerHTML = rows;
 
-      // Banner em falta / troco
-      var remaining = total - sumEntered;
-      var banner = "";
-      if (sumEntered > 0 && remaining > 0) {
-        banner = '<div class="paylist__due"><span>' + POS.s("pay.due") + '</span><span class="num">' + POS.money(remaining) + '</span></div>';
-      } else if (sumEntered > total) {
-        banner = '<div class="paylist__change"><span>' + POS.s("pay.changeDue") + '</span><span class="num">' + POS.money(sumEntered - total) + '</span></div>';
-      }
-      document.getElementById("multiBanner").innerHTML = banner;
+      // Atualizar info de pagamentos no carrinho
+      renderCartPayInfo({ multiAmounts: multiAmounts });
 
       // Eventos: botão de valor → keypad
       document.querySelectorAll(".mrow__val").forEach(function (btn) {
@@ -940,11 +1083,10 @@
 
     /* ---------- Render geral ---------- */
     function rerender() {
-      renderCart();
+      renderCart(); // já chama renderCartPayInfo() no fim
       if (multiMode) {
-        renderMultiMethods();
+        renderMultiMethods(); // chama renderCartPayInfo({multiAmounts}) no fim
       } else {
-        renderPayList();
         if (method === "cash") {
           $("#cashPanel").hidden = false; $("#termPanel").hidden = true;
           renderQuick(); renderCash();
@@ -956,10 +1098,232 @@
           x.setAttribute("aria-pressed", String(x.dataset.m === method));
         });
       }
+      renderBillingCard();
       refreshCTA();
     }
 
-    function renderAll() { applyStatic(); paintIcons(); renderCustomer(); rerender(); }
+    function renderAll() { applyStatic(); paintIcons(); renderCustomer(); renderBillingCard(); rerender(); renderUser(); }
+
+    /* ---------- Topbar: relógio, operador, lock ---------- */
+    function tick() {
+      var d = new Date(), loc = POS.lang === "pt" ? "pt-PT" : "en-IE";
+      $("#topClock").textContent = d.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" });
+      var dateEl = $("#topDate");
+      if (dateEl) dateEl.textContent = d.toLocaleDateString(loc, { weekday: "short", day: "numeric", month: "short" });
+    }
+    function initials(name) {
+      var w = (name || "").trim().split(/\s+/).filter(Boolean);
+      if (!w.length) return "?";
+      return (w[0][0] + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase();
+    }
+    function avatarColor(name) {
+      var ch = (name || "?").trim().toUpperCase().charCodeAt(0);
+      var i = (ch >= 65 && ch <= 90) ? ch - 65 : 0;
+      return "hsl(" + Math.round(i / 26 * 360) + ", 52%, 46%)";
+    }
+    function currentOp() {
+      var t = POS.terminal();
+      return POS.operators.find(function (o) { return o.id === t.operatorId; }) || { id: t.operatorId, name: t.operatorName, pin: "" };
+    }
+    function opRole(t) {
+      var o = POS.operators.find(function (x) { return x.id === t.operatorId; });
+      return o ? POS.t(o.role) : POS.s("user.role");
+    }
+    function renderUser() {
+      var t = POS.terminal();
+      var termLabel = (t.terminalId || "T1").replace(/^T(\d+)$/, "Terminal $1");
+      var av = document.querySelector(".topbar__user .topbar__avatar"); if (av) av.textContent = initials(t.operatorName);
+      var nm = $("#tbUserName"); if (nm) nm.textContent = t.operatorName;
+      var tt = $("#tbUserTerminal"); if (tt) tt.textContent = termLabel;
+      var st = document.querySelector(".topbar__store"); if (st) st.textContent = (POS.store && POS.store.name) || st.textContent;
+    }
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+      else document.exitFullscreen && document.exitFullscreen();
+    }
+    function handleUserAction(a) {
+      if (a === "fs") return toggleFullscreen();
+      if (a === "logout") return (window.location.href = "sale.html");
+      if (a === "switch") return switchOperator();
+      if (a === "profile") return POS.toast(POS.s("user.profile") + " · demo", { duration: 1500 });
+      if (a === "settings") return POS.toast(POS.s("nav.settings") + " · demo", { duration: 1500 });
+      if (a === "terminal") return POS.toast(POS.s("user.switchTerminal") + " · demo", { duration: 1500 });
+      if (a === "moloni") return POS.toast(POS.s("user.backToMoloni") + " · demo", { duration: 1500 });
+    }
+    function switchOperator() {
+      var t = POS.terminal();
+      var sel = null, pin = "", close = null;
+      var wrap = document.createElement("div"); wrap.className = "sheet op-switch";
+      wrap.innerHTML = "<h3>" + POS.s("op.switchTitle") + "</h3><div class='sheet__sub'>" + POS.s("op.switchHint") + "</div>" +
+        '<div class="op-list" id="opList"></div>' +
+        '<div class="op-pin" id="opPinSec" hidden><div class="op-pin__lbl">' + POS.s("op.pin") + "</div>" +
+          '<div class="lk-dots" id="opDots"></div><div class="lk-pad op-pad" id="opPad"></div></div>' +
+        '<div class="sheet__foot"><button class="btn btn--block" data-k="cancel">' + POS.s("act.cancel") + "</button></div>";
+      var listEl = wrap.querySelector("#opList"), pinSec = wrap.querySelector("#opPinSec"), dotsEl = wrap.querySelector("#opDots"), pad = wrap.querySelector("#opPad");
+      function pinLen() { return (sel && sel.pin ? sel.pin.length : 4) || 4; }
+      function dots() { var n = pinLen(), h = ""; for (var i = 0; i < n; i++) h += '<span class="lk-dot' + (i < pin.length ? " is-on" : "") + '"></span>'; dotsEl.innerHTML = h; }
+      function buildPad() {
+        pad.innerHTML = "";
+        ["1","2","3","4","5","6","7","8","9","blank","0","back"].forEach(function (k) {
+          if (k === "blank") { var sp = document.createElement("span"); sp.className = "lk-key lk-key--blank"; pad.appendChild(sp); return; }
+          var b = document.createElement("button"); b.type = "button"; b.className = "lk-key";
+          if (k === "back") { b.className += " lk-key--ico"; b.innerHTML = ic("backspace", { size: 22 }); b.setAttribute("aria-label", "Backspace"); }
+          else b.textContent = k;
+          b.addEventListener("click", function () {
+            if (k === "back") { pin = pin.slice(0, -1); dots(); return; }
+            if (pin.length >= pinLen()) return;
+            pin += k; dots(); if (pin.length === pinLen()) setTimeout(check, 120);
+          });
+          pad.appendChild(b);
+        });
+      }
+      function check() {
+        if (sel && pin === (sel.pin || "")) { doSwitch(); return; }
+        pinSec.classList.remove("shake"); void pinSec.offsetWidth; pinSec.classList.add("shake");
+        pin = ""; dots(); POS.toast(POS.s("op.wrongPin"), { variant: "danger", duration: 1400 });
+      }
+      function doSwitch() {
+        var from = POS.terminal().operatorName;
+        POS.setTerminal({ operatorId: sel.id, operatorName: sel.name });
+        if (POS.cash.isOpen()) POS.cash.movement("handover", 0, from + " → " + sel.name);
+        if (close) close(); renderUser();
+        POS.toast(POS.s("op.switched") + " · " + sel.name, { variant: "success", duration: 1800 });
+      }
+      POS.operators.forEach(function (o) {
+        var cur = o.id === t.operatorId;
+        var b = document.createElement("button"); b.type = "button"; b.className = "op-row" + (cur ? " is-current" : "");
+        if (cur) b.disabled = true;
+        b.innerHTML = '<span class="op-ava" style="background:' + avatarColor(o.name) + '">' + initials(o.name) + "</span>" +
+          '<span class="op-info"><b>' + o.name + "</b><small>" + POS.t(o.role) + (cur ? " · " + POS.s("op.current") : "") + "</small></span>";
+        b.addEventListener("click", function () {
+          sel = o; pin = "";
+          listEl.querySelectorAll(".op-row").forEach(function (x) { x.classList.remove("is-sel"); });
+          b.classList.add("is-sel");
+          pinSec.hidden = false; buildPad(); dots();
+        });
+        listEl.appendChild(b);
+      });
+      close = POS.openModal(wrap, { label: POS.s("op.switchTitle") });
+      wrap.querySelector('[data-k="cancel"]').addEventListener("click", function () { close(); });
+    }
+    var MOLONI_MARK = '<svg viewBox="0 0 500 500" fill="currentColor" aria-hidden="true" focusable="false">' +
+      '<path d="M493.6 394.7v94.34H159.58C74.62 489.04 5.5 419.92 5.5 334.96V95.46h94.34v239.49c0 32.95 26.79 59.75 59.75 59.75H493.6Z"/>' +
+      '<path d="M493.6 155.08v333.95h-94.34V155.08c0-32.95-26.79-59.75-59.75-59.75H99.96V1h239.55c84.97 0 154.08 69.12 154.08 154.08Z"/>' +
+      '<path d="M194.85 190.34H304.2v109.35H194.85z"/></svg>';
+    function lockTerminal() {
+      if (document.querySelector(".lockscreen")) return;
+      try { localStorage.setItem("pos_locked", "1"); } catch (e) {}
+      var target = currentOp(), pin = "", fromId = currentOp().id;
+      var node = document.createElement("div"); node.className = "lockscreen"; node.setAttribute("role", "dialog"); node.setAttribute("aria-modal", "true");
+      node.innerHTML = '<div class="lk-stars" id="lkStars" aria-hidden="true"></div><div class="lk-wrap" id="lkWrap"></div>';
+      (function makeStars() {
+        var box = node.querySelector("#lkStars"), html = "";
+        for (var i = 0; i < 46; i++) {
+          var sz = (Math.random() * 2.4 + 1).toFixed(1);
+          var dur = (Math.random() * 5 + 4).toFixed(1), del = (-Math.random() * 8).toFixed(1);
+          html += '<span class="lk-star" style="left:' + (Math.random() * 100).toFixed(2) + "%;top:" + (Math.random() * 100).toFixed(2) +
+            "%;width:" + sz + "px;height:" + sz + "px;animation-duration:" + dur + "s;animation-delay:" + del + 's"></span>';
+        }
+        box.innerHTML = html;
+      })();
+      function dots() { var n = (target.pin || "0000").length || 4; var out = ""; for (var i = 0; i < n; i++) out += '<span class="lk-dot' + (i < pin.length ? " is-on" : "") + '"></span>'; return out; }
+      function shell() {
+        node.querySelector("#lkWrap").innerHTML =
+          '<div class="lk-head"><span class="lk-logo">' + MOLONI_MARK + "</span>" +
+            '<span class="lk-brand"><span class="lk-brand__top"><b>Moloni</b><span class="lk-pos">POS</span></span>' +
+              "<small>" + POS.s("lock.brandTagline") + "</small></span></div>" +
+          '<div class="lock-card" id="lkCard">' +
+            '<div class="lock-badge">' + ic("lock", { size: 26 }) + "</div>" +
+            '<div class="lock-title">' + POS.s("lock.title") + "</div>" +
+            '<div class="lock-op"><span class="op-ava">' + initials(target.name) + '</span><b class="lock-opname">' + target.name + "</b></div>" +
+            '<div class="lock-pinhint">' + POS.s("lock.enterPin") + "</div>" +
+            '<div class="lk-dots" id="lkDots">' + dots() + "</div>" +
+            '<div class="lk-pad" id="lkPad"></div>' +
+            '<button class="lk-switch" id="lkSwitch" type="button">' + ic("repeat", { size: 16 }) + " " + POS.s("lock.switch") + "</button>" +
+          "</div>";
+        var pad = node.querySelector("#lkPad");
+        ["1","2","3","4","5","6","7","8","9","blank","0","back"].forEach(function (k) {
+          if (k === "blank") { var sp = document.createElement("span"); sp.className = "lk-key lk-key--blank"; sp.setAttribute("aria-hidden", "true"); pad.appendChild(sp); return; }
+          var b = document.createElement("button"); b.type = "button"; b.className = "lk-key";
+          if (k === "back") { b.className += " lk-key--ico"; b.innerHTML = ic("backspace", { size: 24 }); b.setAttribute("aria-label", "Backspace"); }
+          else b.textContent = k;
+          b.addEventListener("click", function () { press(k); });
+          pad.appendChild(b);
+        });
+        node.querySelector("#lkSwitch").addEventListener("click", chooseOp);
+      }
+      function redraw() { var d = node.querySelector("#lkDots"); if (d) d.innerHTML = dots(); }
+      function press(k) {
+        if (k === "back") { pin = pin.slice(0, -1); redraw(); return; }
+        var max = (target.pin || "0000").length || 4;
+        if (pin.length >= max) return;
+        pin += k; redraw();
+        if (pin.length === max) setTimeout(check, 120);
+      }
+      function check() {
+        if (pin === (target.pin || "")) { unlock(); return; }
+        var card = node.querySelector("#lkCard"); if (card) { card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake"); }
+        pin = ""; redraw(); POS.toast(POS.s("op.wrongPin"), { variant: "danger", duration: 1400 });
+      }
+      function chooseOp() {
+        var list = document.createElement("div"); list.className = "lk-oplist";
+        POS.operators.forEach(function (o) {
+          var b = document.createElement("button"); b.type = "button"; b.className = "op-row" + (o.id === target.id ? " is-sel" : "");
+          b.innerHTML = '<span class="op-ava">' + initials(o.name) + "</span><span class=\"op-info\"><b>" + o.name + "</b><small>" + POS.t(o.role) + "</small></span>";
+          b.addEventListener("click", function () { target = o; pin = ""; shell(); });
+          list.appendChild(b);
+        });
+        var card = node.querySelector("#lkCard");
+        card.innerHTML = '<div class="lock-brand"><span class="lock-logo">' + ic("register", { size: 22 }) + '</span><span class="lock-word">Moloni <b>POS</b></span></div>' +
+          '<div class="lock-title">' + POS.s("user.switchOperator") + "</div>";
+        card.appendChild(list);
+      }
+      function unlock() {
+        try { localStorage.removeItem("pos_locked"); } catch (e) {}
+        document.removeEventListener("keydown", onKey, true);
+        var app = $(".app"); if (app) { app.removeAttribute("inert"); app.removeAttribute("aria-hidden"); }
+        node.remove();
+        if (target.id !== fromId) {
+          POS.setTerminal({ operatorId: target.id, operatorName: target.name });
+          if (POS.cash.isOpen()) POS.cash.movement("handover", 0, currentOp().name);
+          renderUser();
+          POS.toast(POS.s("op.switched") + " · " + target.name, { variant: "success", duration: 1600 });
+        }
+      }
+      function onKey(e) {
+        if (/^[0-9]$/.test(e.key)) { e.preventDefault(); press(e.key); }
+        else if (e.key === "Backspace") { e.preventDefault(); press("back"); }
+      }
+      shell();
+      var app = $(".app"); if (app) { app.setAttribute("inert", ""); app.setAttribute("aria-hidden", "true"); }
+      document.body.appendChild(node);
+      var firstKey = node.querySelector(".lk-key"); if (firstKey) firstKey.focus();
+      document.addEventListener("keydown", onKey, true);
+    }
+    function openUserMenu(anchor) {
+      if (document.querySelector(".tb-menu")) return;
+      var fs = !!document.fullscreenElement;
+      function item(icon, label, act, warn) { return '<button class="tb-menu__item' + (warn ? " warn" : "") + '" role="menuitem" data-act="' + (act || "") + '">' + ic(icon, { size: 20 }) + "<span>" + POS.s(label) + "</span></button>"; }
+      var menu = document.createElement("div"); menu.className = "tb-menu"; menu.setAttribute("role", "menu");
+      menu.innerHTML =
+        '<div class="tb-menu__head"><span class="topbar__avatar">' + initials(POS.terminal().operatorName) + '</span><div><b>' + POS.terminal().operatorName + "</b><small>" + opRole(POS.terminal()) + "</small></div></div>" +
+        '<div class="tb-menu__sep"></div>' +
+        item("user", "user.profile", "profile") +
+        '<div class="tb-menu__sep"></div>' +
+        item("repeat", "user.switchOperator", "switch") + item(fs ? "minimize" : "maximize", fs ? "user.exitFullscreen" : "user.fullscreen", "fs") +
+        '<div class="tb-menu__sep"></div>' +
+        item("corner-up-left", "user.backToMoloni", "moloni") + item("log-out", "user.logout", "logout", true);
+      document.body.appendChild(menu);
+      var r = anchor.getBoundingClientRect();
+      menu.style.top = (r.bottom + 8) + "px"; menu.style.right = Math.max(8, window.innerWidth - r.right) + "px";
+      anchor.setAttribute("aria-expanded", "true");
+      function close() { menu.remove(); anchor.setAttribute("aria-expanded", "false"); document.removeEventListener("mousedown", onOut, true); document.removeEventListener("keydown", onEsc, true); }
+      function onOut(e) { if (!menu.contains(e.target) && !anchor.contains(e.target)) close(); }
+      function onEsc(e) { if (e.key === "Escape") close(); }
+      menu.addEventListener("click", function (e) { var b = e.target.closest("[data-act]"); if (!b) return; close(); handleUserAction(b.dataset.act); });
+      setTimeout(function () { document.addEventListener("mousedown", onOut, true); document.addEventListener("keydown", onEsc, true); }, 0);
+      var f = menu.querySelector(".tb-menu__item"); if (f) f.focus();
+    }
 
     /* ---------- Eventos ---------- */
     // Métodos de pagamento
@@ -982,10 +1346,13 @@
       });
     });
 
-    // Chips de tipo de documento
+    // Chips de tipo de documento (barra de topo)
     document.querySelectorAll(".top-chip").forEach(function (c) {
       c.addEventListener("click", function () { setDocType(c.dataset.dt); });
     });
+
+    // Card de dados da fatura
+    document.getElementById("billingCard").addEventListener("click", openDocOptions);
 
     // Seletor de cliente
     var btnCust = $("#btnCust");
@@ -998,6 +1365,10 @@
     // Modo dividido
     document.getElementById("btnMultiMode").addEventListener("click", toggleMultiMode);
 
+    // Topbar: lock + user menu
+    $("#tbLock").addEventListener("click", lockTerminal);
+    $("#tbUser").addEventListener("click", function () { openUserMenu($("#tbUser")); });
+
     /* ---------- Inicialização ---------- */
     POS.onLangChange(renderAll);
     POS.mountDevNav("sale");
@@ -1005,6 +1376,7 @@
     setDocType(docType);
     setMethod(method);
     renderAll();
+    tick(); setInterval(tick, 1000 * 20);
   })();
   </script>
 </body>

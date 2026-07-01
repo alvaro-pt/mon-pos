@@ -134,7 +134,7 @@ window.POS = window.POS || {};
       emit();
     },
 
-    clear: function () { state.lines = []; state.discount = null; state.vouchers = []; state.payments = []; state.attempts = []; emit(); },
+    clear: function () { state.lines = []; state.customerId = "final"; state.discount = null; state.vouchers = []; state.payments = []; state.attempts = []; emit(); },
 
     setCustomer: function (id) { state.customerId = id; emit(); },
     setDocType: function (t) { state.docType = t; emit(); },
@@ -258,7 +258,7 @@ window.POS = window.POS || {};
       if (!state.lines.length) return null;
       var snap = POS.cart.snapshot(); snap.id = "pk" + snap.ts;
       var list = readParked(); list.push(snap); writeParked(list);
-      state.lines = []; emit();
+      state.lines = []; state.customerId = "final"; emit();
       return snap;
     },
     parkedList: function () { return readParked(); },

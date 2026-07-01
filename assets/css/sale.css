@@ -543,18 +543,29 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .ps-email__label { font-size:var(--fs-xs); font-weight:600; color:var(--ink-500); text-transform:uppercase; letter-spacing:.05em; }
 .ps-email__row { display:flex; gap:var(--sp-2); }
 .ps-email__row .ff__in { flex:1; }
-/* Talão de oferta */
-.ps-offer { display:flex; flex-direction:column; gap:var(--sp-3); }
-.ps-offer__hint { font-size:var(--fs-sm); color:var(--ink-500); }
-.ps-offer__list { display:flex; flex-direction:column; gap:2px; }
-.ps-offer__row {
-  display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-2) var(--sp-3);
-  border-radius:var(--r-md); cursor:pointer; transition:background var(--t-fast);
+/* Talão de oferta — editor de linhas + stepper */
+.gift-hint { font-size:var(--fs-sm); color:var(--ink-500); margin-bottom:var(--sp-3); }
+.gift-lines { display:flex; flex-direction:column; gap:4px; }
+.gift-line {
+  display:flex; align-items:center; gap:var(--sp-3); padding:10px var(--sp-3);
+  border-radius:var(--r-md); transition:opacity var(--t-fast), background var(--t-fast);
 }
-.ps-offer__row:hover { background:var(--surface-2); }
-.ps-offer__chk { width:18px; height:18px; accent-color:var(--brand-600); flex-shrink:0; cursor:pointer; }
-.ps-offer__name { flex:1; font-size:var(--fs-sm); font-weight:500; }
-.ps-offer__qty { font-size:var(--fs-xs); color:var(--ink-500); font-variant-numeric:tabular-nums; }
+.gift-line:hover { background:var(--surface-2); }
+.gift-line--excluded { opacity:.38; }
+.gift-line__chk { width:18px; height:18px; accent-color:var(--brand-600); flex-shrink:0; cursor:pointer; }
+.gift-line__name { flex:1; font-size:var(--fs-sm); font-weight:500; }
+.gift-line__weight { font-size:var(--fs-xs); color:var(--ink-500); font-variant-numeric:tabular-nums; }
+.gift-stepper { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.gift-stepper__btn {
+  width:30px; height:30px; border-radius:50%; border:1.5px solid var(--line);
+  display:grid; place-items:center; color:var(--ink-700); flex-shrink:0;
+  transition:background var(--t-fast), border-color var(--t-fast), color var(--t-fast);
+}
+.gift-stepper__btn:hover:not(:disabled) { background:var(--brand-50); border-color:var(--brand-400); color:var(--brand-700); }
+.gift-stepper__btn:active:not(:disabled) { transform:scale(.9); }
+.gift-stepper__btn:disabled { opacity:.3; cursor:not-allowed; }
+.gift-stepper__val { min-width:22px; text-align:center; font-weight:700; font-variant-numeric:tabular-nums; font-size:var(--fs-base); }
+.gift-stepper__max { font-size:var(--fs-xs); color:var(--ink-400); font-variant-numeric:tabular-nums; }
 
 /* ---------- Dialog de detalhes do produto ---------- */
 .pd { width:min(560px,100%); }
@@ -992,7 +1003,7 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .menu__item.danger .ic-svg { color:var(--danger-600); }
 
 /* lista de clientes + formulário */
-.clist { display:flex; flex-direction:column; max-height:min(38vh, 300px); overflow-y:auto; margin:0 -4px; padding:0 4px; }
+.clist { display:flex; flex-direction:column; max-height:min(52vh, 420px); overflow-y:auto; margin:0 -4px; padding:0 4px; }
 .cust-foot { border-top:1px solid var(--line); margin-top:var(--sp-3); padding-top:var(--sp-3); }
 .cust-nifrow { display:flex; align-items:stretch; gap:var(--sp-2); }
 .cust-nifrow .ff__in { flex:1; height:56px; font-size:var(--fs-md); }
@@ -1000,8 +1011,24 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .cust-expand { display:flex; align-items:center; gap:8px; margin-top:var(--sp-3); color:var(--brand-700); font-weight:700; font-size:var(--fs-base); }
 .cust-expand .ic-svg { transition:transform var(--t-fast) var(--ease); }
 .cust-expand[aria-expanded="true"] .ic-svg { transform:rotate(45deg); }
+.cust-expand[hidden] { display:none; }
 .cust-form { display:flex; flex-direction:column; gap:var(--sp-3); margin-top:var(--sp-3); }
 .cust-form[hidden] { display:none; }   /* colapsado por defeito (classe vencia o [hidden]) */
+/* Fast checkout NIF — card inline quando NIF não existe */
+.cust-nif-fast {
+  display:flex; align-items:center; gap:var(--sp-3);
+  width:100%; padding:var(--sp-3) var(--sp-4);
+  border-radius:var(--r-lg); border:1.5px solid var(--brand-300);
+  background:var(--brand-50); text-align:left;
+  transition:border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.cust-nif-fast:hover       { border-color:var(--brand-500); background:var(--brand-100); }
+.cust-nif-fast:focus-visible { outline:none; box-shadow:0 0 0 3px var(--brand-100); border-color:var(--brand-500); }
+.cust-nif-fast__ic   { color:var(--brand-600); flex:none; display:flex; }
+.cust-nif-fast__body { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.cust-nif-fast__body b     { font-size:var(--fs-sm); font-weight:800; color:var(--brand-800); }
+.cust-nif-fast__body small { font-size:var(--fs-xs); font-weight:500; color:var(--brand-600); line-height:1.3; }
+.cust-nif-fast__chev { color:var(--brand-400); flex:none; display:flex; }
 .ff { display:flex; flex-direction:column; gap:5px; }
 .ff > span { font-size:var(--fs-xs); font-weight:600; color:var(--ink-500); text-transform:uppercase; letter-spacing:.03em; }
 .ff__in { height:48px; border:1.5px solid var(--line); border-radius:var(--r-md); padding:0 12px; font-size:var(--fs-base); background:var(--surface);

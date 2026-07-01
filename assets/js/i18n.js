@@ -243,6 +243,7 @@ window.POS = window.POS || {};
     "doc.disc":          { pt: "Desc.",                en: "Disc." },
     "doc.pvpUnit":       { pt: "PVP Unit.",            en: "Unit price" },
     "doc.giftReceipt":   { pt: "Talão de troca",       en: "Exchange receipt" },
+    "doc.giftEditorHint":{ pt: "Seleciona os artigos e ajusta as quantidades a incluir no talão.", en: "Select items and adjust quantities to include in the gift receipt." },
     "doc.saleReceipt":   { pt: "Talão de venda",       en: "Sales receipt" },
     "tax.normal":        { pt: "IVA normal",           en: "VAT standard" },
     "tax.intermedia":    { pt: "IVA intermédia",       en: "VAT intermediate" },
@@ -412,6 +413,8 @@ window.POS = window.POS || {};
     "act.back":          { pt: "Voltar",                en: "Back" },
 
     // Cliente / NIF
+    "cust.nifFastHint":  { pt: "NIF não encontrado — avançar e criar automaticamente", en: "VAT not found — proceed and create automatically" },
+    "cust.nifSaved":     { pt: "cliente criado com NIF",   en: "customer created with VAT no." },
     "cust.search":       { pt: "Procurar cliente ou NIF…", en: "Search customer or VAT no.…" },
     "cust.invoiceNif":   { pt: "Faturar com NIF",       en: "Invoice with VAT no." },
     "cust.nifPlaceholder": { pt: "Introduzir NIF",      en: "Enter VAT number" },
@@ -444,6 +447,10 @@ window.POS = window.POS || {};
     "park.pick":         { pt: "Selecione uma venda suspensa", en: "Select a parked sale" },
 
     // Pagamento — formulário de documento
+    "pay.back":           { pt: "Voltar à venda",      en: "Back to sale" },
+    "pay.billingData":    { pt: "Dados da Fatura",     en: "Invoice Details" },
+    "pay.split":          { pt: "Dividir pagamento",   en: "Split payment" },
+    "pay.split.short":    { pt: "Dividir",             en: "Split" },
     "pay.emit":           { pt: "Emitir documento",    en: "Issue document" },
     "pay.customer":       { pt: "Cliente",             en: "Customer" },
     "pay.docType":        { pt: "Tipo de documento",   en: "Document type" },
