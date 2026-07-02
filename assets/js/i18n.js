@@ -85,6 +85,8 @@ window.POS = window.POS || {};
 
     // Talão / carrinho
     "cart.title":        { pt: "Venda atual",        en: "Current sale" },
+    "cart.items":        { pt: "artigos",            en: "items" },
+    "cart.item":         { pt: "artigo",             en: "item" },
     "cart.soldBy":       { pt: "Operador",           en: "Sold by" },
     "cart.doc":          { pt: "Documento",          en: "Document" },
     "cart.park":         { pt: "Suspender",          en: "Park" },
@@ -308,6 +310,10 @@ window.POS = window.POS || {};
     "cash.statusClosed": { pt: "Caixa fechada",         en: "Register closed" },
     "cash.balance":      { pt: "Saldo em caixa",        en: "Drawer balance" },
     "cash.noMov":        { pt: "Sem movimentos",        en: "No movements" },
+    "cash.noMovements":  { pt: "Sem movimentos no turno", en: "No movements this shift" },
+    "cash.chartIn":      { pt: "Entradas",               en: "Cash in" },
+    "cash.chartOut":     { pt: "Saídas",                 en: "Cash out" },
+    "cash.viewChart":    { pt: "Ver gráfico do turno",   en: "View shift chart" },
     "cash.alreadyOpen":  { pt: "A caixa já está aberta", en: "Register is already open" },
     "cash.notOpen":      { pt: "A caixa não está aberta", en: "Register is not open" },
     // estado da caixa / bloqueio de venda

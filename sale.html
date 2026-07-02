@@ -79,6 +79,7 @@
 
     <!-- Talão -->
     <aside class="cart" aria-label="Venda atual">
+      <button class="mob-cart-back" id="mobCartBack" type="button" aria-label="Voltar ao catálogo"></button>
       <div class="cart__head">
         <button class="cart__more" id="btnMore" type="button" aria-label="Mais ações"></button>
         <button class="customer" id="btnCustomer" type="button">
@@ -252,6 +253,7 @@
     function buildCaixaPlaceholder(body) {
       var open = POS.cash.isOpen();
       body.innerHTML = '<div class="set-sec">' +
+        '<button class="btn btn--block cash-chart-btn" data-cash="chart" type="button" style="margin-bottom:var(--sp-3)">' + ic("bar-chart-2", { size: 18 }) + " " + POS.s("cash.viewChart") + "</button>" +
         '<div class="cash-status ' + (open ? "is-open" : "") + '"><span>' + POS.s(open ? "cash.statusOpen" : "cash.statusClosed") +
           '</span>' + (open ? '<span class="num">' + POS.s("cash.balance") + ": <b>" + POS.money(POS.cash.balance()) + "</b></span>" : "") + "</div>" +
         '<div class="cash-grid cash-grid--6" style="margin-top:var(--sp-3)">' +
@@ -1235,12 +1237,132 @@
       if (kind === "nosale") return noSale();
       if (kind === "summary") return cashSummary();
       if (kind === "detailed") return cashDetailed();
+      if (kind === "chart") return openCashChartModal();
     }
     // após qualquer mudança de estado: refrescar ecrã aberto, rail, banner e botão Pagar
     function afterCashChange() {
       if (reopenScreen && !$("#screen").hidden) reopenScreen();
       syncCashUI();
       renderSummary();
+    }
+
+    function openCashChartModal() {
+      var d = POS.cash.read();
+
+      // agregar dados do turno
+      var totalIn = 0, totalOut = 0, events = [];
+      if (d.openTs) {
+        d.movements.forEach(function (m) {
+          if (m.ts < d.openTs) return;
+          if (m.type === "open" || m.type === "in") { totalIn += m.amount; events.push({ ts: m.ts, delta: m.amount, type: m.type }); }
+          else if (m.type === "out")                { totalOut += m.amount; events.push({ ts: m.ts, delta: -m.amount, type: m.type }); }
+        });
+        events.sort(function (a, b) { return a.ts - b.ts; });
+      }
+      var runBal = 0;
+      events.forEach(function (e) { runBal += e.delta; e.runBal = runBal; });
+      var bal = (d.open && d.openTs) ? POS.cash.balance() : 0;
+      var n = events.length;
+
+      // --- SVG ---
+      var W = 400, H = 200;
+      var pL = 52, pR = 16, pT = 16, pB = 36;
+      var cW = W - pL - pR, cH = H - pT - pB;
+
+      var maxBal = 0;
+      events.forEach(function (e) { if (e.runBal > maxBal) maxBal = e.runBal; });
+      maxBal = maxBal || 1;
+
+      // Y-axis: nice round ticks (4 guides)
+      function niceStep(max, ticks) {
+        var raw = max / ticks;
+        var mag = Math.pow(10, Math.floor(Math.log(raw) / Math.LN10));
+        var nice = [1, 2, 2.5, 5, 10].map(function (m) { return m * mag; }).find(function (v) { return v >= raw; }) || raw;
+        return nice;
+      }
+      var step = niceStep(maxBal, 4);
+      var topVal = Math.ceil(maxBal / step) * step || step;
+      var yScale = cH / topVal;
+      var ticks = [];
+      for (var v = 0; v <= topVal; v += step) ticks.push(v);
+
+      function xPos(i) { return n > 1 ? pL + (i / (n - 1)) * cW : pL + cW / 2; }
+      function yPos(val) { return pT + cH - val * yScale; }
+
+      // guide lines + Y labels
+      var guides = ticks.map(function (tv) {
+        var y = yPos(tv).toFixed(1);
+        var label = tv >= 100 ? (tv / 100).toFixed(tv % 100 === 0 ? 0 : 1) + "€" : tv.toFixed(0) + "¢";
+        if (tv >= 100) label = POS.money(tv * 100 / 100 * 100); // use cents: tv is in euros here? No — amounts are in cents
+        // actually amounts are in cents so tv is cents
+        label = tv >= 10000 ? (tv / 100).toFixed(0) + "€" : tv >= 100 ? (tv / 100).toFixed(2).replace(".", ",") + "€" : tv + "¢";
+        return '<line x1="' + pL + '" y1="' + y + '" x2="' + (W - pR) + '" y2="' + y + '" stroke="var(--line)" stroke-width="1" ' + (tv === 0 ? '' : 'stroke-dasharray="3 3"') + '/>' +
+          '<text x="' + (pL - 6) + '" y="' + (parseFloat(y) + 4) + '" text-anchor="end" font-size="10" fill="var(--ink-400)">' + label + '</text>';
+      }).join("");
+
+      // area fill path
+      var areaPts = "", linePts = "";
+      if (n > 0) {
+        var first = xPos(0).toFixed(1) + "," + yPos(events[0].runBal).toFixed(1);
+        var last  = xPos(n - 1).toFixed(1) + "," + yPos(events[n - 1].runBal).toFixed(1);
+        var midPoints = events.map(function (e, i) { return xPos(i).toFixed(1) + "," + yPos(e.runBal).toFixed(1); }).join(" ");
+        areaPts = "M " + xPos(0).toFixed(1) + "," + yPos(0).toFixed(1) +
+                  " L " + midPoints.split(" ").join(" L ") +
+                  " L " + xPos(n - 1).toFixed(1) + "," + yPos(0).toFixed(1) + " Z";
+        linePts = midPoints;
+      }
+
+      // dots coloured by type
+      var dotsHtml = events.map(function (e, i) {
+        var cx = xPos(i).toFixed(1), cy = yPos(e.runBal).toFixed(1);
+        var col = e.type === "out" ? "var(--danger-600)" : "var(--pay-600)";
+        return '<circle cx="' + cx + '" cy="' + cy + '" r="4.5" fill="var(--surface)" stroke="' + col + '" stroke-width="2"/>';
+      }).join("");
+
+      // X labels (time) — show first, last, and up to 3 in between
+      var xLabels = "";
+      var labelIdx = n <= 5 ? events.map(function (_, i) { return i; }) :
+        [0, Math.floor(n * 0.25), Math.floor(n * 0.5), Math.floor(n * 0.75), n - 1];
+      labelIdx.forEach(function (i) {
+        if (i >= n) return;
+        var x = xPos(i).toFixed(1);
+        var t = new Date(events[i].ts).toLocaleTimeString(POS.lang === "pt" ? "pt-PT" : "en-IE", { hour: "2-digit", minute: "2-digit" });
+        xLabels += '<text x="' + x + '" y="' + (H - 8) + '" text-anchor="middle" font-size="9.5" fill="var(--ink-400)">' + t + '</text>';
+      });
+
+      var emptyMsg = n === 0 ?
+        '<text x="' + (W / 2) + '" y="' + (pT + cH / 2 + 5) + '" text-anchor="middle" font-size="12" fill="var(--ink-400)">' + POS.s("cash.noMovements") + '</text>' : "";
+
+      var gradId = "cg" + Date.now();
+      var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="display:block;overflow:visible" aria-hidden="true" focusable="false">' +
+        '<defs><linearGradient id="' + gradId + '" x1="0" y1="0" x2="0" y2="1">' +
+          '<stop offset="0%" stop-color="var(--brand-500)" stop-opacity="0.18"/>' +
+          '<stop offset="100%" stop-color="var(--brand-500)" stop-opacity="0"/>' +
+        '</linearGradient></defs>' +
+        guides +
+        (n > 0 ? '<path d="' + areaPts + '" fill="url(#' + gradId + ')"/>' : '') +
+        (n > 0 ? '<polyline points="' + linePts + '" fill="none" stroke="var(--brand-500)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' : '') +
+        dotsHtml + xLabels + emptyMsg +
+        '</svg>';
+
+      // --- KPI chips ---
+      var kpis = '<div class="cash-chart-kpis">' +
+        '<div class="cash-chart-kpi cash-chart-kpi--in"><span>' + POS.s("cash.chartIn") + '</span><b>' + POS.money(totalIn) + '</b></div>' +
+        '<div class="cash-chart-kpi cash-chart-kpi--out"><span>' + POS.s("cash.chartOut") + '</span><b>' + POS.money(totalOut) + '</b></div>' +
+        '<div class="cash-chart-kpi cash-chart-kpi--bal"><span>' + POS.s("cash.balance") + '</span><b>' + POS.money(bal) + '</b></div>' +
+        '</div>';
+
+      // --- legenda ---
+      var legend = '<div class="cash-chart-legend">' +
+        '<span class="cash-chart-legend__item cash-chart-legend__item--in">' + POS.s("cash.chartIn") + '</span>' +
+        '<span class="cash-chart-legend__item cash-chart-legend__item--out">' + POS.s("cash.chartOut") + '</span>' +
+        '<span class="cash-chart-legend__item cash-chart-legend__item--bal">' + POS.s("cash.balance") + '</span>' +
+        '</div>';
+
+      var wrap = document.createElement("div");
+      wrap.className = "sheet cash-chart-modal";
+      wrap.innerHTML = kpis + '<div class="cash-chart-area">' + svg + '</div>' + legend;
+      POS.openModal(wrap, { label: POS.s("cash.viewChart") });
     }
 
     function openCashMovements() {
@@ -1256,7 +1378,8 @@
           cashCard("in", "cash.in", "arrow-right") + cashCard("out", "cash.out", "corner-up-left") +
           cashCard("summary", "cash.summary", "info") + cashCard("detailed", "cash.detailed", "file") +
         "</div>" +
-        (open ? '<button class="btn btn--block" data-cash="nosale" type="button" style="margin-top:var(--sp-3)">' + ic("inbox", { size: 18 }) + " " + POS.s("cash.nosale") + "</button>" : "");
+        (open ? '<button class="btn btn--block" data-cash="nosale" type="button" style="margin-top:var(--sp-3)">' + ic("inbox", { size: 18 }) + " " + POS.s("cash.nosale") + "</button>" : "") +
+        '<button class="btn btn--block cash-chart-btn" data-cash="chart" type="button" style="margin-top:var(--sp-2)">' + ic("bar-chart-2", { size: 18 }) + " " + POS.s("cash.viewChart") + "</button>";
       var close = POS.openModal(wrap, { label: POS.s("cash.title") });
       wrap.querySelectorAll("[data-cash]").forEach(function (b) {
         b.addEventListener("click", function () { close(); cashAction(b.dataset.cash); });
@@ -2641,10 +2764,50 @@
     $("#tbLock").addEventListener("click", lockTerminal);
     $("#tbUser").addEventListener("click", function () { openUserMenu($("#tbUser")); });
 
-    function renderCart() { renderDoc(); renderCustomer(); renderLines(); renderSummary(); }
+    function renderCart() { renderDoc(); renderCustomer(); renderLines(); renderSummary(); renderMobCartBar(); }
     function renderAll() { applyStatic(); paintStaticIcons(); renderRail(); renderCatalog(); renderCart(); renderOps(); syncCashUI(); renderUser(); }
 
-    POS.onCartChange(function () { renderCustomer(); renderLines(); renderSummary(); renderGrid(); renderOps(); });
+    /* ---------- Barra mobile do carrinho ---------- */
+    (function () {
+      var bar = document.createElement("div"); bar.className = "mob-cart-bar"; bar.id = "mobCartBar";
+      bar.innerHTML =
+        '<span class="mob-cart-bar__ic" id="mcbIc"></span>' +
+        '<div class="mob-cart-bar__info"><span class="mob-cart-bar__count" id="mcbCount"></span><span class="mob-cart-bar__total" id="mcbTotal"></span></div>' +
+        '<button class="btn btn--primary mob-cart-bar__cta" id="mcbCta" type="button"></button>';
+      document.body.appendChild(bar);
+
+      var app = $(".app");
+      function openMobCart() { app.classList.add("mob-cart-open"); }
+      function closeMobCart() { app.classList.remove("mob-cart-open"); }
+
+      bar.addEventListener("click", openMobCart);
+      var backBtn = $("#mobCartBack");
+      if (backBtn) {
+        backBtn.innerHTML = ic("chevron-left", { size: 18 }) + " " + POS.s("cat.back");
+        backBtn.addEventListener("click", closeMobCart);
+      }
+
+      // fechar cart mobile ao ir para pagamento
+      var origPayFn = window.__mobCartPayHooked;
+      if (!origPayFn) {
+        document.addEventListener("click", function (e) {
+          if (e.target.closest("#btnPay")) closeMobCart();
+        }, true);
+      }
+    })();
+
+    function renderMobCartBar() {
+      var bar = $("#mobCartBar"); if (!bar) return;
+      var n = cart.lines.reduce(function (s, l) { return s + (l.weighable ? 1 : (l.qty || 1)); }, 0);
+      var total = cart.totals().totalCents;
+      var mcbIc = $("#mcbIc"); if (mcbIc) mcbIc.innerHTML = ic("shopping-cart", { size: 22 });
+      var mcbCount = $("#mcbCount"); if (mcbCount) mcbCount.textContent = n > 0 ? n + " " + POS.s(n === 1 ? "cart.item" : "cart.items") : POS.s("cart.empty.title");
+      var mcbTotal = $("#mcbTotal"); if (mcbTotal) mcbTotal.textContent = POS.money(total);
+      var mcbCta = $("#mcbCta"); if (mcbCta) { mcbCta.textContent = POS.s("cart.title"); }
+      bar.classList.toggle("mob-cart-bar--empty", n === 0);
+    }
+
+    POS.onCartChange(function () { renderCustomer(); renderLines(); renderSummary(); renderGrid(); renderOps(); renderMobCartBar(); });
     POS.onLayoutChange(function () { renderOps(); renderLines(); });
     POS.onLangChange(renderAll);
     POS.onLangChange(function () { if (reopenScreen && !$("#screen").hidden) reopenScreen(); });

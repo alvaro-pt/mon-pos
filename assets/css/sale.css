@@ -713,6 +713,26 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .cash-valbtn.is-set { color:var(--ink-900); }
 .cash-grid--6 { grid-template-columns:repeat(3, 1fr); }
 .cash-grid--6 .cash-card { min-height:92px; gap:8px; font-size:var(--fs-sm); }
+
+/* Gráfico de fluxo de caixa */
+/* Gráfico de turno — modal */
+.cash-chart-modal { min-width:min(480px,100%); }
+.cash-chart-kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--sp-2); margin-bottom:var(--sp-4); }
+.cash-chart-kpi { display:flex; flex-direction:column; gap:4px; padding:12px var(--sp-3); border-radius:var(--r-lg); background:var(--surface-2); }
+.cash-chart-kpi span { font-size:var(--fs-xs); color:var(--ink-500); font-weight:500; text-transform:uppercase; letter-spacing:.04em; }
+.cash-chart-kpi b { font-size:var(--fs-md); font-weight:800; font-variant-numeric:tabular-nums; }
+.cash-chart-kpi--in b  { color:var(--pay-700); }
+.cash-chart-kpi--out b { color:var(--danger-600); }
+.cash-chart-kpi--bal b { color:var(--brand-700); }
+.cash-chart-area { background:var(--surface-2); border-radius:var(--r-lg); padding:var(--sp-3) var(--sp-2) var(--sp-2); }
+.cash-chart-legend { display:flex; gap:var(--sp-4); justify-content:center; margin-top:var(--sp-3); }
+.cash-chart-legend__item { display:flex; align-items:center; gap:6px; font-size:var(--fs-xs); color:var(--ink-500); }
+.cash-chart-legend__item::before { content:""; width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.cash-chart-legend__item--in::before  { background:var(--pay-600); }
+.cash-chart-legend__item--out::before { background:var(--danger-600); }
+.cash-chart-legend__item--bal::before { background:var(--brand-500); }
+.cash-chart-btn { color:var(--brand-700); border-color:var(--brand-200); background:var(--brand-50); }
+.cash-chart-btn:hover { background:var(--brand-100); border-color:var(--brand-400); }
 .ff__hint { display:block; font-size:var(--fs-xs); color:var(--ink-500); margin-top:6px; }
 .ff-denom { display:inline-flex; align-items:center; gap:6px; margin-top:8px; padding:7px 11px; border-radius:var(--r-md);
   border:1.5px solid var(--line); background:var(--surface); color:var(--brand-700); font-weight:700; font-size:var(--fs-sm); align-self:flex-start; }
@@ -1049,16 +1069,90 @@ body.osk-open .modal { max-height:calc(58vh); }
 @media (max-width:1120px) {
   .topbar__brand { max-width:200px; }
 }
-@media (max-width:880px) {
+
+/* Tablet portrait (640–880px) */
+@media (max-width:880px) and (min-width:641px) {
   .app, :root[data-layout="b"] .app, :root[data-layout="c"] .app {
-    grid-template-columns:1fr; grid-template-rows:auto auto 1fr;
-    grid-template-areas:"top" "rail" "cat" "cart";
+    grid-template-columns: 64px 1fr clamp(280px, 40vw, 380px);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "top top top" "rail cat cart";
   }
-  :root[data-layout="c"] .ops { display:none; }   /* coluna de operações colapsa no mobile */
-  .rail { flex-direction:row; justify-content:space-around; border-right:none; border-bottom:1px solid var(--shell-line); padding:6px; }
-  .rail__item { flex-direction:row; min-height:48px; gap:8px; width:auto; padding:0 14px; }
-  .rail__spacer { display:none; }
-  .cart, :root[data-layout="b"] .cart { border-left:none; border-right:none; border-top:1px solid var(--line); max-height:50vh; }
+  :root[data-layout="c"] .app {
+    grid-template-columns: 64px 1fr clamp(280px, 40vw, 380px);
+    grid-template-areas: "top top top" "rail cat cart";
+  }
+  :root[data-layout="c"] .ops { display:none; }
+  .rail__item { min-height:52px; width:52px; }
+  .grid { grid-template-columns:repeat(4,1fr); }
+}
+
+/* Mobile (≤ 640px) — catálogo full screen + cart como painel deslizante */
+@media (max-width:640px) {
+  .app, :root[data-layout="b"] .app, :root[data-layout="c"] .app {
+    grid-template-columns: 56px 1fr;
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "top top" "rail cat";
+  }
+  :root[data-layout="c"] .ops { display:none; }
+
+  /* rail vertical compacto */
+  .rail { padding:var(--sp-2) 6px; }
+  .rail__item { width:44px; min-height:44px; font-size:9px; gap:3px; }
+  .rail__item span:not(.ic-svg):not(.rail__badge) { display:none; }  /* esconde labels de texto */
+  .rail__spacer { flex:1; }
+
+  /* topbar compacto */
+  .topbar { gap:var(--sp-2); padding:0 var(--sp-3); }
+  .topbar__brand { display:none; }  /* esconde nome da loja/terminal */
+  .topbar__dot { display:none; }
+
+  /* catalog — padding inferior para não ficar atrás da mob-cart-bar */
+  .catalog { padding-bottom:72px; }
+  .grid { grid-template-columns:repeat(3,1fr); }
+
+  /* cart — painel fixo que desliza de baixo */
+  .cart, :root[data-layout="b"] .cart {
+    position:fixed; inset:0; top:56px;
+    z-index:55;
+    border:none;
+    transform:translateY(calc(100% + 2px));
+    transition:transform .28s cubic-bezier(.32,.72,0,1);
+    overflow-y:auto;
+    max-height:none;
+  }
+  .mob-cart-open .cart { transform:translateY(0); }
+
+  /* botão "← Catálogo" no topo do cart — só mobile */
+  .mob-cart-back {
+    display:flex; align-items:center; gap:var(--sp-2);
+    padding:10px var(--sp-4); width:100%;
+    border-bottom:1px solid var(--line);
+    font-size:var(--fs-sm); font-weight:600; color:var(--brand-700);
+  }
+  .mob-cart-back:hover { background:var(--surface-2); }
+
+  /* screen in-place */
+  .screen { position:fixed; inset:0; top:56px; z-index:55; }
+}
+
+/* barra de resumo do cart (mobile) */
+.mob-cart-bar {
+  display:none;
+  position:fixed; bottom:0; left:0; right:0;
+  height:64px; z-index:50;
+  background:var(--surface); border-top:1.5px solid var(--line);
+  align-items:center; gap:var(--sp-3); padding:0 var(--sp-4);
+  box-shadow:0 -4px 16px rgba(0,0,0,.08);
+}
+.mob-cart-bar__ic { color:var(--ink-500); flex:none; }
+.mob-cart-bar__info { flex:1; min-width:0; }
+.mob-cart-bar__count { display:block; font-size:var(--fs-xs); color:var(--ink-500); }
+.mob-cart-bar__total { display:block; font-size:var(--fs-md); font-weight:800; font-variant-numeric:tabular-nums; }
+.mob-cart-bar__cta { flex:none; }
+.mob-cart-bar--empty .mob-cart-bar__cta { display:none; }
+@media (max-width:640px) {
+  .mob-cart-bar { display:flex; }
+  .mob-cart-open .mob-cart-bar { display:none; }
 }
 
 /* ---------- Consolidação multi-terminal por loja (gestão) ---------- */
