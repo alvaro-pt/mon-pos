@@ -363,6 +363,8 @@ body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
 .cart { grid-area:cart; min-height:0; display:flex; flex-direction:column; background:var(--surface); border-left:1px solid var(--line); }
 /* em layout B (talão à esquerda) a borda fica à direita */
 :root[data-layout="b"] .cart { border-left:none; border-right:1px solid var(--line); }
+/* botão "← Catálogo" do talão mobile — só existe visualmente <=640px (ver media query) */
+.mob-cart-back { display:none; }
 
 /* ---------- Coluna de Operações (Layout C) ---------- */
 .ops { grid-area:ops; min-height:0; display:none; flex-direction:column; gap:var(--sp-2);
